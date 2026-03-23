@@ -1,31 +1,47 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
+/** Extract content of an XML tag, stripping CDATA wrappers. */
+function extractTag(xml: string, tag: string): string {
+  const re = new RegExp(
+    `<${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/${tag}>`,
+    "i",
+  );
+  const m = xml.match(re);
+  return m ? m[1].trim() : "";
+}
+
+/** Parse RSS 2.0 <item> blocks with regex — works in Deno without DOMParser. */
 function parseRssItems(xmlText: string) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(xmlText, "text/xml");
-  if (!doc) return [];
+  const items: {
+    external_id: string;
+    title: string;
+    summary: string;
+    link: string;
+    category: string;
+    published_at: string | null;
+    raw_xml: string;
+  }[] = [];
 
-  return Array.from(doc.querySelectorAll("item")).map((item) => {
-    const title = item.querySelector("title")?.textContent?.trim() ?? "Untitled";
-    const link = item.querySelector("link")?.textContent?.trim() ?? "";
-    const guid =
-      item.querySelector("guid")?.textContent?.trim() ?? link ?? crypto.randomUUID();
-    const summary = item.querySelector("description")?.textContent?.trim() ?? "";
-    const category = item.querySelector("category")?.textContent?.trim() ?? "General";
-    const pubDate = item.querySelector("pubDate")?.textContent?.trim();
-    const publishedAt = pubDate ? new Date(pubDate).toISOString() : null;
+  const itemRe = /<item[\s>]([\s\S]*?)<\/item>/gi;
+  let m: RegExpExecArray | null;
 
-    return {
-      external_id: guid,
-      title,
-      summary,
-      link,
-      category,
-      published_at: publishedAt,
-      raw_xml: item.outerHTML ?? "",
-    };
-  });
+  while ((m = itemRe.exec(xmlText)) !== null) {
+    const block = m[1];
+    const title = extractTag(block, "title") || "Untitled";
+    const link = extractTag(block, "link");
+    const guid = extractTag(block, "guid") || link || crypto.randomUUID();
+    const summary = extractTag(block, "description") || extractTag(block, "summary");
+    const category = extractTag(block, "category") || "General";
+    const pubDate = extractTag(block, "pubDate") || extractTag(block, "dc:date") || extractTag(block, "published");
+    const publishedAt = pubDate ? (() => { try { return new Date(pubDate).toISOString(); } catch { return null; } })() : null;
+
+    if (title && (link || guid)) {
+      items.push({ external_id: guid, title, summary, link, category, published_at: publishedAt, raw_xml: m[0].slice(0, 2000) });
+    }
+  }
+
+  return items;
 }
 
 serve(async () => {
@@ -35,13 +51,13 @@ serve(async () => {
   if (!supabaseUrl || !supabaseKey) {
     return new Response(
       JSON.stringify({ ok: false, error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY." }),
-      { status: 400 },
+      { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Load all active RSS sources from the database (respects admin enable/disable)
+  // Load all active RSS sources
   const { data: sources, error: sourcesError } = await supabase
     .from("sources")
     .select("id, url, organization_id")
@@ -51,28 +67,39 @@ serve(async () => {
   if (sourcesError) {
     return new Response(
       JSON.stringify({ ok: false, error: sourcesError.message }),
-      { status: 500 },
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
   if (!sources || sources.length === 0) {
     return new Response(
-      JSON.stringify({ ok: true, count: 0, results: [], note: "No active RSS sources found." }),
-      { status: 200 },
+      JSON.stringify({ ok: true, count: 0, results: [], note: "No active RSS sources found in database." }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
     );
   }
 
-  const ingestResults = [];
+  const ingestResults: { feed: string; inserted: number; error: string | null }[] = [];
+  let totalInserted = 0;
 
   for (const source of sources) {
     try {
-      const response = await fetch(source.url);
+      const response = await fetch(source.url, {
+        headers: { "User-Agent": "EASA-Compliance-Bot/1.0" },
+        signal: AbortSignal.timeout(15000),
+      });
+
       if (!response.ok) {
         ingestResults.push({ feed: source.url, inserted: 0, error: `HTTP ${response.status}` });
         continue;
       }
+
       const xmlText = await response.text();
       const items = parseRssItems(xmlText);
+
+      if (items.length === 0) {
+        ingestResults.push({ feed: source.url, inserted: 0, error: "No <item> elements found in feed" });
+        continue;
+      }
 
       const payload = items.map((item) => ({
         ...item,
@@ -84,11 +111,12 @@ serve(async () => {
         .from("rss_items")
         .upsert(payload, { onConflict: "external_id" });
 
-      ingestResults.push({
-        feed: source.url,
-        inserted: payload.length,
-        error: insertError?.message ?? null,
-      });
+      if (insertError) {
+        ingestResults.push({ feed: source.url, inserted: 0, error: insertError.message });
+      } else {
+        ingestResults.push({ feed: source.url, inserted: payload.length, error: null });
+        totalInserted += payload.length;
+      }
     } catch (err) {
       ingestResults.push({
         feed: source.url,
@@ -99,11 +127,7 @@ serve(async () => {
   }
 
   return new Response(
-    JSON.stringify({
-      ok: true,
-      count: ingestResults.reduce((sum, r) => sum + r.inserted, 0),
-      results: ingestResults,
-    }),
-    { status: 200 },
+    JSON.stringify({ ok: true, count: totalInserted, results: ingestResults }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
   );
 });
