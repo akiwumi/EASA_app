@@ -1,21 +1,34 @@
-import Link from "next/link";
+import { createClient } from "@supabase/supabase-js";
+import FlightbooksBrowser from "@/components/flightbooks/FlightbooksBrowser";
 
-export default function FlightbooksPage() {
-  return (
-    <main className="easa-card p-8">
-      <h1 className="text-xl font-semibold">Flight books</h1>
-      <p className="mt-2 text-sm text-[var(--easa-color-text-muted)]">
-        Document browser, section tree, and inline editing ship in Phase 5
-        (MASTER_BUILD §11.6).
-      </p>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Link className="easa-btn secondary" href="/flightbooks/upload">
-          Upload (admin)
-        </Link>
-        <Link className="easa-btn primary" href="/dashboard">
-          Dashboard
-        </Link>
-      </div>
-    </main>
+async function loadBooks() {
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
   );
+
+  const { data: books } = await admin
+    .from("flightbooks")
+    .select("id, name, doc_type, version_label, active, created_at")
+    .order("created_at", { ascending: false });
+
+  if (!books?.length) return [];
+
+  const { data: counts } = await admin
+    .from("flightbook_sections")
+    .select("flightbook_id")
+    .in("flightbook_id", books.map((b) => b.id));
+
+  const countMap = new Map<string, number>();
+  for (const row of counts ?? []) {
+    countMap.set(row.flightbook_id, (countMap.get(row.flightbook_id) ?? 0) + 1);
+  }
+
+  return books.map((b) => ({ ...b, sectionCount: countMap.get(b.id) ?? 0 }));
+}
+
+export default async function FlightbooksPage() {
+  const books = await loadBooks();
+  return <FlightbooksBrowser books={books} />;
 }
