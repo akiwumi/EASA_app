@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { useRef, useState } from "react";
+import { FileText, CheckCircle, AlertCircle, Upload } from "lucide-react";
 
 const DOC_TYPES = ["OM-A", "OM-B", "OM-C", "OM-D", "MEL", "MMEL", "MCC", "AOM", "FCL", "Other"];
 
@@ -18,7 +18,6 @@ interface UploadResult {
 
 export default function FlightbookUpload({ existingBooks }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [dragging, setDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
   const [targetMode, setTargetMode] = useState<"new" | "existing">("new");
@@ -31,19 +30,13 @@ export default function FlightbookUpload({ existingBooks }: Props) {
   const [results, setResults] = useState<UploadResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const pickFile = (f: File) => {
+  function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0] ?? null;
     setFile(f);
     setResults(null);
     setError(null);
-    if (!docName) setDocName(f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "));
-  };
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragging(false);
-    const f = e.dataTransfer.files[0];
-    if (f) pickFile(f);
-  }, []);
+    if (f && !docName) setDocName(f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "));
+  }
 
   async function upload() {
     if (!file) return;
@@ -70,27 +63,26 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       setFile(null);
       setDocName("");
       setVersionLabel("");
+      if (inputRef.current) inputRef.current.value = "";
     }
     setUploading(false);
   }
 
-  const acceptedTypes = ".pdf,.txt,.md,.json";
   const totalSections = results?.reduce((s, r) => s + r.sectionsImported, 0) ?? 0;
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6 max-w-xl">
       <div>
         <h1 className="text-xl font-semibold">Upload flight book</h1>
         <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-          Import a PDF, plain text, or JSON fixture. The AI will use the extracted sections to map against EASA regulation changes.
+          Import a PDF, plain text, or JSON fixture. Sections are extracted automatically and indexed for AI regulation comparison.
         </p>
       </div>
 
-      {/* Success */}
       {results && (
-        <div className="easa-card border-[var(--easa-color-accent-green)] p-4">
+        <div className="easa-card p-4">
           <div className="flex items-center gap-2 text-[var(--easa-color-accent-green)]">
-            <CheckCircle size={18} strokeWidth={1.75} />
+            <CheckCircle size={16} strokeWidth={1.75} />
             <span className="font-semibold text-sm">Import complete — {totalSections} sections saved</span>
           </div>
           <ul className="mt-2 space-y-1 text-xs text-[var(--easa-color-text-muted)]">
@@ -101,109 +93,108 @@ export default function FlightbookUpload({ existingBooks }: Props) {
         </div>
       )}
 
-      {/* Error */}
       {error && (
-        <div className="easa-card border-[var(--easa-color-accent-pink)] p-4">
+        <div className="easa-card p-4">
           <div className="flex items-center gap-2 text-[var(--easa-color-accent-pink)]">
-            <AlertCircle size={18} strokeWidth={1.75} />
+            <AlertCircle size={16} strokeWidth={1.75} />
             <span className="text-sm">{error}</span>
           </div>
         </div>
       )}
 
-      {/* Drop zone */}
-      <div
-        className={`rounded-[var(--easa-radius-md)] border-2 border-dashed p-10 text-center transition cursor-pointer ${
-          dragging
-            ? "border-[var(--easa-color-brand-primary)] bg-[color-mix(in_srgb,var(--easa-color-brand-primary)_8%,transparent)]"
-            : "border-[var(--easa-color-border)] hover:border-[var(--easa-color-brand-primary)] hover:bg-[var(--easa-color-surface-2)]"
-        }`}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-        onClick={() => inputRef.current?.click()}
-      >
-        <input ref={inputRef} type="file" accept={acceptedTypes} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); }} />
-        {file ? (
-          <div className="flex flex-col items-center gap-2">
-            <FileText size={32} strokeWidth={1.5} className="text-[var(--easa-color-brand-primary)]" />
-            <p className="font-medium text-sm">{file.name}</p>
-            <p className="text-xs text-[var(--easa-color-text-muted)]">{(file.size / 1024).toFixed(0)} KB · click to change</p>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-[var(--easa-color-text-muted)]">
-            <Upload size={32} strokeWidth={1.5} />
-            <p className="font-medium text-sm">Drop a file here or click to browse</p>
-            <p className="text-xs">PDF · TXT · MD · JSON (sample-import format)</p>
+      <div className="easa-card space-y-4 p-5">
+        {/* File picker */}
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">File</label>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.txt,.md,.json"
+            className="easa-input w-full cursor-pointer"
+            onChange={onFileChange}
+          />
+          {file && (
+            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--easa-color-text-muted)]">
+              <FileText size={12} strokeWidth={1.75} />
+              {file.name} · {(file.size / 1024).toFixed(0)} KB
+            </p>
+          )}
+          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">PDF · TXT · MD · JSON</p>
+        </div>
+
+        {/* Target book */}
+        {existingBooks.length > 0 && (
+          <div>
+            <label className="mb-2 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Save to</label>
+            <div className="flex gap-4">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="radio" name="target" checked={targetMode === "new"} onChange={() => setTargetMode("new")} />
+                New flight book
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input type="radio" name="target" checked={targetMode === "existing"} onChange={() => setTargetMode("existing")} />
+                Replace existing book
+              </label>
+            </div>
           </div>
         )}
+
+        {targetMode === "existing" && existingBooks.length > 0 ? (
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Select book</label>
+            <select className="easa-input w-full" value={selectedBookId} onChange={(e) => setSelectedBookId(e.target.value)}>
+              <option value="">— choose —</option>
+              {existingBooks.map((b) => (
+                <option key={b.id} value={b.id}>{b.name} ({b.doc_type})</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">Existing sections will be replaced.</p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Document name</label>
+              <input
+                className="easa-input w-full"
+                value={docName}
+                onChange={(e) => setDocName(e.target.value)}
+                placeholder="e.g. Operations Manual Part A"
+              />
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Type</label>
+                <select className="easa-input w-full" value={docType} onChange={(e) => setDocType(e.target.value)}>
+                  {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Version</label>
+                <input
+                  className="easa-input w-full"
+                  value={versionLabel}
+                  onChange={(e) => setVersionLabel(e.target.value)}
+                  placeholder="e.g. Rev 2.1"
+                />
+              </div>
+            </div>
+          </>
+        )}
+
+        <button
+          className="easa-btn primary flex w-full items-center justify-center gap-2"
+          disabled={uploading || !file || (targetMode === "existing" && !selectedBookId)}
+          onClick={upload}
+        >
+          <Upload size={15} strokeWidth={1.75} />
+          {uploading ? "Processing…" : "Import flight book"}
+        </button>
       </div>
 
-      {file && (
-        <div className="easa-card space-y-4 p-5">
-          {/* Target: new or existing book */}
-          {existingBooks.length > 0 && (
-            <div>
-              <label className="mb-2 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Save to</label>
-              <div className="flex gap-3">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="radio" checked={targetMode === "new"} onChange={() => setTargetMode("new")} />
-                  New flight book
-                </label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="radio" checked={targetMode === "existing"} onChange={() => setTargetMode("existing")} />
-                  Replace sections in existing book
-                </label>
-              </div>
-            </div>
-          )}
-
-          {targetMode === "existing" && existingBooks.length > 0 ? (
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Select book</label>
-              <select className="easa-input w-full" value={selectedBookId} onChange={(e) => setSelectedBookId(e.target.value)}>
-                <option value="">— choose —</option>
-                {existingBooks.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name} ({b.doc_type})</option>
-                ))}
-              </select>
-              <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">Existing sections will be replaced.</p>
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Document name</label>
-                <input className="easa-input w-full" value={docName} onChange={(e) => setDocName(e.target.value)} placeholder="e.g. Operations Manual Part A" />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Doc type</label>
-                  <select className="easa-input w-full" value={docType} onChange={(e) => setDocType(e.target.value)}>
-                    {DOC_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div className="flex-1">
-                  <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Version (optional)</label>
-                  <input className="easa-input w-full" value={versionLabel} onChange={(e) => setVersionLabel(e.target.value)} placeholder="e.g. Rev 2.1" />
-                </div>
-              </div>
-            </>
-          )}
-
-          <button
-            className="easa-btn primary w-full justify-center"
-            disabled={uploading || (targetMode === "existing" && !selectedBookId)}
-            onClick={upload}
-          >
-            {uploading ? "Processing…" : "Import flight book"}
-          </button>
-        </div>
-      )}
-
       <div className="easa-card p-4 text-xs text-[var(--easa-color-text-muted)] space-y-1">
-        <p><strong className="text-[var(--easa-color-text-secondary)]">PDF</strong> — text is extracted and split into sections automatically using numbered headings (e.g. 1.2.3)</p>
-        <p><strong className="text-[var(--easa-color-text-secondary)]">TXT / MD</strong> — same section detection applied to plain text</p>
-        <p><strong className="text-[var(--easa-color-text-secondary)]">JSON</strong> — use the <code>sample-import.json</code> format in <code>data/fixtures/flightbooks/</code></p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">PDF</strong> — text extracted and split by numbered headings (1.2.3 pattern)</p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">TXT / MD</strong> — same section detection on plain text</p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">JSON</strong> — use the <code>sample-import.json</code> format from <code>data/fixtures/flightbooks/</code></p>
       </div>
     </div>
   );

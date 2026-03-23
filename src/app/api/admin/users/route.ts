@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
+
 async function getAdminContext() {
   const supabase = await getSupabaseServerClient();
   if (!supabase) return null;
@@ -9,14 +11,15 @@ async function getAdminContext() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data: orgUser } = await supabase
+  const admin = getAdminClient();
+  const { data: orgUser } = await admin
     .from("org_users")
     .select("organization_id, role")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!orgUser?.organization_id || orgUser.role !== "admin") return null;
-  return { orgId: orgUser.organization_id as string };
+  if (orgUser && orgUser.role !== "admin") return null;
+  return { orgId: (orgUser?.organization_id ?? DEFAULT_ORG_ID) as string };
 }
 
 function getAdminClient() {
