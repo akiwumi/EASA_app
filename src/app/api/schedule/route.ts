@@ -82,15 +82,25 @@ export async function POST(request: Request) {
   const timeForDb = runTimeUtc.length === 5 ? `${runTimeUtc}:00` : runTimeUtc;
   const runsPerDay = Math.min(4, Math.max(1, Number(payload.runsPerDay ?? DEFAULT_SCHEDULE.runsPerDay)));
 
-  const { error } = await admin.from("schedules").upsert({
-    organization_id: orgId,
+  const body = {
     cadence: payload.cadence ?? DEFAULT_SCHEDULE.cadence,
     run_time_utc: timeForDb,
     runs_per_day: runsPerDay,
     run_times_utc: Array.from({ length: runsPerDay }, () => timeForDb),
     enabled: payload.enabled ?? DEFAULT_SCHEDULE.enabled,
     updated_at: new Date().toISOString(),
-  }, { onConflict: "organization_id" });
+  };
+
+  // Manual upsert: update if row exists, otherwise insert
+  const { data: existing } = await admin
+    .from("schedules")
+    .select("id")
+    .eq("organization_id", orgId)
+    .maybeSingle();
+
+  const { error } = existing
+    ? await admin.from("schedules").update(body).eq("organization_id", orgId)
+    : await admin.from("schedules").insert({ ...body, organization_id: orgId });
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 400 });

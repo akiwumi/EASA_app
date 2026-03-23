@@ -23,6 +23,17 @@ alter table schedules add column if not exists auto_approve_delay_hours int not 
 alter table schedules add column if not exists notify_on_detect boolean not null default true;
 alter table schedules add column if not exists default_export_fmt text not null default 'pdf';
 
+-- Add unique constraint on organization_id if it doesn't already exist
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'schedules_organization_id_key'
+      and conrelid = 'schedules'::regclass
+  ) then
+    alter table schedules add constraint schedules_organization_id_key unique (organization_id);
+  end if;
+end $$;
+
 alter table schedules enable row level security;
 
 -- Drop and recreate policies to avoid duplicate errors
