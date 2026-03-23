@@ -21,9 +21,12 @@ export type EasaUpdate = {
 };
 
 export const EASA_RSS_FEEDS = [
-  "https://www.easa.europa.eu/en/rss/news",
-  "https://www.easa.europa.eu/en/rss/consultations",
-  "https://www.easa.europa.eu/en/rss/publications",
+  "https://www.easa.europa.eu/en/newsroom-and-events/news/feed.xml",
+  "https://www.easa.europa.eu/en/newsroom-and-events/press-releases/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/notices-of-proposed-amendment/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/opinions/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/easy-access-rules/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/acceptable-means-of-compliance-and-guidance-material/feed.xml",
 ];
 
 const MOCK_UPDATES: EasaUpdate[] = [
