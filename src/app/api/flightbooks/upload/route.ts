@@ -142,13 +142,8 @@ export async function POST(request: Request) {
 
   // ── PDF ─────────────────────────────────────────────────────────────────────
   else if (filename.endsWith(".pdf")) {
-    let pdfParse: (buf: Buffer) => Promise<{ text: string }>;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      pdfParse = require("pdf-parse");
-    } catch {
-      return NextResponse.json({ error: "PDF parsing not available — upload a .txt or .json file instead." }, { status: 400 });
-    }
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require("pdf-parse") as (buf: Buffer) => Promise<{ text: string }>;
     const parsed = await pdfParse(bytes);
     const sections = detectSections(parsed.text);
     documents = [{ docName: docName ?? file.name.replace(/\.pdf$/i, ""), docType, versionLabel, sections }];
