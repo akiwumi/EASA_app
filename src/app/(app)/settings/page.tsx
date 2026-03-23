@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Users, BookOpen, Bot } from "lucide-react";
+import { Users, BookOpen, Bot, Rss } from "lucide-react";
 import UsersTab from "@/components/admin/UsersTab";
 import FlightbooksTab from "@/components/admin/FlightbooksTab";
 import AiSettingsTab from "@/components/admin/AiSettingsTab";
+import SourcesTab from "@/components/admin/SourcesTab";
 
 const TABS = [
   { id: "users", label: "Users", icon: Users },
   { id: "flightbooks", label: "Flight books", icon: BookOpen },
+  { id: "sources", label: "RSS feeds", icon: Rss },
   { id: "ai", label: "AI settings", icon: Bot },
 ] as const;
 
@@ -51,6 +53,7 @@ export default function SettingsPage() {
       {/* Tab content */}
       {active === "users" && <UsersTab />}
       {active === "flightbooks" && <FlightbooksTab />}
+      {active === "sources" && <SourcesTab />}
       {active === "ai" && <AiSettingsTab />}
     </div>
   );
