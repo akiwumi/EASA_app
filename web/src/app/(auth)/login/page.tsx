@@ -5,6 +5,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
+/** Dummy admin from scripts/create-admin-user.mjs: use login "admin" (→ admin@easa.local). */
+const DUMMY_ADMIN_EMAIL = "admin@easa.local";
+
+function toSignInEmail(input: string) {
+  const t = input.trim();
+  if (!t) return t;
+  if (t.includes("@")) return t;
+  if (t.toLowerCase() === "admin") return DUMMY_ADMIN_EMAIL;
+  return t;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +36,7 @@ export default function LoginPage() {
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: toSignInEmail(email),
       password,
     });
 
@@ -36,7 +47,8 @@ export default function LoginPage() {
     }
 
     setStatus("idle");
-    router.push("/results");
+    router.push("/dashboard");
+    router.refresh();
   };
 
   return (
@@ -56,11 +68,12 @@ export default function LoginPage() {
           <div className="easa-card p-6">
             <form className="space-y-4" onSubmit={handleSubmit}>
               <label className="block text-xs text-[var(--easa-color-text-muted)]">
-                Email
+                Email or username
                 <input
                   className="mt-2 w-full rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-sm text-[var(--easa-color-text-secondary)] outline-none"
-                  placeholder="name@school.org"
-                  type="email"
+                  autoComplete="username"
+                  placeholder="admin or name@school.org"
+                  type="text"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   required
@@ -99,11 +112,7 @@ export default function LoginPage() {
           </div>
 
           <div className="text-center text-xs text-[var(--easa-color-text-muted)]">
-            New here? Ask your admin for an invite or{" "}
-            <Link className="text-[var(--easa-color-accent-blue)]" href="/dashboard">
-              view the demo dashboard
-            </Link>
-            .
+            New here? Ask your admin for an invite.
           </div>
         </div>
       </div>

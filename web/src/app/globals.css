@@ -143,6 +143,11 @@ body {
   color: var(--easa-color-accent-pink);
 }
 
+.easa-badge.is-purple {
+  background: color-mix(in srgb, var(--easa-color-accent-purple) 20%, transparent);
+  color: var(--easa-color-accent-purple);
+}
+
 .easa-btn {
   display: inline-flex;
   align-items: center;

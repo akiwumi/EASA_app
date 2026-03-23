@@ -21,7 +21,7 @@ export default function AiScrapeButton() {
       }
 
       setStatus("done");
-      setMessage("AI scrape completed. Results updated.");
+      setMessage("RSS ingest and AI analysis completed.");
     } catch (error) {
       const messageText =
         error instanceof Error ? error.message : "Unable to run scrape.";
@@ -38,7 +38,7 @@ export default function AiScrapeButton() {
         onClick={runScrape}
         disabled={status === "running"}
       >
-        {status === "running" ? "Running AI scrape..." : "Run AI scrape"}
+        {status === "running" ? "Running pipeline..." : "Run RSS + AI"}
       </button>
       {message ? (
         <p className="mt-3 text-xs text-[var(--easa-color-text-muted)]">{message}</p>

@@ -1,0 +1,49 @@
+{
+  "organizationId": "00000000-0000-4000-8000-000000000001",
+  "documents": [
+    {
+      "name": "ATPL D — Classroom Training Rev 1.0",
+      "docType": "syllabus",
+      "versionLabel": "Rev 1.0",
+      "sections": [
+        {
+          "sectionNumber": "010.01",
+          "title": "Air Law overview",
+          "body": "Placeholder syllabus content for Air Law (010.01–010.06) aligned with Part-FCL and SERA. Replace with full manual text after import.",
+          "sortOrder": 10
+        },
+        {
+          "sectionNumber": "010.04.02",
+          "title": "Personnel licensing (Part-FCL)",
+          "body": "Placeholder for personnel licensing topics referencing Reg (EU) No 1178/2011 Annex I.",
+          "sortOrder": 20
+        },
+        {
+          "sectionNumber": "010.04.03",
+          "title": "Medical certification (Part-MED)",
+          "body": "Placeholder for Part-MED medical certification requirements.",
+          "sortOrder": 30
+        },
+        {
+          "sectionNumber": "010.06",
+          "title": "Aircraft operations (CAT / NCC / NCO)",
+          "body": "Placeholder for operations rules spanning Part-CAT, Part-NCC, and Part-NCO.",
+          "sortOrder": 40
+        }
+      ]
+    },
+    {
+      "name": "TM — Theory Manual Rev 1",
+      "docType": "training_manual",
+      "versionLabel": "Rev 1",
+      "sections": [
+        {
+          "sectionNumber": "TM.01",
+          "title": "EASA ATPL theory programme overview",
+          "body": "Placeholder theory manual body covering Part-FCL, Part-ORA, and CS-FSTD(A) references.",
+          "sortOrder": 10
+        }
+      ]
+    }
+  ]
+}

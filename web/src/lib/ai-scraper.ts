@@ -94,7 +94,7 @@ function buildCollation(items: EasaUpdate[], updatedAt: string): CollatedUpdates
 }
 
 export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
 
   if (!supabase) {
     return buildCollation(MOCK_UPDATES, "2026-01-24 06:26 UTC");

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
+import Anthropic from "npm:@anthropic-ai/sdk@0.39.0";
 
 type AnalysisResult = {
   impact: "High" | "Medium" | "Low";
@@ -18,6 +19,9 @@ const DEFAULT_RESULT: AnalysisResult = {
   category: "Operations",
   summary: "Proposed update requires a review by compliance.",
 };
+
+const CLAUDE_MODEL =
+  Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
 
 function heuristicAnalysis(title: string, summary: string): AnalysisResult {
   const text = `${title} ${summary}`.toLowerCase();
@@ -58,53 +62,74 @@ function heuristicAnalysis(title: string, summary: string): AnalysisResult {
   return DEFAULT_RESULT;
 }
 
+function extractJsonObject(text: string): Record<string, unknown> | null {
+  const trimmed = text.trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    return JSON.parse(trimmed.slice(start, end + 1)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 async function aiAnalysis(
   title: string,
   summary: string,
 ): Promise<AnalysisResult> {
-  const openAiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!openAiKey) {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
     return heuristicAnalysis(title, summary);
   }
 
-  const prompt = `
-You are a compliance assistant. Analyze this EASA RSS update and return JSON with
-impact (High/Medium/Low), confidence (percentage string), mapped_section,
-status (New/Analyzed/Ready), category, summary.
+  const client = new Anthropic({ apiKey });
+  const prompt =
+    `You are a compliance assistant. Analyze this EASA RSS update and return a single JSON object with keys:
+impact (High, Medium, or Low),
+confidence (percentage string like "82%"),
+mapped_section (short internal manual reference),
+status (New, Analyzed, or Ready),
+category (short label),
+summary (one sentence).
+
 Update:
 Title: ${title}
 Summary: ${summary}
-`.trim();
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openAiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-
-  if (!response.ok) {
-    return heuristicAnalysis(title, summary);
-  }
-
-  const data = await response.json();
-  const content = data?.choices?.[0]?.message?.content ?? "";
+Return only valid JSON, no markdown or commentary.`;
 
   try {
-    const parsed = JSON.parse(content);
+    const response = await client.messages.create({
+      model: CLAUDE_MODEL,
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const block = response.content?.[0];
+    const text =
+      block && block.type === "text" ? block.text : "";
+    const parsed = extractJsonObject(text);
+    if (!parsed) {
+      return heuristicAnalysis(title, summary);
+    }
+
+    const impactRaw = String(parsed.impact ?? "");
+    const impact = ["High", "Medium", "Low"].includes(impactRaw)
+      ? (impactRaw as AnalysisResult["impact"])
+      : DEFAULT_RESULT.impact;
+
     return {
-      impact: parsed.impact ?? DEFAULT_RESULT.impact,
-      confidence: parsed.confidence ?? DEFAULT_RESULT.confidence,
-      mapped_section: parsed.mapped_section ?? DEFAULT_RESULT.mapped_section,
-      status: parsed.status ?? DEFAULT_RESULT.status,
-      category: parsed.category ?? DEFAULT_RESULT.category,
-      summary: parsed.summary ?? DEFAULT_RESULT.summary,
+      impact,
+      confidence: String(parsed.confidence ?? DEFAULT_RESULT.confidence),
+      mapped_section: String(
+        parsed.mapped_section ?? DEFAULT_RESULT.mapped_section,
+      ),
+      status: (["New", "Analyzed", "Ready"].includes(String(parsed.status))
+        ? parsed.status
+        : DEFAULT_RESULT.status) as AnalysisResult["status"],
+      category: String(parsed.category ?? DEFAULT_RESULT.category),
+      summary: String(parsed.summary ?? DEFAULT_RESULT.summary),
     };
   } catch {
     return heuristicAnalysis(title, summary);
