@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
-import Anthropic from "npm:@anthropic-ai/sdk@0.39.0";
 
 type AnalysisResult = {
   impact: "High" | "Medium" | "Low";
@@ -20,44 +19,17 @@ const DEFAULT_RESULT: AnalysisResult = {
   summary: "Proposed update requires a review by compliance.",
 };
 
-const CLAUDE_MODEL =
-  Deno.env.get("ANTHROPIC_MODEL") ?? "claude-sonnet-4-20250514";
-
-/** Simple keyword-based fallback when no AI key is present. */
 function heuristicAnalysis(title: string, summary: string): AnalysisResult {
   const text = `${title} ${summary}`.toLowerCase();
-
   if (text.includes("medical") || text.includes("licensing")) {
-    return {
-      impact: "High",
-      confidence: "88%",
-      mapped_section: "General — Aircrew / Licensing",
-      status: "New",
-      category: "Aircrew",
-      summary: "Medical/licensing changes require immediate attention.",
-    };
+    return { impact: "High", confidence: "88%", mapped_section: "General — Aircrew / Licensing", status: "New", category: "Aircrew", summary: "Medical/licensing changes require immediate attention." };
   }
   if (text.includes("fuel") || text.includes("ops") || text.includes("operation")) {
-    return {
-      impact: "Medium",
-      confidence: "79%",
-      mapped_section: "General — Operations",
-      status: "Analyzed",
-      category: "Operations",
-      summary: "Operational procedures need a check for updated reserves.",
-    };
+    return { impact: "Medium", confidence: "79%", mapped_section: "General — Operations", status: "Analyzed", category: "Operations", summary: "Operational procedures need a check for updated reserves." };
   }
   if (text.includes("training") || text.includes("syllabus")) {
-    return {
-      impact: "Low",
-      confidence: "84%",
-      mapped_section: "General — Training",
-      status: "Ready",
-      category: "Training",
-      summary: "Training documentation should reflect updated syllabus details.",
-    };
+    return { impact: "Low", confidence: "84%", mapped_section: "General — Training", status: "Ready", category: "Training", summary: "Training documentation should reflect updated syllabus details." };
   }
-
   return DEFAULT_RESULT;
 }
 
@@ -66,49 +38,23 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
   if (start === -1 || end === -1 || end <= start) return null;
-  try {
-    return JSON.parse(trimmed.slice(start, end + 1)) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(trimmed.slice(start, end + 1)) as Record<string, unknown>; }
+  catch { return null; }
 }
 
-type FlightbookSection = {
-  id: string;
-  section_number: string | null;
-  title: string | null;
-  body: string;
-  flightbook_name: string;
-};
+type FlightbookSection = { id: string; section_number: string | null; title: string | null; flightbook_name: string };
 
-async function aiAnalysis(
-  title: string,
-  summary: string,
-  sections: FlightbookSection[],
-): Promise<AnalysisResult> {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    return heuristicAnalysis(title, summary);
-  }
-
-  const client = new Anthropic({ apiKey });
-
-  // Build a condensed section index for the prompt (title only, not full body)
+function buildPrompt(title: string, summary: string, sections: FlightbookSection[]): string {
   const sectionList = sections
     .slice(0, 40)
-    .map((s) => {
-      const ref = s.section_number ? `${s.section_number} ` : "";
-      return `- [${s.flightbook_name}] ${ref}${s.title ?? "(untitled)"}`;
-    })
+    .map((s) => `- [${s.flightbook_name}] ${s.section_number ? s.section_number + " " : ""}${s.title ?? "(untitled)"}`)
     .join("\n");
 
-  const hasBooks = sections.length > 0;
-
-  const prompt = `You are a compliance assistant for an aviation flight school.
-Analyse this EASA regulatory update and return a single JSON object with these keys:
+  return `You are a compliance assistant for an aviation flight school.
+Analyse this EASA regulatory update and return a single JSON object with keys:
 - impact: "High", "Medium", or "Low"
 - confidence: percentage string like "82%"
-- mapped_section: the most relevant section from the flight book list below (use the exact format "[Book name] section_number title"), or "General" if none apply
+- mapped_section: the most relevant section from the flight book list below (exact format "[Book name] section_number title"), or "General" if none apply
 - status: "New", "Analyzed", or "Ready"
 - category: short label (e.g. Aircrew, Operations, Training, Safety, Airworthiness)
 - summary: one sentence explaining what needs to be reviewed or updated
@@ -117,21 +63,77 @@ EASA Update:
 Title: ${title}
 Summary: ${summary}
 
-${hasBooks
-  ? `Flight book sections (identify which one is most affected):\n${sectionList}`
-  : "No flight book sections have been uploaded yet. Use a general reference."}
+${sections.length > 0 ? `Flight book sections:\n${sectionList}` : "No flight book sections uploaded yet. Use a general reference."}
 
 Return only valid JSON, no markdown or commentary.`;
+}
+
+// ── OpenAI-compatible providers (OpenAI, Groq) ──────────────────────────────
+async function callOpenAI(apiKey: string, model: string, baseUrl: string, prompt: string): Promise<string | null> {
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({ model, max_tokens: 512, messages: [{ role: "user", content: prompt }] }),
+  });
+  if (!res.ok) return null;
+  const json = await res.json() as { choices?: { message?: { content?: string } }[] };
+  return json.choices?.[0]?.message?.content ?? null;
+}
+
+// ── Anthropic ────────────────────────────────────────────────────────────────
+async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<string | null> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({ model, max_tokens: 512, messages: [{ role: "user", content: prompt }] }),
+  });
+  if (!res.ok) return null;
+  const json = await res.json() as { content?: { type: string; text: string }[] };
+  const block = json.content?.find((b) => b.type === "text");
+  return block?.text ?? null;
+}
+
+// ── Google Gemini ────────────────────────────────────────────────────────────
+async function callGoogle(apiKey: string, model: string, prompt: string): Promise<string | null> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { maxOutputTokens: 512 } }),
+  });
+  if (!res.ok) return null;
+  const json = await res.json() as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  return json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+}
+
+async function aiAnalysis(
+  title: string,
+  summary: string,
+  sections: FlightbookSection[],
+  provider: string,
+  model: string,
+  apiKey: string,
+): Promise<AnalysisResult> {
+  const prompt = buildPrompt(title, summary, sections);
 
   try {
-    const response = await client.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 512,
-      messages: [{ role: "user", content: prompt }],
-    });
+    let text: string | null = null;
 
-    const block = response.content?.[0];
-    const text = block && block.type === "text" ? block.text : "";
+    if (provider === "openai") {
+      text = await callOpenAI(apiKey, model, "https://api.openai.com/v1", prompt);
+    } else if (provider === "groq") {
+      text = await callOpenAI(apiKey, model, "https://api.groq.com/openai/v1", prompt);
+    } else if (provider === "anthropic") {
+      text = await callAnthropic(apiKey, model, prompt);
+    } else if (provider === "google") {
+      text = await callGoogle(apiKey, model, prompt);
+    }
+
+    if (!text) return heuristicAnalysis(title, summary);
     const parsed = extractJsonObject(text);
     if (!parsed) return heuristicAnalysis(title, summary);
 
@@ -144,9 +146,7 @@ Return only valid JSON, no markdown or commentary.`;
       impact,
       confidence: String(parsed.confidence ?? DEFAULT_RESULT.confidence),
       mapped_section: String(parsed.mapped_section ?? DEFAULT_RESULT.mapped_section),
-      status: (["New", "Analyzed", "Ready"].includes(String(parsed.status))
-        ? parsed.status
-        : DEFAULT_RESULT.status) as AnalysisResult["status"],
+      status: (["New", "Analyzed", "Ready"].includes(String(parsed.status)) ? parsed.status : DEFAULT_RESULT.status) as AnalysisResult["status"],
       category: String(parsed.category ?? DEFAULT_RESULT.category),
       summary: String(parsed.summary ?? DEFAULT_RESULT.summary),
     };
@@ -160,18 +160,34 @@ serve(async () => {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !supabaseKey) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY." }),
-      { status: 400 },
-    );
+    return new Response(JSON.stringify({ ok: false, error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY." }), { status: 400 });
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
+  // Load AI provider config saved via admin panel
+  const { data: aiConfig } = await supabase
+    .from("ai_provider_config")
+    .select("provider, model, api_key")
+    .limit(1)
+    .maybeSingle();
+
+  const provider = aiConfig?.provider ?? "anthropic";
+  const model = aiConfig?.model ?? "claude-sonnet-4-20250514";
+  // Fall back to environment variable if no key stored in DB yet
+  const apiKey = (aiConfig?.api_key as string | null) ?? Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ ok: false, error: "No API key configured. Add one in Admin → AI settings." }),
+      { status: 400 },
+    );
+  }
+
   // Fetch unanalyzed RSS items
   const { data: rssItems, error } = await supabase
     .from("rss_items")
-    .select("id,title,summary,category,organization_id,source_id,published_at,ai_findings(id)")
+    .select("id,title,summary,category,organization_id,published_at,ai_findings(id)")
     .is("ai_findings.id", null)
     .order("published_at", { ascending: false })
     .limit(25);
@@ -180,10 +196,10 @@ serve(async () => {
     return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 });
   }
 
-  // Fetch flightbook sections for context (active books only, titles only for token efficiency)
+  // Fetch active flightbook section titles for mapping context
   const { data: rawSections } = await supabase
     .from("flightbook_sections")
-    .select("id, section_number, title, body, flightbooks!inner(name, active)")
+    .select("id, section_number, title, flightbooks!inner(name, active)")
     .eq("flightbooks.active", true)
     .not("title", "is", null)
     .order("sort_order", { ascending: true })
@@ -191,19 +207,13 @@ serve(async () => {
 
   const sections: FlightbookSection[] = (rawSections ?? []).map((s) => {
     const fb = Array.isArray(s.flightbooks) ? s.flightbooks[0] : s.flightbooks;
-    return {
-      id: s.id,
-      section_number: s.section_number,
-      title: s.title,
-      body: s.body,
-      flightbook_name: (fb as { name: string })?.name ?? "Unknown",
-    };
+    return { id: s.id, section_number: s.section_number, title: s.title, flightbook_name: (fb as { name: string })?.name ?? "Unknown" };
   });
 
   const findingsPayload = [];
 
   for (const item of rssItems ?? []) {
-    const analysis = await aiAnalysis(item.title, item.summary ?? "", sections);
+    const analysis = await aiAnalysis(item.title, item.summary ?? "", sections, provider, model, apiKey);
     findingsPayload.push({
       rss_item_id: item.id,
       organization_id: item.organization_id ?? null,
@@ -217,24 +227,14 @@ serve(async () => {
   }
 
   if (findingsPayload.length > 0) {
-    const { error: insertError } = await supabase
-      .from("ai_findings")
-      .insert(findingsPayload);
-
+    const { error: insertError } = await supabase.from("ai_findings").insert(findingsPayload);
     if (insertError) {
-      return new Response(
-        JSON.stringify({ ok: false, error: insertError.message }),
-        { status: 500 },
-      );
+      return new Response(JSON.stringify({ ok: false, error: insertError.message }), { status: 500 });
     }
   }
 
   return new Response(
-    JSON.stringify({
-      ok: true,
-      analyzed: findingsPayload.length,
-      bookSectionsUsed: sections.length,
-    }),
+    JSON.stringify({ ok: true, analyzed: findingsPayload.length, provider, model, bookSectionsUsed: sections.length }),
     { status: 200 },
   );
 });
