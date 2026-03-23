@@ -75,7 +75,6 @@ export default function AppShell({
       await supabase.auth.signOut();
     }
     router.push("/login");
-    router.refresh();
   };
 
   const renderNavLink = (item: (typeof NAV)[number], onNavigate?: () => void) => {

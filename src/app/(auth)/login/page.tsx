@@ -48,7 +48,6 @@ export default function LoginPage() {
 
     setStatus("idle");
     router.push("/dashboard");
-    router.refresh();
   };
 
   return (
