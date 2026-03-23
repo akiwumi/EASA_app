@@ -107,20 +107,33 @@ export default function SourcesTab() {
           <p className="p-4 text-sm text-[var(--easa-color-text-muted)]">No sources configured.</p>
         ) : (
           sources.map((s) => (
-            <div key={s.id} className="flex items-center gap-3 px-4 py-3">
-              <Rss size={14} strokeWidth={1.75} className="shrink-0 text-[var(--easa-color-text-muted)]" />
+            <div key={s.id} className={`flex items-center gap-3 px-4 py-3 transition ${s.active ? "" : "opacity-50"}`}>
+              {/* RSS icon — orange when active, muted when inactive */}
+              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition ${
+                s.active
+                  ? "bg-[var(--easa-color-accent-orange)]/15"
+                  : "bg-[var(--easa-color-surface-2)]"
+              }`}>
+                <Rss
+                  size={14}
+                  strokeWidth={1.75}
+                  className={s.active ? "text-[var(--easa-color-accent-orange)]" : "text-[var(--easa-color-text-muted)]"}
+                />
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm">{s.url}</p>
-                <p className="text-xs text-[var(--easa-color-text-muted)] uppercase">{s.type}</p>
+                <p className="text-xs text-[var(--easa-color-text-muted)] uppercase">
+                  {s.type} · {s.active ? <span className="text-[var(--easa-color-accent-green)]">active</span> : <span>inactive</span>}
+                </p>
               </div>
               <button
-                className="shrink-0 text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)] transition"
+                className="shrink-0 transition"
                 title={s.active ? "Disable feed" : "Enable feed"}
                 onClick={() => toggleActive(s.id, s.active)}
               >
                 {s.active
-                  ? <ToggleRight size={20} strokeWidth={1.75} className="text-[var(--easa-color-accent-green)]" />
-                  : <ToggleLeft size={20} strokeWidth={1.75} />
+                  ? <ToggleRight size={22} strokeWidth={1.75} className="text-[var(--easa-color-accent-green)]" />
+                  : <ToggleLeft size={22} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
                 }
               </button>
               <button
