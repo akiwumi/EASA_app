@@ -1,4 +1,12 @@
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+}
 
 export type EasaUpdate = {
   id: string;
@@ -94,16 +102,11 @@ function buildCollation(items: EasaUpdate[], updatedAt: string): CollatedUpdates
 }
 
 export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
-  const supabase = await getSupabaseServerClient();
-
-  if (!supabase) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return buildCollation(MOCK_UPDATES, "2026-01-24 06:26 UTC");
   }
 
-  const { data: authData } = await supabase.auth.getUser();
-  if (!authData?.user) {
-    return buildCollation([], "Login required");
-  }
+  const supabase = getAdminClient();
 
   const { data, error } = await supabase
     .from("ai_findings")
@@ -130,7 +133,7 @@ export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
     .limit(50);
 
   if (error || !data) {
-    return buildCollation([], "No results available");
+    return buildCollation([], error?.message ?? "No results available");
   }
 
   const items: EasaUpdate[] = data.map((finding) => {
