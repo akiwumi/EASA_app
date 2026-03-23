@@ -29,7 +29,7 @@ ingestion + AI analysis.
   - Run `ai-analyze` after ingestion.
 
 ## 5) Configure the Next.js app
-- Create `web/.env.local` with:
+- Create `.env.local` in the repo root with:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `SUPABASE_SERVICE_ROLE_KEY`
