@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
 
+const STORAGE_KEY = "no-feeds-warning-dismissed";
+
 export default function NoFeedsWarning() {
-  const [dismissed, setDismissed] = useState(false);
-  if (dismissed) return null;
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem(STORAGE_KEY);
+    if (!dismissed) setVisible(true);
+  }, []);
+
+  function dismiss() {
+    localStorage.setItem(STORAGE_KEY, "1");
+    setVisible(false);
+  }
+
+  if (!visible) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="relative mx-4 w-full max-w-md rounded-[20px] bg-[var(--easa-color-surface-1)] p-6 shadow-[var(--easa-shadow-2)]">
         <button
           className="absolute right-4 top-4 text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)] transition"
-          onClick={() => setDismissed(true)}
+          onClick={dismiss}
           aria-label="Dismiss"
         >
           <X size={18} strokeWidth={1.75} />
@@ -34,14 +47,11 @@ export default function NoFeedsWarning() {
           <Link
             href="/settings?tab=sources"
             className="easa-btn primary flex-1 text-center"
-            onClick={() => setDismissed(true)}
+            onClick={dismiss}
           >
             Go to RSS feeds
           </Link>
-          <button
-            className="easa-btn secondary"
-            onClick={() => setDismissed(true)}
-          >
+          <button className="easa-btn secondary" onClick={dismiss}>
             Dismiss
           </button>
         </div>
