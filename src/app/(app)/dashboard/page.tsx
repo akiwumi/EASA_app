@@ -197,21 +197,40 @@ export default async function DashboardPage() {
 
         <div className="space-y-6">
           <div className="easa-card p-6">
-            <h2 className="text-lg font-semibold">AI RSS ingestion</h2>
-            <p className="text-sm text-[var(--easa-color-text-muted)]">
-              Configured RSS sources for your organisation (plus shared EASA
-              feeds).
-            </p>
-            <div className="mt-4 max-h-48 space-y-3 overflow-y-auto text-sm">
-              {(rssUrls.length ? rssUrls : ["No RSS rows returned"]).map(
-                (feed) => (
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">AI RSS ingestion</h2>
+                <p className="text-sm text-[var(--easa-color-text-muted)]">
+                  RSS sources configured for your organisation.
+                </p>
+              </div>
+              <Link
+                className="easa-btn secondary shrink-0 text-xs"
+                href="/settings?tab=sources"
+              >
+                Manage feeds
+              </Link>
+            </div>
+            <div className="mt-4 max-h-48 space-y-2 overflow-y-auto text-sm">
+              {rssUrls.length === 0 ? (
+                <div className="rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
+                  No feeds configured.{" "}
+                  <Link href="/settings?tab=sources" className="underline">
+                    Add a feed →
+                  </Link>
+                </div>
+              ) : (
+                rssUrls.map((feed) => (
                   <div
-                    key={feed}
-                    className="rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 break-all"
+                    key={feed.url}
+                    className="flex items-center gap-2 rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2"
                   >
-                    {feed}
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full ${feed.active ? "bg-[var(--easa-color-accent-green)]" : "bg-[var(--easa-color-border)]"}`}
+                    />
+                    <span className="min-w-0 truncate text-xs">{feed.url}</span>
                   </div>
-                ),
+                ))
               )}
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-2">

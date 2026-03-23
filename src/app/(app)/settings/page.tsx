@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Users, BookOpen, Bot, Rss } from "lucide-react";
 import UsersTab from "@/components/admin/UsersTab";
 import FlightbooksTab from "@/components/admin/FlightbooksTab";
@@ -15,16 +16,25 @@ const TABS = [
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
+const TAB_IDS = TABS.map((t) => t.id) as readonly string[];
 
 export default function SettingsPage() {
-  const [active, setActive] = useState<TabId>("users");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const initial = (searchParams.get("tab") ?? "users") as TabId;
+  const [active, setActive] = useState<TabId>(TAB_IDS.includes(initial) ? initial : "users");
+
+  // Keep URL in sync when tab changes
+  useEffect(() => {
+    router.replace(`/settings?tab=${active}`, { scroll: false });
+  }, [active, router]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold">Admin panel</h1>
         <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-          Manage users, flight books, and AI provider configuration for your organisation.
+          Manage users, flight books, RSS feeds, and AI provider configuration.
         </p>
       </div>
 

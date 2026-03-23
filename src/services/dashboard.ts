@@ -173,20 +173,20 @@ export async function loadUpdateQueuePreview(
   });
 }
 
-export async function loadRssSourceUrls(organizationId: string): Promise<
-  string[]
-> {
+export type RssSourceRow = { url: string; active: boolean };
+
+export async function loadRssSourceUrls(organizationId: string): Promise<RssSourceRow[]> {
   const supabase = await getSupabaseServerClient();
   if (!supabase) return [];
 
   const { data } = await supabase
     .from("sources")
-    .select("url")
+    .select("url, active")
     .eq("type", "rss")
-    .eq("active", true)
-    .or(`organization_id.eq.${organizationId},organization_id.is.null`);
+    .or(`organization_id.eq.${organizationId},organization_id.is.null`)
+    .order("created_at", { ascending: true });
 
-  return (data ?? []).map((s) => s.url as string);
+  return (data ?? []).map((s) => ({ url: s.url as string, active: s.active as boolean }));
 }
 
 export async function loadLastRssIngestAt(
