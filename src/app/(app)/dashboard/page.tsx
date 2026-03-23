@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import StatCard from "@/components/cards/StatCard";
 import AiScrapeButton from "@/components/dashboard/AiScrapeButton";
+import NoFeedsWarning from "@/components/dashboard/NoFeedsWarning";
 import ScheduleCard from "@/components/dashboard/ScheduleCard";
 import {
   loadDashboardStats,
@@ -96,8 +97,11 @@ export default async function DashboardPage() {
     ? new Date(lastRssAt).toISOString().replace("T", " ").slice(0, 16) + " UTC"
     : "No items ingested yet";
 
+  const hasActiveFeeds = rssUrls.some((f) => f.active);
+
   return (
     <main className="flex-1 space-y-6">
+      {!hasActiveFeeds && <NoFeedsWarning />}
       <header className="flex flex-col gap-4 rounded-[28px] bg-[var(--easa-color-surface-1)] p-6 shadow-[var(--easa-shadow-1)] md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs text-[var(--easa-color-text-muted)]">
