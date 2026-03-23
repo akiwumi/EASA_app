@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   BookOpen,
   Bell,
@@ -53,7 +53,6 @@ export default function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -74,7 +73,7 @@ export default function AppShell({
     if (supabase) {
       await supabase.auth.signOut();
     }
-    router.push("/login");
+    window.location.assign("/login");
   };
 
   const renderNavLink = (item: (typeof NAV)[number], onNavigate?: () => void) => {

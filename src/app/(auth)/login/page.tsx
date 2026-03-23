@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 /** Dummy admin from scripts/create-admin-user.mjs: use login "admin" (→ admin@easa.local). */
@@ -21,8 +20,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
-  const router = useRouter();
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setStatus("loading");
@@ -46,8 +43,7 @@ export default function LoginPage() {
       return;
     }
 
-    setStatus("idle");
-    router.push("/dashboard");
+    window.location.assign("/dashboard");
   };
 
   return (
