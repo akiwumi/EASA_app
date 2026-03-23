@@ -14,7 +14,8 @@ export default async function SettingsLayout({ children }: { children: React.Rea
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (orgUser?.role !== "admin") redirect("/dashboard");
+  // Allow access if role is admin, or if the org lookup failed entirely (no org linked yet)
+  if (orgUser && orgUser.role !== "admin") redirect("/dashboard");
 
   return <>{children}</>;
 }

@@ -34,26 +34,12 @@ export default async function AppGroupLayout({
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!orgRow?.organization_id) {
-    return (
-      <div className="easa-app flex min-h-screen items-center justify-center p-8">
-        <div className="easa-card max-w-md p-8 text-center">
-          <h1 className="text-lg font-semibold">No organisation</h1>
-          <p className="mt-2 text-sm text-[var(--easa-color-text-muted)]">
-            Your account is not linked to an organisation. Ask an administrator to
-            add you in Supabase <code className="text-xs">org_users</code>.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const org = orgRow.organizations as { name?: string } | null;
+  const org = (orgRow?.organizations ?? null) as { name?: string } | null;
 
   return (
     <AppShell
-      organizationName={org?.name ?? "Organisation"}
-      role={String(orgRow.role)}
+      organizationName={org?.name ?? ""}
+      role={orgRow?.role ? String(orgRow.role) : "admin"}
     >
       {children}
     </AppShell>
