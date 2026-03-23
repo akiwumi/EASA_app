@@ -17,6 +17,8 @@ export default function SourcesTab() {
   const [newUrl, setNewUrl] = useState("");
   const [newType, setNewType] = useState("rss");
   const [adding, setAdding] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [seedMsg, setSeedMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function load() {
@@ -28,6 +30,20 @@ export default function SourcesTab() {
   }
 
   useEffect(() => { load(); }, []);
+
+  async function seedDefaults() {
+    setSeeding(true);
+    setSeedMsg(null);
+    const res = await fetch("/api/admin/seed-sources", { method: "POST" });
+    const json = await res.json();
+    if (res.ok) {
+      setSeedMsg(`Added ${json.inserted?.length ?? 0} new feed(s), removed dead URLs.`);
+      await load();
+    } else {
+      setSeedMsg("Failed to seed defaults.");
+    }
+    setSeeding(false);
+  }
 
   async function add() {
     if (!newUrl.trim()) return;
@@ -97,6 +113,25 @@ export default function SourcesTab() {
           </button>
         </div>
         {error && <p className="text-xs text-[var(--easa-color-accent-pink)]">{error}</p>}
+      </div>
+
+      {/* Default EASA feeds */}
+      <div className="easa-card p-4 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium">Default EASA feeds</p>
+          <p className="text-xs text-[var(--easa-color-text-muted)]">
+            Replaces any dead URLs with the current working EASA feed set.
+          </p>
+          {seedMsg && <p className="mt-1 text-xs text-[var(--easa-color-accent-green)]">{seedMsg}</p>}
+        </div>
+        <button
+          className="easa-btn secondary shrink-0 flex items-center gap-1.5"
+          disabled={seeding}
+          onClick={seedDefaults}
+        >
+          <Rss size={13} strokeWidth={1.75} />
+          {seeding ? "Updating…" : "Reset to EASA defaults"}
+        </button>
       </div>
 
       {/* Sources list */}
