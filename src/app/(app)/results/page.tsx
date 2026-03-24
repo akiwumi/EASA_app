@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { fetchAiScrapedUpdates } from "@/lib/ai-scraper";
+import AddToQueueButton from "@/components/results/AddToQueueButton";
 
 export default async function ResultsPage() {
   const results = await fetchAiScrapedUpdates();
@@ -115,12 +116,10 @@ export default async function ResultsPage() {
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--easa-color-text-muted)]">
                   <span>Mapped to: {item.mappedSection}</span>
                   <div className="flex gap-2">
-                    <button className="easa-btn secondary" type="button">
+                    <Link className="easa-btn secondary" href={`/results/${item.id}`}>
                       View diff
-                    </button>
-                    <button className="easa-btn primary" type="button">
-                      Add to queue
-                    </button>
+                    </Link>
+                    <AddToQueueButton findingId={item.id} />
                   </div>
                 </div>
               </div>
