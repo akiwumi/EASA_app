@@ -17,7 +17,10 @@ type FunctionFailure = {
   error: string;
 };
 
-async function invokeEdgeFunction<T>(name: string): Promise<FunctionSuccess<T> | FunctionFailure> {
+async function invokeEdgeFunction<T>(
+  name: string,
+  body?: Record<string, unknown>,
+): Promise<FunctionSuccess<T> | FunctionFailure> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -29,7 +32,9 @@ async function invokeEdgeFunction<T>(name: string): Promise<FunctionSuccess<T> |
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { data, error } = await supabase.functions.invoke(name);
+  const { data, error } = await supabase.functions.invoke(name, {
+    body: body ?? {},
+  });
 
   if (error) {
     const context = error as Error & {
@@ -126,7 +131,9 @@ export async function POST() {
   steps["rss-ingest"] = { status: "running", started_at: ingestStart };
   await updateRun({ steps });
 
-  const ingestResult = await invokeEdgeFunction<Record<string, unknown>>("rss-ingest");
+  const functionArgs = { organizationId: orgId };
+
+  const ingestResult = await invokeEdgeFunction<Record<string, unknown>>("rss-ingest", functionArgs);
 
   if (!ingestResult.ok) {
     steps["rss-ingest"] = { status: "error", started_at: ingestStart, finished_at: new Date().toISOString(), error: ingestResult.error };
@@ -161,7 +168,7 @@ export async function POST() {
     snapshotsCreated?: number;
     sectionsCreated?: number;
     embeddedSections?: number;
-  }>("regulation-ingest");
+  }>("regulation-ingest", functionArgs);
 
   if (!regulationIngestResult.ok) {
     steps["regulation-ingest"] = {
@@ -186,7 +193,7 @@ export async function POST() {
   steps["ai-analyze"] = { status: "running", started_at: analyzeStart };
   await updateRun({ steps });
 
-  const analyzeResult = await invokeEdgeFunction<Record<string, unknown>>("ai-analyze");
+  const analyzeResult = await invokeEdgeFunction<Record<string, unknown>>("ai-analyze", functionArgs);
 
   if (!analyzeResult.ok) {
     steps["ai-analyze"] = { status: "error", started_at: analyzeStart, finished_at: new Date().toISOString(), error: analyzeResult.error };

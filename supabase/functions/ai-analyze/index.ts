@@ -155,7 +155,7 @@ async function aiAnalysis(
   }
 }
 
-serve(async () => {
+serve(async (request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -164,13 +164,24 @@ serve(async () => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const payload = await request.json().catch(() => ({}));
+  const organizationId =
+    typeof payload?.organizationId === "string" && payload.organizationId
+      ? payload.organizationId
+      : null;
 
   // Load AI provider config saved via admin panel
-  const { data: aiConfig } = await supabase
+  let aiConfigQuery = supabase
     .from("ai_provider_config")
-    .select("provider, model, api_key")
-    .limit(1)
-    .maybeSingle();
+    .select("provider, model, api_key");
+
+  if (organizationId) {
+    aiConfigQuery = aiConfigQuery.eq("organization_id", organizationId);
+  } else {
+    aiConfigQuery = aiConfigQuery.limit(1);
+  }
+
+  const { data: aiConfig } = await aiConfigQuery.maybeSingle();
 
   const provider = aiConfig?.provider ?? "anthropic";
   const model = aiConfig?.model ?? "claude-sonnet-4-20250514";
@@ -178,25 +189,46 @@ serve(async () => {
   const apiKey = (aiConfig?.api_key as string | null) ?? Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 
   // Fetch unanalyzed RSS items
-  const { data: rssItems, error } = await supabase
+  let rssQuery = supabase
     .from("rss_items")
-    .select("id,title,summary,category,organization_id,published_at,ai_findings(id)")
-    .is("ai_findings.id", null)
+    .select("id,title,summary,category,organization_id,published_at")
     .order("published_at", { ascending: false })
     .limit(25);
+
+  if (organizationId) {
+    rssQuery = rssQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: rssItems, error } = await rssQuery;
 
   if (error) {
     return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500 });
   }
 
+  const rssItemIds = (rssItems ?? []).map((item) => item.id as string);
+  const { data: existingFindings } = rssItemIds.length
+    ? await supabase
+        .from("ai_findings")
+        .select("rss_item_id")
+        .in("rss_item_id", rssItemIds)
+    : { data: [] as { rss_item_id: string }[] };
+  const existingFindingIds = new Set((existingFindings ?? []).map((row) => row.rss_item_id));
+  const pendingItems = (rssItems ?? []).filter((item) => !existingFindingIds.has(item.id as string));
+
   // Fetch active flightbook section titles for mapping context
-  const { data: rawSections, error: rawSectionsError } = await supabase
+  let sectionsQuery = supabase
     .from("flightbook_sections")
     .select("id, section_number, title, flightbooks!inner(name, active)")
     .eq("flightbooks.active", true)
     .not("title", "is", null)
     .order("sort_order", { ascending: true })
     .limit(60);
+
+  if (organizationId) {
+    sectionsQuery = sectionsQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: rawSections, error: rawSectionsError } = await sectionsQuery;
 
   const sections: FlightbookSection[] = (rawSectionsError ? [] : (rawSections ?? [])).map((s) => {
     const fb = Array.isArray(s.flightbooks) ? s.flightbooks[0] : s.flightbooks;
@@ -205,7 +237,7 @@ serve(async () => {
 
   const findingsPayload = [];
 
-  for (const item of rssItems ?? []) {
+  for (const item of pendingItems) {
     const analysis = await aiAnalysis(item.title, item.summary ?? "", sections, provider, model, apiKey);
     findingsPayload.push({
       rss_item_id: item.id,
@@ -229,7 +261,14 @@ serve(async () => {
   }
 
   return new Response(
-    JSON.stringify({ ok: true, analyzed: findingsPayload.length, provider, model, bookSectionsUsed: sections.length }),
+    JSON.stringify({
+      ok: true,
+      analyzed: findingsPayload.length,
+      provider,
+      model,
+      bookSectionsUsed: sections.length,
+      rssItemsConsidered: pendingItems.length,
+    }),
     { status: 200 },
   );
 });

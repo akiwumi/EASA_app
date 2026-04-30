@@ -44,7 +44,7 @@ function parseRssItems(xmlText: string) {
   return items;
 }
 
-serve(async () => {
+serve(async (request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -56,13 +56,24 @@ serve(async () => {
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const payload = await request.json().catch(() => ({}));
+  const organizationId =
+    typeof payload?.organizationId === "string" && payload.organizationId
+      ? payload.organizationId
+      : null;
 
   // Load all active RSS sources
-  const { data: sources, error: sourcesError } = await supabase
+  let sourcesQuery = supabase
     .from("sources")
     .select("id, url, organization_id")
     .eq("active", true)
     .eq("type", "rss");
+
+  if (organizationId) {
+    sourcesQuery = sourcesQuery.eq("organization_id", organizationId);
+  }
+
+  const { data: sources, error: sourcesError } = await sourcesQuery;
 
   if (sourcesError) {
     return new Response(

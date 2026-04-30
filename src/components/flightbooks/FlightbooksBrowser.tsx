@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { BookOpen, Upload, CheckCircle, XCircle } from "lucide-react";
+import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
 
 interface Flightbook {
   id: string;
@@ -57,39 +58,46 @@ export default function FlightbooksBrowser({ books }: Props) {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {books.map((book) => (
-          <Link
+          <div
             key={book.id}
-            href={`/flightbooks/${book.id}`}
-            className="easa-card block p-5 transition hover:shadow-[var(--easa-shadow-2)]"
+            className="easa-card p-5 transition hover:shadow-[var(--easa-shadow-2)]"
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--easa-color-surface-2)]">
-                <BookOpen size={18} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
-              </div>
-              {book.active
-                ? <CheckCircle size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-accent-green)]" />
-                : <XCircle size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-text-muted)]" />}
-            </div>
+              <Link
+                href={`/flightbooks/${book.id}`}
+                className="min-w-0 flex-1"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--easa-color-surface-2)]">
+                    <BookOpen size={18} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
+                  </div>
+                  {book.active
+                    ? <CheckCircle size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-accent-green)]" />
+                    : <XCircle size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-text-muted)]" />}
+                </div>
 
-            <p className="mt-3 font-semibold leading-tight">{book.name}</p>
-            <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
-              <span className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 font-medium">{book.doc_type}</span>
-              {book.version_label && (
-                <span className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 text-[var(--easa-color-text-muted)]">{book.version_label}</span>
-              )}
-            </div>
+                <p className="mt-3 font-semibold leading-tight">{book.name}</p>
+                <div className="mt-1 flex flex-wrap gap-1.5 text-xs">
+                  <span className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 font-medium">{book.doc_type}</span>
+                  {book.version_label && (
+                    <span className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 text-[var(--easa-color-text-muted)]">{book.version_label}</span>
+                  )}
+                </div>
 
-            <div className="mt-4 flex items-center justify-between text-xs text-[var(--easa-color-text-muted)]">
-              <span>{book.sectionCount} section{book.sectionCount !== 1 ? "s" : ""}</span>
-              <span>{new Date(book.created_at).toLocaleDateString()}</span>
-            </div>
+                <div className="mt-4 flex items-center justify-between text-xs text-[var(--easa-color-text-muted)]">
+                  <span>{book.sectionCount} section{book.sectionCount !== 1 ? "s" : ""}</span>
+                  <span>{new Date(book.created_at).toLocaleDateString()}</span>
+                </div>
 
-            {book.sectionCount === 0 && (
-              <p className="mt-2 text-xs text-[var(--easa-color-accent-orange)]">
-                No sections — upload content so the AI can compare
-              </p>
-            )}
-          </Link>
+                {book.sectionCount === 0 && (
+                  <p className="mt-2 text-xs text-[var(--easa-color-accent-orange)]">
+                    No sections — upload content so the AI can compare
+                  </p>
+                )}
+              </Link>
+              <DeleteFlightbookButton id={book.id} name={book.name} compact />
+            </div>
+          </div>
         ))}
       </div>
     </div>

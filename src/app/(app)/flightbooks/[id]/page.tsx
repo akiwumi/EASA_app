@@ -1,6 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
+import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
@@ -11,38 +12,42 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
 }
 
 async function loadBook(id: string) {
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  const ctx = await getOrgAccessContext();
+  if (!ctx) return { auth: false as const, book: null, sections: [] };
+
+  const admin = getSupabaseAdminClient();
 
   const { data: book, error: bookError } = await admin
     .from("flightbooks")
     .select("id, name, doc_type, version_label, active, created_at")
     .eq("id", id)
+    .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
-  if (bookError && isMissingSchemaError(bookError)) return null;
-  if (!book) return null;
+  if (bookError && isMissingSchemaError(bookError)) return { auth: true as const, book: null, sections: [] };
+  if (!book) return { auth: true as const, book: null, sections: [] };
 
   const { data: sections, error: sectionsError } = await admin
     .from("flightbook_sections")
     .select("id, section_number, title, body, sort_order")
     .eq("flightbook_id", id)
+    .eq("organization_id", ctx.orgId)
     .order("sort_order");
 
   if (sectionsError && isMissingSchemaError(sectionsError)) {
-    return { book, sections: [] };
+    return { auth: true as const, book, sections: [] };
   }
 
-  return { book, sections: sections ?? [] };
+  return { auth: true as const, book, sections: sections ?? [] };
 }
 
 export default async function FlightbookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const data = await loadBook(id);
-  if (!data) notFound();
+  if (!data.auth) {
+    redirect("/login");
+  }
+  if (!data.book) notFound();
 
   const { book, sections } = data;
 
@@ -69,6 +74,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
         <Link href={`/flightbooks/upload`} className="easa-btn secondary text-sm">
           Re-import
         </Link>
+        <DeleteFlightbookButton id={book.id as string} name={book.name as string} />
       </div>
 
       {sections.length === 0 ? (
