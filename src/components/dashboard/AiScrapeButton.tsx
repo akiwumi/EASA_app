@@ -82,9 +82,9 @@ export default function AiScrapeButton({ compact = false }: AiScrapeButtonProps)
 
   if (compact) {
     return (
-      <div className="flex flex-col gap-2">
+      <div className="shrink-0">
         <button
-          className="easa-btn secondary flex items-center gap-1.5"
+          className="easa-btn secondary flex items-center gap-1.5 whitespace-nowrap text-sm"
           type="button"
           onClick={runScrape}
           disabled={status === "running"}
@@ -92,18 +92,6 @@ export default function AiScrapeButton({ compact = false }: AiScrapeButtonProps)
           <RefreshCw size={13} strokeWidth={1.75} className={status === "running" ? "animate-spin" : ""} />
           {status === "running" ? "Running now…" : "Run now"}
         </button>
-
-        {status === "error" && errorMsg && (
-          <p className="max-w-xs text-xs text-[var(--easa-color-accent-pink)]">
-            {errorMsg}
-          </p>
-        )}
-
-        {status === "done" && (
-          <p className="max-w-xs text-xs text-[var(--easa-color-accent-green)]">
-            Pipeline started and finished successfully.
-          </p>
-        )}
       </div>
     );
   }

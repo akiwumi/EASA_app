@@ -30,39 +30,51 @@ async function invokeEdgeFunction<T>(name: string): Promise<FunctionSuccess<T> |
     return { ok: false, error: "Supabase server credentials missing." };
   }
 
-  const response = await fetch(`${url}/functions/v1/${name}`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${serviceRoleKey}`,
-      apikey: serviceRoleKey,
-      "Content-Type": "application/json",
-    },
-    body: "{}",
+  const supabase = createClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const text = await response.text();
-  const payload = text ? (() => {
-    try {
-      return JSON.parse(text) as Record<string, unknown>;
-    } catch {
-      return null;
-    }
-  })() : null;
+  const { data, error } = await supabase.functions.invoke(name);
 
-  if (!response.ok) {
-    const details =
-      (payload?.error as string | undefined) ??
-      (payload?.message as string | undefined) ??
-      text.trim() ??
-      `Edge Function ${name} returned ${response.status}`;
+  if (error) {
+    const context = error as Error & {
+      context?: {
+        json?: () => Promise<Record<string, unknown>>;
+        text?: () => Promise<string>;
+        status?: number;
+      };
+    };
+
+    let details = error.message;
+
+    if (context.context?.json) {
+      try {
+        const payload = await context.context.json();
+        details =
+          (payload?.error as string | undefined) ??
+          (payload?.message as string | undefined) ??
+          details;
+      } catch {
+        // Fall through to text parsing.
+      }
+    }
+
+    if (details === error.message && context.context?.text) {
+      try {
+        const text = (await context.context.text()).trim();
+        if (text) details = text;
+      } catch {
+        // Keep the original SDK error message.
+      }
+    }
 
     return {
       ok: false,
-      error: `${name}: ${details || `HTTP ${response.status}`}`,
+      error: `${name}: ${details || `HTTP ${context.context?.status ?? 500}`}`,
     };
   }
 
-  return { ok: true, data: (payload as T | null) ?? null };
+  return { ok: true, data: (data as T | null) ?? null };
 }
 
 async function getOrgId(): Promise<string> {

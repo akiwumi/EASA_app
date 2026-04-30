@@ -215,15 +215,15 @@ export default async function DashboardPage() {
             </span>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Link className="easa-btn primary" href="/settings?tab=setup">
+        <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
+          <Link className="easa-btn primary whitespace-nowrap text-sm" href="/settings?tab=setup">
             Finish setup
           </Link>
           <AiScrapeButton compact />
-          <Link className="easa-btn secondary" href="/results">
+          <Link className="easa-btn secondary whitespace-nowrap text-sm" href="/results">
             View AI results
           </Link>
-          <Link className="easa-btn secondary" href="/updates">
+          <Link className="easa-btn secondary whitespace-nowrap text-sm" href="/updates">
             Open update queue
           </Link>
         </div>
