@@ -1,0 +1,531 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  buildRetrievalQuery,
+  categoryToPart,
+  retrieveFlightbookChunks,
+  retrieveRegulationChunks,
+  type RetrievedChunk,
+} from "@/lib/ai/retrieval";
+import {
+  buildRevisionPrompt,
+  extractGeneratedDraft,
+  GENERATION_PROMPT_VERSION,
+} from "@/lib/ai/rag-prompt";
+
+const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
+
+type AiConfigRow = {
+  provider: string | null;
+  model: string | null;
+  api_key: string | null;
+};
+
+type FindingRow = {
+  id: string;
+  impact: string | null;
+  confidence: string | null;
+  mapped_section: string | null;
+  summary: string | null;
+  organization_id: string | null;
+  category: string | null;
+  rss_items:
+    | {
+        title: string | null;
+        summary: string | null;
+        link: string | null;
+        published_at: string | null;
+        category: string | null;
+      }
+    | {
+        title: string | null;
+        summary: string | null;
+        link: string | null;
+        published_at: string | null;
+        category: string | null;
+      }[]
+    | null;
+};
+
+type ProposalSourceRow = {
+  id: string;
+  organization_id: string;
+  ai_finding_id: string | null;
+  ai_findings:
+    | FindingRow
+    | FindingRow[]
+    | null;
+};
+
+export function parseConfidence(str: string | null): number | null {
+  if (!str) return null;
+  const n = parseFloat(str.replace("%", ""));
+  return Number.isNaN(n) ? null : n;
+}
+
+export function mapRiskLevel(impact: string | null): "high" | "medium" | "low" {
+  const value = (impact ?? "").toLowerCase();
+  if (value === "high") return "high";
+  if (value === "low") return "low";
+  return "medium";
+}
+
+function mapClassification(impact: string | null): "mandatory" | "recommended" | "watchlist" {
+  const value = (impact ?? "").toLowerCase();
+  if (value === "high") return "mandatory";
+  if (value === "medium") return "recommended";
+  return "watchlist";
+}
+
+function unwrapMaybeArray<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+async function callOpenAI(
+  apiKey: string,
+  model: string,
+  baseUrl: string,
+  prompt: string,
+): Promise<string | null> {
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return json.choices?.[0]?.message?.content ?? null;
+}
+
+async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<string | null> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({ model, max_tokens: 2048, messages: [{ role: "user", content: prompt }] }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { content?: { type: string; text: string }[] };
+  return json.content?.find((b) => b.type === "text")?.text ?? null;
+}
+
+async function callGoogle(apiKey: string, model: string, prompt: string): Promise<string | null> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 2048 },
+    }),
+  });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  return json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+}
+
+async function callAI(provider: string, model: string, apiKey: string, prompt: string): Promise<string | null> {
+  if (provider === "openai") return callOpenAI(apiKey, model, "https://api.openai.com/v1", prompt);
+  if (provider === "groq") return callOpenAI(apiKey, model, "https://api.groq.com/openai/v1", prompt);
+  if (provider === "anthropic") return callAnthropic(apiKey, model, prompt);
+  if (provider === "google") return callGoogle(apiKey, model, prompt);
+  return null;
+}
+
+function makeFallbackDraft(
+  primaryFlightbook: RetrievedChunk,
+  regulationChunks: RetrievedChunk[],
+  flightbookChunks: RetrievedChunk[],
+  findingSummary: string,
+) {
+  const citations = [
+    ...regulationChunks.slice(0, 3).map((chunk) => ({
+      kind: "regulation_chunk",
+      id: chunk.id,
+      reason: "Retrieved as supporting regulation evidence",
+    })),
+    ...flightbookChunks.slice(0, 3).map((chunk) => ({
+      kind: "flightbook_section",
+      id: chunk.id,
+      reason: "Retrieved as relevant flightbook context",
+    })),
+  ];
+
+  return {
+    suggestedText: primaryFlightbook.body,
+    changeSummary: findingSummary || "Draft created from retrieved context.",
+    whyThisSection: "Chosen because it was the strongest retrieved flightbook match.",
+    confidence: regulationChunks.length > 0 ? "medium" : "low",
+    citations,
+  };
+}
+
+function compactCitation(chunk: RetrievedChunk) {
+  return {
+    kind: chunk.kind === "regulation" ? "regulation_chunk" : "flightbook_section",
+    id: chunk.id,
+    score: Number(chunk.score.toFixed(3)),
+    section_number: chunk.sectionNumber,
+    title: chunk.title,
+    flightbook_name: chunk.flightbookName ?? null,
+    quote: chunk.body.slice(0, 280),
+  };
+}
+
+async function loadAiConfig(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<{ provider: string; model: string; apiKey: string } | null> {
+  const { data } = await admin
+    .from("ai_provider_config")
+    .select("provider, model, api_key")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  const row = (data ?? null) as AiConfigRow | null;
+  const provider = row?.provider ?? "anthropic";
+  const model = row?.model ?? "claude-sonnet-4-20250514";
+  const apiKey =
+    row?.api_key ??
+    process.env.ANTHROPIC_API_KEY ??
+    process.env.OPENAI_API_KEY ??
+    "";
+
+  return apiKey ? { provider, model, apiKey } : null;
+}
+
+export async function ensureQueuedUpdatesForOrg(
+  admin: SupabaseClient,
+  organizationId: string,
+) {
+  const { data: schedule } = await admin
+    .from("schedules")
+    .select("auto_approve_low, auto_approve_delay_hours")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  const { data: regChanges, error: regChangesError } = await admin
+    .from("reg_changes")
+    .select(`
+      id,
+      organization_id,
+      ai_finding_id,
+      ai_findings (
+        id,
+        impact,
+        confidence,
+        mapped_section,
+        summary,
+        organization_id,
+        category,
+        rss_items ( title, summary, link, published_at, category )
+      )
+    `)
+    .eq("organization_id", organizationId)
+    .not("ai_finding_id", "is", null)
+    .order("detected_at", { ascending: false })
+    .limit(200);
+
+  if (regChangesError) {
+    return { ok: false as const, error: regChangesError.message };
+  }
+
+  const { data: existingUpdates, error: existingError } = await admin
+    .from("proposed_updates")
+    .select("id, reg_change_id, ai_rationale")
+    .eq("organization_id", organizationId);
+
+  if (existingError) {
+    return { ok: false as const, error: existingError.message };
+  }
+
+  const existingByRegChangeId = new Map<string, { id: string; ai_rationale: string | null }>();
+  const existingByRationale = new Map<string, { id: string; reg_change_id: string | null }>();
+
+  for (const row of existingUpdates ?? []) {
+    if (row.reg_change_id) {
+      existingByRegChangeId.set(String(row.reg_change_id), {
+        id: String(row.id),
+        ai_rationale: (row.ai_rationale as string | null) ?? null,
+      });
+    }
+    if (row.ai_rationale) {
+      existingByRationale.set(String(row.ai_rationale), {
+        id: String(row.id),
+        reg_change_id: (row.reg_change_id as string | null) ?? null,
+      });
+    }
+  }
+
+  const rowsToInsert: Record<string, unknown>[] = [];
+  let linkedExisting = 0;
+
+  for (const row of (regChanges ?? []) as ProposalSourceRow[]) {
+    const regChangeId = String(row.id);
+    const finding = unwrapMaybeArray(row.ai_findings);
+    if (!finding) continue;
+
+    if (existingByRegChangeId.has(regChangeId)) continue;
+
+    const rationale = finding.summary ?? "";
+    const matchingExisting = rationale ? existingByRationale.get(rationale) : null;
+    if (matchingExisting?.id && !matchingExisting.reg_change_id) {
+      await admin
+        .from("proposed_updates")
+        .update({
+          reg_change_id: regChangeId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", matchingExisting.id);
+      linkedExisting += 1;
+      continue;
+    }
+
+    const riskLevel = mapRiskLevel(finding.impact);
+    const autoApproveAt =
+      riskLevel === "low" && schedule?.auto_approve_low
+        ? new Date(
+            Date.now() + Number(schedule.auto_approve_delay_hours ?? 24) * 60 * 60 * 1000,
+          ).toISOString()
+        : null;
+
+    rowsToInsert.push({
+      organization_id: organizationId,
+      reg_change_id: regChangeId,
+      classification: mapClassification(finding.impact),
+      risk_level: riskLevel,
+      ai_rationale: finding.summary,
+      confidence_score: parseConfidence(finding.confidence),
+      status: "pending",
+      auto_approve_at: autoApproveAt,
+      ai_model: "pipeline-auto-queue",
+      ai_generated_at: new Date().toISOString(),
+    });
+  }
+
+  if (rowsToInsert.length > 0) {
+    const { error: insertError } = await admin.from("proposed_updates").insert(rowsToInsert);
+    if (insertError) {
+      return { ok: false as const, error: insertError.message };
+    }
+  }
+
+  return {
+    ok: true as const,
+    created: rowsToInsert.length,
+    linkedExisting,
+  };
+}
+
+export async function generateDraftForProposedUpdate(
+  admin: SupabaseClient,
+  proposedUpdateId: string,
+  notes?: string[],
+) {
+  const { data, error } = await admin
+    .from("proposed_updates")
+    .select(`
+      id,
+      organization_id,
+      reg_change_id,
+      reg_changes (
+        id,
+        ai_finding_id,
+        ai_findings (
+          id,
+          impact,
+          confidence,
+          mapped_section,
+          summary,
+          organization_id,
+          category,
+          rss_items ( title, summary, link, published_at, category )
+        )
+      )
+    `)
+    .eq("id", proposedUpdateId)
+    .maybeSingle();
+
+  if (error) return { ok: false as const, error: error.message };
+  if (!data) return { ok: false as const, error: "Proposed update not found." };
+
+  const orgId = (data.organization_id as string | null) ?? DEFAULT_ORG_ID;
+  const regChange = unwrapMaybeArray(
+    data.reg_changes as
+      | {
+          id: string;
+          ai_finding_id: string | null;
+          ai_findings: FindingRow | FindingRow[] | null;
+        }
+      | {
+          id: string;
+          ai_finding_id: string | null;
+          ai_findings: FindingRow | FindingRow[] | null;
+        }[]
+      | null,
+  );
+  const finding = unwrapMaybeArray(regChange?.ai_findings);
+
+  if (!finding) {
+    return { ok: false as const, error: "No linked finding was found for this proposed update." };
+  }
+
+  const aiConfig = await loadAiConfig(admin, orgId);
+  if (!aiConfig) {
+    return { ok: false as const, error: "No AI API key configured. Add one in Admin → AI settings." };
+  }
+
+  const rss = unwrapMaybeArray(finding.rss_items);
+  const updateTitle = rss?.title ?? "EASA Update";
+  const updateSummary = rss?.summary ?? "";
+  const findingSummary = finding.summary ?? "";
+  const mappedSection = finding.mapped_section ?? "";
+  const regPart = categoryToPart(finding.category ?? rss?.category ?? null);
+
+  const retrievalQuery = buildRetrievalQuery({
+    title: updateTitle,
+    rssSummary: updateSummary,
+    findingSummary,
+    mappedSection,
+    regPart,
+  });
+
+  const [regulationChunks, flightbookChunks] = await Promise.all([
+    retrieveRegulationChunks(admin, {
+      organizationId: orgId,
+      queryText: retrievalQuery,
+      regPart,
+      limit: 5,
+      minSimilarity: 0.2,
+    }),
+    retrieveFlightbookChunks(admin, {
+      organizationId: orgId,
+      queryText: retrievalQuery,
+      regPart,
+      limit: 5,
+      minSimilarity: 0.2,
+    }),
+  ]);
+
+  const primaryFlightbook = flightbookChunks[0];
+  if (!primaryFlightbook) {
+    return { ok: false as const, error: "No flight book sections found. Upload a flight book first." };
+  }
+
+  const prompt = buildRevisionPrompt({
+    updateTitle,
+    updateSummary,
+    findingSummary,
+    regPart,
+    primaryFlightbook,
+    regulationChunks,
+    flightbookChunks,
+    notes,
+  });
+
+  const aiText = await callAI(aiConfig.provider, aiConfig.model, aiConfig.apiKey, prompt);
+  if (!aiText) {
+    return { ok: false as const, error: "AI provider did not return a response." };
+  }
+
+  const parsedDraft =
+    extractGeneratedDraft(aiText) ??
+    makeFallbackDraft(primaryFlightbook, regulationChunks, flightbookChunks, findingSummary);
+
+  const sourceCitations = [
+    ...regulationChunks.map(compactCitation),
+    ...flightbookChunks.map(compactCitation),
+  ];
+
+  const retrievalContext = {
+    regPart,
+    retrievalQuery,
+    regulationChunkIds: regulationChunks.map((chunk) => chunk.id),
+    flightbookChunkIds: flightbookChunks.map((chunk) => chunk.id),
+    primaryFlightbookSectionId: primaryFlightbook.id,
+  };
+
+  const { error: updateError } = await admin
+    .from("proposed_updates")
+    .update({
+      ai_suggested_text: parsedDraft.suggestedText,
+      ai_rationale: parsedDraft.changeSummary || finding.summary || null,
+      flightbook_section_id: primaryFlightbook.id,
+      retrieval_context: retrievalContext,
+      generation_prompt_version: GENERATION_PROMPT_VERSION,
+      source_citations: sourceCitations,
+      retrieved_at: new Date().toISOString(),
+      ai_model: aiConfig.model,
+      ai_generated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", proposedUpdateId);
+
+  if (updateError) {
+    return { ok: false as const, error: updateError.message };
+  }
+
+  return {
+    ok: true as const,
+    data: {
+      sectionId: primaryFlightbook.id,
+      sectionTitle: primaryFlightbook.title,
+      sectionNumber: primaryFlightbook.sectionNumber,
+      flightbookName: primaryFlightbook.flightbookName ?? "Unknown",
+      currentBody: primaryFlightbook.body,
+      suggestedText: parsedDraft.suggestedText,
+      citations: sourceCitations,
+      whyThisSection: parsedDraft.whyThisSection,
+      changeSummary: parsedDraft.changeSummary,
+      confidence: parsedDraft.confidence,
+      regulationChunks: regulationChunks.map(compactCitation),
+      flightbookChunks: flightbookChunks.map(compactCitation),
+    },
+  };
+}
+
+export async function generateDraftsForOrg(
+  admin: SupabaseClient,
+  organizationId: string,
+  limit = 20,
+) {
+  const { data: pendingUpdates, error } = await admin
+    .from("proposed_updates")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("status", "pending")
+    .is("ai_suggested_text", null)
+    .not("reg_change_id", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    return { ok: false as const, error: error.message };
+  }
+
+  let generated = 0;
+  const errors: { id: string; error: string }[] = [];
+
+  for (const row of pendingUpdates ?? []) {
+    const result = await generateDraftForProposedUpdate(admin, String(row.id));
+    if (result.ok) {
+      generated += 1;
+    } else {
+      errors.push({ id: String(row.id), error: result.error });
+    }
+  }
+
+  return {
+    ok: true as const,
+    generated,
+    attempted: (pendingUpdates ?? []).length,
+    errors,
+  };
+}

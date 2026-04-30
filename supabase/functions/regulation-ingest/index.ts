@@ -14,6 +14,8 @@ type Chunk = {
   sortOrder: number;
 };
 
+const SOURCE_FILES_BUCKET = "easa-source-files";
+
 function cleanHtml(html: string) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -63,6 +65,76 @@ function inferPart(url: string, title: string) {
 
 function estimateTokenCount(text: string) {
   return Math.max(1, Math.ceil(text.replace(/\s+/g, " ").trim().length / 4));
+}
+
+function toHexDigest(buffer: ArrayBuffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function isEasaSourceUrl(url: string) {
+  try {
+    return new URL(url).hostname.endsWith("easa.europa.eu");
+  } catch {
+    return false;
+  }
+}
+
+function detectStoredExtension(contentType: string | null, url: string) {
+  const normalized = (contentType ?? "").toLowerCase();
+  if (normalized.includes("pdf")) return "pdf";
+  if (normalized.includes("xml")) return "xml";
+  if (normalized.includes("plain")) return "txt";
+
+  const pathname = (() => {
+    try {
+      return new URL(url).pathname.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+
+  if (pathname.endsWith(".pdf")) return "pdf";
+  if (pathname.endsWith(".xml")) return "xml";
+  if (pathname.endsWith(".txt")) return "txt";
+  return "html";
+}
+
+function normalizeContentType(contentType: string | null) {
+  return (contentType ?? "text/html").split(";")[0].trim().toLowerCase();
+}
+
+async function storeSourceArtifact(input: {
+  supabase: ReturnType<typeof createClient>;
+  source: SourceRow;
+  contentHash: string;
+  bytes: ArrayBuffer;
+  contentType: string | null;
+}) {
+  if (!input.source.organization_id) return null;
+  if (!isEasaSourceUrl(input.source.url)) return null;
+
+  const extension = detectStoredExtension(input.contentType, input.source.url);
+  const normalizedContentType = normalizeContentType(input.contentType);
+  const objectPath =
+    `${input.source.organization_id}/${input.source.id}/${contentHash}.${extension}`;
+
+  const { error } = await input.supabase.storage
+    .from(SOURCE_FILES_BUCKET)
+    .upload(objectPath, new Uint8Array(input.bytes), {
+      contentType: normalizedContentType,
+      upsert: true,
+    });
+
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+
+  return {
+    bucket: SOURCE_FILES_BUCKET,
+    path: objectPath,
+    mimeType: normalizedContentType,
+    bytes: input.bytes.byteLength,
+  };
 }
 
 function detectChunks(text: string) {
@@ -331,19 +403,34 @@ serve(async () => {
         continue;
       }
 
-      const html = await response.text();
-      const contentHash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(html))
-        .then((buffer) => Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, "0")).join(""));
+      const responseBytes = await response.arrayBuffer();
+      const html = new TextDecoder().decode(responseBytes);
+      const contentHash = toHexDigest(
+        await crypto.subtle.digest("SHA-256", responseBytes),
+      );
+      const contentType = response.headers.get("content-type");
 
       const title = extractHtmlTitle(html);
       const part = inferPart(source.url, title);
       const extractedText = cleanHtml(html);
+      const storedArtifact = await storeSourceArtifact({
+        supabase,
+        source,
+        contentHash,
+        bytes: responseBytes,
+        contentType,
+      });
 
       const { data: snapshotRow, error: snapshotError } = await supabase
         .from("source_snapshots")
         .upsert({
           source_id: source.id,
           content_hash: contentHash,
+          original_url: source.url,
+          raw_storage_path: storedArtifact?.path ?? null,
+          storage_bucket: storedArtifact?.bucket ?? null,
+          storage_mime_type: storedArtifact?.mimeType ?? null,
+          storage_bytes: storedArtifact?.bytes ?? null,
           extracted_text: extractedText,
           status: "processed",
         }, { onConflict: "source_id,content_hash" })

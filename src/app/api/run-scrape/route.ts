@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import {
+  ensureQueuedUpdatesForOrg,
+  generateDraftsForOrg,
+} from "@/lib/ai/proposed-updates";
 import { aggregateRegChangesForOrg } from "@/lib/pipeline/aggregate-reg-changes";
 
 type FunctionSuccess<T> = {
@@ -225,6 +229,52 @@ export async function POST() {
 
   await updateRun({ steps });
 
+  // ── Step 5: Queue and draft flight book updates ────────────────────────────
+  let queueData: { created?: number; linkedExisting?: number } | null = null;
+  let draftData: { generated?: number; attempted?: number; errors?: { id: string; error: string }[] } | null = null;
+
+  const queueStart = new Date().toISOString();
+  steps["draft-updates"] = { status: "running", started_at: queueStart };
+  await updateRun({ steps });
+
+  const queueResult = await ensureQueuedUpdatesForOrg(admin, orgId);
+  if (!queueResult.ok) {
+    steps["draft-updates"] = {
+      status: "error",
+      started_at: queueStart,
+      finished_at: new Date().toISOString(),
+      error: queueResult.error,
+    };
+    await updateRun({ steps });
+  } else {
+    queueData = {
+      created: queueResult.created,
+      linkedExisting: queueResult.linkedExisting,
+    };
+
+    const draftsResult = await generateDraftsForOrg(admin, orgId, 20);
+    if (!draftsResult.ok) {
+      steps["draft-updates"] = {
+        status: "error",
+        started_at: queueStart,
+        finished_at: new Date().toISOString(),
+        error: draftsResult.error,
+      };
+    } else {
+      draftData = {
+        generated: draftsResult.generated,
+        attempted: draftsResult.attempted,
+        errors: draftsResult.errors,
+      };
+      steps["draft-updates"] = {
+        status: draftsResult.errors.length > 0 ? "complete_with_errors" : "complete",
+        started_at: queueStart,
+        finished_at: new Date().toISOString(),
+      };
+    }
+    await updateRun({ steps });
+  }
+
   // ── Mark run complete ───────────────────────────────────────────────────────
   await updateRun({
     status: "complete",
@@ -241,5 +291,7 @@ export async function POST() {
     regulationIngest: regulationData,
     analyze: analyzeData ?? null,
     aggregate: aggregateData ?? null,
+    queue: queueData,
+    drafts: draftData,
   });
 }

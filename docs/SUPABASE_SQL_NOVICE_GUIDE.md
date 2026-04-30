@@ -30,6 +30,12 @@ This guide is **not** for:
 - fixing every possible auth problem
 - understanding every RAG or embedding feature on day one
 
+What is already wired in this repo:
+
+- Supabase Storage for raw EASA source artifacts in `easa-source-files`
+- Supabase Edge Functions for `rss-ingest`, `regulation-ingest`, and `ai-analyze`
+- Supabase `pgvector` retrieval through `match_document_sections`
+
 ## Before You Start
 
 Open your Supabase project, then:
@@ -64,9 +70,10 @@ If you are new, these are the only sections you usually need:
 2. Check that the tables exist
 3. Create the demo organization if the setup page says it is missing
 4. Add the default RSS feeds
-5. Link your real login user to the organization
-6. Save AI provider settings
-7. Save the automation schedule from `Settings -> Automation`
+5. Add the regulation HTML sources
+6. Link your real login user to the organization
+7. Save AI provider settings
+8. Save the automation schedule from `Settings -> Automation`
 
 If you do those steps, the app usually becomes usable.
 
@@ -184,6 +191,34 @@ What success looks like:
 - you see multiple rows
 - `type` should be `rss`
 - `active` should be `true`
+
+## 3B. Add The Regulation HTML Sources
+
+RSS alone is not enough for semantic regulation search. The `regulation-ingest`
+Edge Function builds the pgvector corpus from HTML regulation pages stored in
+the `sources` table with `type = 'html'`.
+
+Run this:
+
+```sql
+insert into sources (organization_id, url, type, active)
+values
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-aircrew-regulation-eu-no-11782011-part-fcl', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-aircrew-regulation-eu-no-11782011-part-med', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-part-ora', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-part-dto', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-part-oro', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-part-cat', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-part-ncc', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-part-nco', 'html', true),
+  ('00000000-0000-4000-8000-000000000001', 'https://www.easa.europa.eu/en/document-library/regulations/easy-access-rules/easy-access-rules-part-spa', 'html', true)
+on conflict (url) do nothing;
+```
+
+What success looks like:
+
+- you see HTML rows in `sources`
+- `regulation-ingest` can now populate `source_snapshots` and `document_sections`
 
 ---
 

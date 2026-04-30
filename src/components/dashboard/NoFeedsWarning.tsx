@@ -34,11 +34,11 @@ export default function NoFeedsWarning() {
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--easa-color-accent-orange)]/15">
             <AlertTriangle size={20} strokeWidth={1.75} className="text-[var(--easa-color-accent-orange)]" />
           </div>
-          <h2 className="text-base font-semibold">RSS feeds not active</h2>
+          <h2 className="text-base font-semibold">EASA feeds not active</h2>
         </div>
 
         <p className="text-sm text-[var(--easa-color-text-muted)]">
-          No RSS feeds are currently active. The ingestion pipeline will not fetch any regulation updates until at least one feed is enabled.
+          No EASA sources are currently active. The pipeline can still use your uploaded flight books, but it will not fetch new EASA regulation updates until at least one EASA feed is enabled.
         </p>
 
         <div className="mt-5 flex gap-3">
@@ -47,7 +47,7 @@ export default function NoFeedsWarning() {
             className="easa-btn primary flex-1 text-center"
             onClick={dismiss}
           >
-            Go to RSS feeds
+            Go to EASA feeds
           </Link>
           <button className="easa-btn secondary" onClick={dismiss}>
             Dismiss

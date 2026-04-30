@@ -22,6 +22,14 @@ returns table (
 language sql
 stable
 as $$
+  with latest_snapshots as (
+    select distinct on (ss.source_id)
+      ss.id,
+      ss.source_id
+    from source_snapshots ss
+    where ss.status = 'processed'
+    order by ss.source_id, ss.scraped_at desc, ss.id desc
+  )
   select
     ds.id,
     ds.snapshot_id,
@@ -34,6 +42,7 @@ as $$
     1 - (ds.embedding <=> query_embedding::vector) as similarity
   from document_sections ds
   join source_snapshots ss on ss.id = ds.snapshot_id
+  join latest_snapshots ls on ls.id = ds.snapshot_id
   where ds.embedding is not null
     and (filter_organization_id is null or ds.organization_id = filter_organization_id)
     and (

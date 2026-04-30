@@ -117,7 +117,7 @@ export default async function DashboardPage() {
       done: hasActiveFeeds,
       hint: hasActiveFeeds
         ? `${rssUrls.filter((feed) => feed.active).length} active feed(s) ready to ingest.`
-        : "Add or restore EASA feeds so the app can fetch regulation updates.",
+        : "Add or restore EASA feeds so the app can fetch regulation updates to compare with your manuals.",
       href: "/settings?tab=sources",
       action: "Manage feeds",
       icon: Radio,
@@ -164,7 +164,7 @@ export default async function DashboardPage() {
     {
       title: "Regulation monitoring",
       body: hasActiveFeeds
-        ? "Your feeds are connected and ready for manual or scheduled ingest runs."
+        ? "Your EASA sources are connected and ready for manual or scheduled ingest runs."
         : "Connect EASA feeds first so monitoring can begin.",
       href: "/settings?tab=sources",
       cta: hasActiveFeeds ? "Review feeds" : "Connect feeds",
@@ -173,8 +173,8 @@ export default async function DashboardPage() {
     {
       title: "Manual comparison",
       body: setupSummary.hasFlightbooks
-        ? "Flight books are available for mapping, retrieval, and update review."
-        : "Bring in your manuals to unlock diffing, mappings, and AI-assisted updates.",
+        ? "Flight books are available for automatic comparison, retrieval, and update drafting."
+        : "Bring in your manuals so the app can compare them against EASA changes and draft updates.",
       href: "/flightbooks",
       cta: setupSummary.hasFlightbooks ? "Browse flight books" : "Import manuals",
       icon: BookOpen,

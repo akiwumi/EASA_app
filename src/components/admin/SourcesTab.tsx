@@ -91,7 +91,7 @@ export default function SourcesTab() {
     <div className="space-y-6 max-w-2xl">
       {/* Add form */}
       <div className="easa-card p-5 space-y-4">
-        <h2 className="text-sm font-semibold">Add RSS / HTML feed</h2>
+        <h2 className="text-sm font-semibold">Add EASA source</h2>
         <div className="flex gap-2">
           <input
             className="easa-input flex-1"
@@ -189,8 +189,9 @@ export default function SourcesTab() {
       </div>
 
       <div className="easa-card p-4 text-xs text-[var(--easa-color-text-muted)] space-y-1">
-        <p><strong className="text-[var(--easa-color-text-secondary)]">Active feeds</strong> are fetched when you run &quot;Check for updates&quot; from the dashboard.</p>
-        <p>Disabled feeds are kept for reference but skipped during ingestion.</p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">Active EASA feeds</strong> are fetched when you run &quot;Check for updates&quot; from the dashboard.</p>
+        <p>Flight schools do not need their own RSS feeds. Upload their flight books and the app will compare those manuals against the EASA sources listed here.</p>
+        <p>Disabled sources are kept for reference but skipped during ingestion.</p>
       </div>
     </div>
   );

@@ -1,18 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
-
-function parseConfidence(str: string | null): number | null {
-  if (!str) return null;
-  const n = parseFloat(str.replace("%", ""));
-  return isNaN(n) ? null : n;
-}
-
-function mapRiskLevel(impact: string | null): string {
-  const i = (impact ?? "").toLowerCase();
-  if (i === "high") return "high";
-  if (i === "low") return "low";
-  return "medium";
-}
+import { mapRiskLevel, parseConfidence } from "@/lib/ai/proposed-updates";
 
 export async function POST(request: Request) {
   const ctx = await getOrgAccessContext();
@@ -50,10 +38,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, id: existing.id, alreadyQueued: true });
   }
 
+  const { data: regChange } = await admin
+    .from("reg_changes")
+    .select("id")
+    .eq("organization_id", ctx.orgId)
+    .eq("ai_finding_id", findingId)
+    .maybeSingle();
+
   const { data: created, error: createErr } = await admin
     .from("proposed_updates")
     .insert({
       organization_id: ctx.orgId,
+      reg_change_id: (regChange?.id as string | null) ?? null,
       classification: "watchlist",
       risk_level: mapRiskLevel(finding.impact),
       ai_rationale: finding.summary,
