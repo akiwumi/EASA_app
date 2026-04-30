@@ -1,5 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
+import { redirect } from "next/navigation";
 import FlightbooksBrowser from "@/components/flightbooks/FlightbooksBrowser";
+import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
@@ -10,15 +11,15 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
 }
 
 async function loadBooks() {
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  const ctx = await getOrgAccessContext();
+  if (!ctx) return null;
+
+  const admin = getSupabaseAdminClient();
 
   const { data: books, error: booksError } = await admin
     .from("flightbooks")
     .select("id, name, doc_type, version_label, active, created_at")
+    .eq("organization_id", ctx.orgId)
     .order("created_at", { ascending: false });
 
   if (booksError && isMissingSchemaError(booksError)) return [];
@@ -43,5 +44,8 @@ async function loadBooks() {
 
 export default async function FlightbooksPage() {
   const books = await loadBooks();
+  if (books === null) {
+    redirect("/login");
+  }
   return <FlightbooksBrowser books={books} />;
 }

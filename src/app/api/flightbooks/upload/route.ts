@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getOrgAccessContext } from "@/lib/supabase/access";
 import {
   embedTexts,
   estimateTokenCount,
@@ -15,17 +15,6 @@ function getAdminClient() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
-}
-
-async function getOrgContext() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const admin = getAdminClient();
-  const { data: orgUser } = await admin
-    .from("org_users").select("organization_id").eq("user_id", user.id).maybeSingle();
-  return { userId: user.id, orgId: (orgUser?.organization_id ?? null) as string | null };
 }
 
 interface ParsedSection {
@@ -112,7 +101,7 @@ function parseJsonFixture(json: unknown): { docName: string; docType: string; ve
 }
 
 export async function POST(request: Request) {
-  const ctx = await getOrgContext();
+  const ctx = await getOrgAccessContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getAdminClient();
@@ -125,7 +114,7 @@ export async function POST(request: Request) {
 
   if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
-  const orgId = ctx.orgId ?? "00000000-0000-4000-8000-000000000001";
+  const orgId = ctx.orgId;
   const filename = file.name.toLowerCase();
   const bytes = Buffer.from(await file.arrayBuffer());
 

@@ -1,3 +1,8 @@
+import {
+  DEFAULT_ORG_NAME,
+  getOrgAccessContext,
+  getSupabaseAdminClient,
+} from "@/lib/supabase/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export type OrgContext = {
@@ -5,8 +10,6 @@ export type OrgContext = {
   organizationName: string;
   role: string;
 };
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
 
 export type DashboardStats = {
   newChanges7d: number;
@@ -73,34 +76,20 @@ function riskLabel(level: string | null | undefined): string {
 }
 
 export async function loadOrgContext(): Promise<OrgContext | null> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
+  const ctx = await getOrgAccessContext();
+  if (!ctx) return null;
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data: row } = await supabase
-    .from("org_users")
-    .select("organization_id, role, organizations ( name )")
-    .eq("user_id", user.id)
+  const admin = getSupabaseAdminClient();
+  const { data: row } = await admin
+    .from("organizations")
+    .select("name")
+    .eq("id", ctx.orgId)
     .maybeSingle();
 
-  if (!row?.organization_id) {
-    return {
-      organizationId: DEFAULT_ORG_ID,
-      organizationName: "Demo Flight School",
-      role: "admin",
-    };
-  }
-
-  const org = row.organizations as { name?: string } | null;
-
   return {
-    organizationId: row.organization_id,
-    organizationName: org?.name ?? "Your organisation",
-    role: String(row.role),
+    organizationId: ctx.orgId,
+    organizationName: (row?.name as string | null) ?? DEFAULT_ORG_NAME,
+    role: ctx.role,
   };
 }
 

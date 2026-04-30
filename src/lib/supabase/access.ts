@@ -7,12 +7,57 @@ export type OrgAccessContext = {
   role: string;
 };
 
+export const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
+export const DEFAULT_ORG_NAME = "Demo Flight School";
+
 export function getSupabaseAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
+}
+
+async function ensureDefaultOrgMembership(userId: string): Promise<OrgAccessContext | null> {
+  const admin = getSupabaseAdminClient();
+
+  const { error: orgError } = await admin.from("organizations").upsert(
+    { id: DEFAULT_ORG_ID, name: DEFAULT_ORG_NAME },
+    { onConflict: "id" },
+  );
+
+  if (orgError) return null;
+
+  const { data: existingMembership, error: existingMembershipError } = await admin
+    .from("org_users")
+    .select("organization_id, role")
+    .eq("organization_id", DEFAULT_ORG_ID)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingMembershipError) {
+    return null;
+  }
+
+  const membership = existingMembership ?? (
+    await admin
+      .from("org_users")
+      .insert({
+        organization_id: DEFAULT_ORG_ID,
+        user_id: userId,
+        role: "admin",
+      })
+      .select("organization_id, role")
+      .maybeSingle()
+  ).data;
+
+  if (!membership?.organization_id || !membership?.role) return null;
+
+  return {
+    userId,
+    orgId: membership.organization_id as string,
+    role: membership.role as string,
+  };
 }
 
 export async function getOrgAccessContext(): Promise<OrgAccessContext | null> {
@@ -32,7 +77,9 @@ export async function getOrgAccessContext(): Promise<OrgAccessContext | null> {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!orgUser?.organization_id || !orgUser.role) return null;
+  if (!orgUser?.organization_id || !orgUser.role) {
+    return ensureDefaultOrgMembership(user.id);
+  }
 
   return {
     userId: user.id,
