@@ -11,6 +11,14 @@ function getAdminClient() {
   );
 }
 
+function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "") ||
+    /relation .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 async function getOrgContext(): Promise<{ orgId: string | null; role: string }> {
   const supabase = await getSupabaseServerClient();
   if (!supabase) return { orgId: null, role: "viewer" };
@@ -39,18 +47,7 @@ export default async function HistoryPage() {
 
   let query = admin
     .from("flightbook_section_versions")
-    .select(`
-      id,
-      version_number,
-      change_source,
-      created_at,
-      flightbook_section_id,
-      flightbook_sections (
-        section_number,
-        title,
-        flightbooks ( name )
-      )
-    `)
+    .select("id, version_number, change_source, created_at, flightbook_section_id")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -59,25 +56,80 @@ export default async function HistoryPage() {
   const { data, error } = await query;
 
   const rawVersions = error ? [] : (data ?? []);
+  const sectionIds = Array.from(
+    new Set(
+      rawVersions
+        .map((v) => v.flightbook_section_id as string | null)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  const sectionMap = new Map<
+    string,
+    {
+      section_number: string | null;
+      title: string | null;
+      flightbook_id: string | null;
+    }
+  >();
+  const flightbookMap = new Map<string, string | null>();
+  let loadError = error;
+
+  if (!error && sectionIds.length > 0) {
+    const { data: sections, error: sectionsError } = await admin
+      .from("flightbook_sections")
+      .select("id, section_number, title, flightbook_id")
+      .in("id", sectionIds);
+
+    if (sectionsError && !isMissingSchemaError(sectionsError)) {
+      loadError = sectionsError;
+    } else {
+      for (const section of sections ?? []) {
+        sectionMap.set(section.id as string, {
+          section_number: (section.section_number as string | null) ?? null,
+          title: (section.title as string | null) ?? null,
+          flightbook_id: (section.flightbook_id as string | null) ?? null,
+        });
+      }
+
+      const flightbookIds = Array.from(
+        new Set(
+          Array.from(sectionMap.values())
+            .map((section) => section.flightbook_id)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      );
+
+      if (flightbookIds.length > 0) {
+        const { data: flightbooks, error: flightbooksError } = await admin
+          .from("flightbooks")
+          .select("id, name")
+          .in("id", flightbookIds);
+
+        if (flightbooksError && !isMissingSchemaError(flightbooksError)) {
+          loadError = flightbooksError;
+        } else {
+          for (const book of flightbooks ?? []) {
+            flightbookMap.set(book.id as string, (book.name as string | null) ?? null);
+          }
+        }
+      }
+    }
+  }
 
   const versions: VersionRow[] = rawVersions.map((v) => {
-    const sec = Array.isArray(v.flightbook_sections)
-      ? v.flightbook_sections[0]
-      : v.flightbook_sections;
-    const fb = sec
-      ? Array.isArray((sec as Record<string, unknown>).flightbooks)
-        ? ((sec as Record<string, unknown>).flightbooks as { name?: string }[])[0]
-        : (sec as Record<string, unknown>).flightbooks as { name?: string } | null
-      : null;
+    const section = sectionMap.get(v.flightbook_section_id as string);
     return {
       id: v.id as string,
       version_number: v.version_number as number,
       change_source: v.change_source as string,
       created_at: v.created_at as string,
       flightbook_section_id: v.flightbook_section_id as string,
-      sectionNumber: ((sec as Record<string, unknown> | null)?.section_number as string | null) ?? null,
-      sectionTitle: ((sec as Record<string, unknown> | null)?.title as string | null) ?? null,
-      flightbookName: (fb?.name as string | null) ?? null,
+      sectionNumber: section?.section_number ?? null,
+      sectionTitle: section?.title ?? null,
+      flightbookName: section?.flightbook_id
+        ? (flightbookMap.get(section.flightbook_id) ?? null)
+        : null,
     };
   });
 
@@ -98,7 +150,7 @@ export default async function HistoryPage() {
         </div>
       </div>
 
-      {error && (
+      {loadError && (
         <div className="easa-card p-6">
           <p className="text-sm text-[var(--easa-color-accent-pink)]">
             Failed to load version history. Please try again.
@@ -106,7 +158,7 @@ export default async function HistoryPage() {
         </div>
       )}
 
-      {!error && versions.length === 0 && (
+      {!loadError && versions.length === 0 && (
         <div className="easa-card p-10 text-center">
           <p className="text-sm font-medium">No version history found</p>
           <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
@@ -115,7 +167,7 @@ export default async function HistoryPage() {
         </div>
       )}
 
-      {!error && versions.length > 0 && (
+      {!loadError && versions.length > 0 && (
         <HistoryClient versions={versions} isAdmin={isAdmin} />
       )}
     </div>

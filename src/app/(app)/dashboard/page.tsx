@@ -189,7 +189,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <main id="top" className="flex-1 space-y-6">
+    <div id="top" className="space-y-6">
       {!hasActiveFeeds && <NoFeedsWarning />}
       <header className="flex flex-col gap-4 rounded-[28px] bg-[var(--easa-color-surface-1)] p-6 shadow-[var(--easa-shadow-1)] md:flex-row md:items-center md:justify-between">
         <div>
@@ -658,6 +658,6 @@ export default async function DashboardPage() {
           Open settings
         </Link>
       </section>
-    </main>
+    </div>
   );
 }

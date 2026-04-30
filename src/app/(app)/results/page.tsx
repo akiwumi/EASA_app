@@ -7,7 +7,7 @@ export default async function ResultsPage() {
   const results = await fetchAiScrapedUpdates();
 
   return (
-    <main className="flex-1 space-y-6">
+    <div className="space-y-6">
       <header className="easa-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-xs text-[var(--easa-color-text-muted)]">
@@ -126,6 +126,6 @@ export default async function ResultsPage() {
           )}
         </div>
       </section>
-    </main>
+    </div>
   );
 }

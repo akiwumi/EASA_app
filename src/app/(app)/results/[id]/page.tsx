@@ -38,7 +38,7 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
     : null;
 
   return (
-    <main className="space-y-6 max-w-5xl">
+    <div className="max-w-5xl space-y-6">
       {/* ── Header ───────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/results" className="easa-btn secondary text-sm">
@@ -73,6 +73,6 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
           mappedSection: (finding.mapped_section as string | null) ?? "",
         }}
       />
-    </main>
+    </div>
   );
 }

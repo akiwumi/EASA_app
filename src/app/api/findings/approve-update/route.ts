@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 export async function POST(request: Request) {
+  const ctx = await getOrgAdminContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const { findingId, sectionId, approvedText } = (await request.json()) as {
     findingId?: string;
     sectionId?: string;
@@ -22,7 +15,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "findingId, sectionId and approvedText are required" }, { status: 400 });
   }
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   // 1. Fetch finding to get org
   const { data: finding } = await admin
@@ -33,13 +26,17 @@ export async function POST(request: Request) {
 
   if (!finding) return NextResponse.json({ error: "Finding not found" }, { status: 404 });
 
-  const orgId: string = (finding.organization_id as string | null) ?? DEFAULT_ORG_ID;
+  const orgId = finding.organization_id as string | null;
+  if (!orgId || orgId !== ctx.orgId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   // 2. Fetch the current section (to snapshot old body)
   const { data: section } = await admin
     .from("flightbook_sections")
     .select("id, body, organization_id")
     .eq("id", sectionId)
+    .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (!section) return NextResponse.json({ error: "Section not found" }, { status: 404 });

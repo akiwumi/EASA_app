@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 export async function GET() {
-  const admin = getAdminClient();
+  const ctx = await getOrgAdminContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const admin = getSupabaseAdminClient();
+  const organizationId = ctx.orgId;
+
+  const { data: sourceIds } = await admin
+    .from("sources")
+    .select("id")
+    .or(`organization_id.eq.${organizationId},organization_id.is.null`);
+  const scopedSourceIds = (sourceIds ?? []).map((source) => source.id as string);
 
   const [
     { count: sourcesTotal },
@@ -24,16 +26,56 @@ export async function GET() {
     { data: recentItems },
     { data: aiConfig },
   ] = await Promise.all([
-    admin.from("sources").select("*", { count: "exact", head: true }),
-    admin.from("sources").select("*", { count: "exact", head: true }).eq("active", true).eq("type", "rss"),
-    admin.from("rss_items").select("*", { count: "exact", head: true }),
-    admin.from("ai_findings").select("*", { count: "exact", head: true }),
-    admin.from("reg_changes").select("*", { count: "exact", head: true }),
-    admin.from("source_snapshots").select("*", { count: "exact", head: true }),
-    admin.from("document_sections").select("*", { count: "exact", head: true }),
-    admin.from("ai_findings").select("id, impact, category, created_at").order("created_at", { ascending: false }).limit(3),
-    admin.from("rss_items").select("id, title, created_at").order("created_at", { ascending: false }).limit(3),
-    admin.from("ai_provider_config").select("provider, model, api_key").limit(1).maybeSingle(),
+    admin
+      .from("sources")
+      .select("*", { count: "exact", head: true })
+      .eq("type", "rss")
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`),
+    admin
+      .from("sources")
+      .select("*", { count: "exact", head: true })
+      .eq("type", "rss")
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`)
+      .eq("active", true),
+    admin
+      .from("rss_items")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", organizationId),
+    admin
+      .from("ai_findings")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", organizationId),
+    admin
+      .from("reg_changes")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", organizationId),
+    scopedSourceIds.length > 0
+      ? admin
+          .from("source_snapshots")
+          .select("*", { count: "exact", head: true })
+          .in("source_id", scopedSourceIds)
+      : Promise.resolve({ count: 0 }),
+    admin
+      .from("document_sections")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", organizationId),
+    admin
+      .from("ai_findings")
+      .select("id, impact, category, created_at")
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(3),
+    admin
+      .from("rss_items")
+      .select("id, title, created_at")
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(3),
+    admin
+      .from("ai_provider_config")
+      .select("provider, model, api_key")
+      .eq("organization_id", organizationId)
+      .maybeSingle(),
   ]);
 
   return NextResponse.json({

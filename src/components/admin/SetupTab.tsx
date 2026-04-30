@@ -176,9 +176,9 @@ set name = excluded.name;`;
           help: "Without this, the app can log you in but still look empty.",
         },
         {
-          label: "At least one active EASA source exists",
+          label: "At least one active EASA RSS feed exists",
           done: status.setup.activeSources > 0,
-          help: "Active feeds are what the dashboard checks for updates.",
+          help: "Active RSS feeds are what the dashboard and pipeline use for update checks.",
         },
         {
           label: "AI provider settings are saved",
@@ -338,7 +338,7 @@ set name = excluded.name;`;
               </div>
 
               <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
-                <p className="font-medium">Sources</p>
+                <p className="font-medium">RSS feeds</p>
                 <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
                   {status.setup.activeSources} active of {status.setup.sourcesTotal} total
                 </p>

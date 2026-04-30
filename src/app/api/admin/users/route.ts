@@ -1,36 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
-async function getAdminContext() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = getAdminClient();
-  const { data: orgUser } = await admin
-    .from("org_users")
-    .select("organization_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (orgUser && orgUser.role !== "admin") return null;
-  return { orgId: (orgUser?.organization_id ?? DEFAULT_ORG_ID) as string };
-}
-
-function getAdminClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } });
-}
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 // GET /api/admin/users — list all users in the org
 export async function GET() {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const supabase = await getSupabaseServerClient();
@@ -46,7 +20,7 @@ export async function GET() {
     .select("id, display_name")
     .in("id", orgUsers.map((u) => u.user_id));
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const authMap = new Map(
     (authList?.users ?? []).map((u) => [u.id, { email: u.email, lastSignIn: u.last_sign_in_at }])
@@ -67,14 +41,14 @@ export async function GET() {
 
 // POST /api/admin/users — invite a new user and add to org
 export async function POST(request: Request) {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { email, role } = (await request.json()) as { email?: string; role?: string };
   if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
 
   const validRole = role === "admin" ? "admin" : "viewer";
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email);
   if (inviteErr) return NextResponse.json({ error: inviteErr.message }, { status: 400 });
@@ -94,14 +68,14 @@ export async function POST(request: Request) {
 
 // PATCH /api/admin/users — change a user's role
 export async function PATCH(request: Request) {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { userId, role } = (await request.json()) as { userId?: string; role?: string };
   if (!userId || !role) return NextResponse.json({ error: "userId and role required" }, { status: 400 });
 
   const validRole = role === "admin" ? "admin" : "viewer";
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   const { error } = await admin
     .from("org_users")
@@ -115,13 +89,13 @@ export async function PATCH(request: Request) {
 
 // DELETE /api/admin/users — remove a user from the org
 export async function DELETE(request: Request) {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { userId } = (await request.json()) as { userId?: string };
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const { error } = await admin
     .from("org_users")
     .delete()

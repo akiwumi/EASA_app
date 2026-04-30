@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
@@ -10,28 +10,8 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
   );
 }
 
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
-
 async function getOrgContext() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = getAdminClient();
-  const { data: orgUser } = await admin
-    .from("org_users")
-    .select("organization_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  return orgUser ? { userId: user.id, orgId: orgUser.organization_id as string, role: orgUser.role as string } : { userId: user.id, orgId: null, role: "admin" };
+  return getOrgAccessContext();
 }
 
 // GET /api/updates?status=&risk=&classification=&page=1&limit=50
@@ -47,7 +27,7 @@ export async function GET(request: Request) {
   const limit = Math.min(100, Math.max(10, Number(searchParams.get("limit") ?? 50)));
   const offset = (page - 1) * limit;
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   let query = admin
     .from("proposed_updates")
@@ -113,7 +93,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "invalid action" }, { status: 400 });
   }
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   // Update proposed_updates status
   const updateQ = admin

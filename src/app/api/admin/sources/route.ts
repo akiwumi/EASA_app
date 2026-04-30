@@ -1,38 +1,12 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
-
-async function getAdminContext() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const admin = getAdminClient();
-  const { data: orgUser } = await admin
-    .from("org_users")
-    .select("organization_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (orgUser && orgUser.role !== "admin") return null;
-  return { orgId: (orgUser?.organization_id ?? DEFAULT_ORG_ID) as string };
-}
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 // GET /api/admin/sources
 export async function GET() {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("sources")
     .select("id, url, type, active, created_at")
@@ -45,7 +19,7 @@ export async function GET() {
 
 // POST /api/admin/sources — add a new feed URL
 export async function POST(request: Request) {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { url, type } = (await request.json()) as { url?: string; type?: string };
@@ -56,7 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("sources")
     .insert({ organization_id: ctx.orgId, url, type: type ?? "rss", active: true })
@@ -69,13 +43,13 @@ export async function POST(request: Request) {
 
 // PATCH /api/admin/sources — toggle active
 export async function PATCH(request: Request) {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id, active } = (await request.json()) as { id?: string; active?: boolean };
   if (!id || active === undefined) return NextResponse.json({ error: "id and active required" }, { status: 400 });
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const { error } = await admin
     .from("sources")
     .update({ active })
@@ -88,13 +62,13 @@ export async function PATCH(request: Request) {
 
 // DELETE /api/admin/sources
 export async function DELETE(request: Request) {
-  const ctx = await getAdminContext();
+  const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { id } = (await request.json()) as { id?: string };
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const { error } = await admin
     .from("sources")
     .delete()

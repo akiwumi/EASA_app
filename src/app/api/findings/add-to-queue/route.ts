@@ -1,15 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function parseConfidence(str: string | null): number | null {
   if (!str) return null;
@@ -25,10 +15,13 @@ function mapRiskLevel(impact: string | null): string {
 }
 
 export async function POST(request: Request) {
+  const ctx = await getOrgAccessContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
   const { findingId } = (await request.json()) as { findingId?: string };
   if (!findingId) return NextResponse.json({ error: "findingId required" }, { status: 400 });
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   // Fetch the finding
   const { data: finding, error: findingErr } = await admin
@@ -41,12 +34,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Finding not found" }, { status: 404 });
   }
 
+  if ((finding.organization_id as string | null) !== ctx.orgId) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   // Check if already queued (avoid duplicates)
   const { data: existing } = await admin
     .from("proposed_updates")
     .select("id")
     .eq("ai_rationale", finding.summary ?? "")
-    .eq("organization_id", finding.organization_id ?? DEFAULT_ORG_ID)
+    .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (existing) {
@@ -56,7 +53,7 @@ export async function POST(request: Request) {
   const { data: created, error: createErr } = await admin
     .from("proposed_updates")
     .insert({
-      organization_id: finding.organization_id ?? DEFAULT_ORG_ID,
+      organization_id: ctx.orgId,
       classification: "watchlist",
       risk_level: mapRiskLevel(finding.impact),
       ai_rationale: finding.summary,

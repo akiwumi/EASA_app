@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { aggregateRegChangesForOrg } from "@/lib/pipeline/aggregate-reg-changes";
 
 type FunctionSuccess<T> = {
   ok: true;
@@ -77,21 +68,10 @@ async function invokeEdgeFunction<T>(name: string): Promise<FunctionSuccess<T> |
   return { ok: true, data: (data as T | null) ?? null };
 }
 
-async function getOrgId(): Promise<string> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return DEFAULT_ORG_ID;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return DEFAULT_ORG_ID;
-  const admin = getAdminClient();
-  const { data } = await admin
-    .from("org_users")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  return (data?.organization_id as string | null) ?? DEFAULT_ORG_ID;
-}
-
 export async function POST() {
+  const ctx = await getOrgAdminContext();
+  if (!ctx) return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -102,8 +82,8 @@ export async function POST() {
     );
   }
 
-  const admin = getAdminClient();
-  const orgId = await getOrgId();
+  const admin = getSupabaseAdminClient();
+  const orgId = ctx.orgId;
 
   // --- Create pipeline_run row (status = running) ---
   const steps: Record<string, { status: string; started_at: string; finished_at?: string; error?: string }> = {};
@@ -227,10 +207,18 @@ export async function POST() {
   await updateRun({ steps });
 
   try {
-    const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const aggRes = await fetch(`${origin}/api/pipeline/aggregate-reg-changes`, { method: "POST" });
-    if (aggRes.ok) aggregateData = await aggRes.json();
-    steps["aggregate"] = { status: "complete", started_at: aggStart, finished_at: new Date().toISOString() };
+    const aggregateResult = await aggregateRegChangesForOrg(admin, orgId);
+    if (!aggregateResult.ok) {
+      steps["aggregate"] = {
+        status: "error",
+        started_at: aggStart,
+        finished_at: new Date().toISOString(),
+        error: aggregateResult.error,
+      };
+    } else {
+      aggregateData = aggregateResult.payload;
+      steps["aggregate"] = { status: "complete", started_at: aggStart, finished_at: new Date().toISOString() };
+    }
   } catch {
     steps["aggregate"] = { status: "skipped", started_at: aggStart, finished_at: new Date().toISOString() };
   }

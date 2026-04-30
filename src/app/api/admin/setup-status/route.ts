@@ -1,47 +1,20 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 export async function GET() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) {
-    return NextResponse.json(
-      { error: "Supabase environment variables are missing." },
-      { status: 500 },
-    );
-  }
+  const ctx = await getOrgAdminContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const { data: membership } = await admin
     .from("org_users")
     .select("organization_id, role, organizations ( name )")
-    .eq("user_id", user.id)
+    .eq("user_id", ctx.userId)
     .maybeSingle();
 
-  const organizationId =
-    (membership?.organization_id as string | null) ?? DEFAULT_ORG_ID;
+  const organizationId = ctx.orgId;
   const organizationName =
-    (
-      membership?.organizations as { name?: string } | null
-    )?.name ?? "Demo Flight School";
+    (membership?.organizations as { name?: string } | null)?.name ?? "Demo Flight School";
 
   const [
     { data: org },
@@ -58,11 +31,13 @@ export async function GET() {
     admin
       .from("sources")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId),
+      .eq("type", "rss")
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`),
     admin
       .from("sources")
       .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
+      .eq("type", "rss")
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`)
       .eq("active", true),
     admin
       .from("ai_provider_config")
@@ -77,12 +52,12 @@ export async function GET() {
   ]);
 
   const linked = Boolean(membership?.organization_id);
-  const isAdmin = linked ? membership?.role === "admin" : false;
+  const isAdmin = membership?.role === "admin";
 
   return NextResponse.json({
     currentUser: {
-      id: user.id,
-      email: user.email ?? null,
+      id: ctx.userId,
+      email: null,
     },
     organization: {
       id: organizationId,

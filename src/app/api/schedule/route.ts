@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 const DEFAULT_SCHEDULE = {
   cadence: "daily",
@@ -14,28 +11,6 @@ const DEFAULT_SCHEDULE = {
   notifyOnDetect: true,
   defaultExportFmt: "pdf",
 };
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
-
-async function getOrgId(): Promise<string> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return DEFAULT_ORG_ID;
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return DEFAULT_ORG_ID;
-  const admin = getAdminClient();
-  const { data: orgUser } = await admin
-    .from("org_users")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  return (orgUser?.organization_id as string | null) ?? DEFAULT_ORG_ID;
-}
 
 function firstRunTimeUtc(row: { run_times_utc?: string[] | null; run_time_utc?: string | null }): string {
   const arr = row.run_times_utc;
@@ -61,15 +36,17 @@ function buildRunTimesUtc(runTimeUtc: string, runsPerDay: number): string[] {
 }
 
 export async function GET() {
-  const orgId = await getOrgId();
-  const admin = getAdminClient();
+  const ctx = await getOrgAdminContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const admin = getSupabaseAdminClient();
 
   const { data: schedule } = await admin
     .from("schedules")
     .select(
       "cadence, run_time_utc, run_times_utc, runs_per_day, enabled, auto_approve_low, auto_approve_delay_hours, notify_on_detect, default_export_fmt",
     )
-    .eq("organization_id", orgId)
+    .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (!schedule) {
@@ -95,8 +72,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const orgId = await getOrgId();
-  const admin = getAdminClient();
+  const ctx = await getOrgAdminContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const admin = getSupabaseAdminClient();
 
   const payload = (await request.json()) as {
     cadence?: string;
@@ -142,12 +121,12 @@ export async function POST(request: Request) {
   const { data: existing } = await admin
     .from("schedules")
     .select("id")
-    .eq("organization_id", orgId)
+    .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   const { error } = existing
-    ? await admin.from("schedules").update(body).eq("organization_id", orgId)
-    : await admin.from("schedules").insert({ ...body, organization_id: orgId });
+    ? await admin.from("schedules").update(body).eq("organization_id", ctx.orgId)
+    : await admin.from("schedules").insert({ ...body, organization_id: ctx.orgId });
 
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 400 });

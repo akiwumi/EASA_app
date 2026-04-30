@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-
-const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 const DEFAULT_FEEDS = [
   "https://www.easa.europa.eu/en/newsroom-and-events/news/feed.xml",
@@ -19,21 +17,16 @@ const DEAD_FEEDS = [
   "https://example.com/feed.xml",
 ];
 
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
-
 // POST /api/admin/seed-sources — ensure default org and EASA feeds exist
 export async function POST() {
-  const admin = getAdminClient();
+  const ctx = await getOrgAdminContext();
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  // Ensure default org exists
+  const admin = getSupabaseAdminClient();
+
+  // Ensure the org row exists before seeding its defaults.
   await admin.from("organizations").upsert(
-    { id: DEFAULT_ORG_ID, name: "Demo Flight School" },
+    { id: ctx.orgId, name: "Demo Flight School" },
     { onConflict: "id" },
   );
 
@@ -59,7 +52,7 @@ export async function POST() {
       skipped.push(url);
     } else {
       const { error } = await admin.from("sources").insert({
-        organization_id: DEFAULT_ORG_ID,
+        organization_id: ctx.orgId,
         url,
         type: "rss",
         active: true,

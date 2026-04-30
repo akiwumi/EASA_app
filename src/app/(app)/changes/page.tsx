@@ -89,7 +89,7 @@ export default async function ChangesPage({
   const allTypes = [...new Set((changes ?? []).map((c) => (c as { change_type: string }).change_type))];
 
   return (
-    <main className="flex-1 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <header className="easa-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
@@ -236,6 +236,6 @@ export default async function ChangesPage({
           );
         })}
       </div>
-    </main>
+    </div>
   );
 }
