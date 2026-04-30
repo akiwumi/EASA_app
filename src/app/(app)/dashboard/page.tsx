@@ -13,6 +13,7 @@ import StatCard from "@/components/cards/StatCard";
 import AiScrapeButton from "@/components/dashboard/AiScrapeButton";
 import NoFeedsWarning from "@/components/dashboard/NoFeedsWarning";
 import ScheduleCard from "@/components/dashboard/ScheduleCard";
+import SetupAssistCard from "@/components/dashboard/SetupAssistCard";
 import {
   loadDashboardStats,
   loadDashboardSetupSummary,
@@ -200,18 +201,18 @@ export default async function DashboardPage() {
             Regulation update dashboard
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--easa-color-text-muted)]">
-            Monitor EASA sources, review proposed manual updates, and keep audit
-            history aligned with MASTER_BUILD Phase 0–2 delivery.
+            Track EASA updates, compare them with your flight books, and keep a
+            clear approval history for every accepted manual change.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="easa-badge is-blue">
               Setup {setupDoneCount}/{setupTasks.length}
             </span>
             <span className={`easa-badge ${hasActiveFeeds ? "is-green" : "is-orange"}`}>
-              {hasActiveFeeds ? "Feeds active" : "Feeds missing"}
+              {hasActiveFeeds ? "Feeds connected" : "No active feeds"}
             </span>
             <span className={`easa-badge ${setupSummary.hasFlightbooks ? "is-green" : "is-orange"}`}>
-              {setupSummary.hasFlightbooks ? "Manuals loaded" : "No manuals yet"}
+              {setupSummary.hasFlightbooks ? "Flight books ready" : "No flight books uploaded"}
             </span>
           </div>
         </div>
@@ -235,15 +236,22 @@ export default async function DashboardPage() {
         ))}
       </section>
 
+      <SetupAssistCard
+        hasActiveFeeds={hasActiveFeeds}
+        hasFlightbooks={setupSummary.hasFlightbooks}
+        hasAiConfig={setupSummary.hasAiConfig && setupSummary.hasAiKey}
+        hasSchedule={setupSummary.hasSchedule}
+      />
+
       <section className="grid gap-6 xl:grid-cols-[1.25fr_1fr]">
         <div className="easa-card p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Start here</h2>
               <p className="text-sm text-[var(--easa-color-text-muted)]">
-                This dashboard is the control center for the full workflow: monitor
-                EASA feeds, compare them to your manuals, review AI suggestions,
-                then approve with audit history.
+                This dashboard walks through the full workflow: collect EASA
+                updates, compare them to your flight books, review suggestions,
+                then approve changes with an audit trail.
               </p>
             </div>
             <Link className="easa-btn secondary text-sm" href="/settings?tab=setup">
@@ -339,7 +347,7 @@ export default async function DashboardPage() {
             {queuePreview.length === 0 ? (
               <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-muted)]">
                 {isEmptyWorkspace
-                  ? "No proposed updates yet because the workspace is still being set up. Start with feeds, AI settings, and flight book import."
+                  ? "No proposed updates yet because setup is still incomplete. Start by adding feeds, saving AI settings, and uploading flight books."
                   : "No proposed updates yet. Run the RSS pipeline and review incoming regulation items once they have been analyzed."}
               </div>
             ) : (
@@ -407,9 +415,9 @@ export default async function DashboardPage() {
             <div className="mt-4 max-h-48 space-y-2 overflow-y-auto text-sm">
             {rssUrls.length === 0 ? (
               <div className="rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
-                No feeds configured yet.{" "}
+                No feeds connected yet.{" "}
                 <Link href="/settings?tab=sources" className="underline">
-                  Add a feed →
+                  Manage feeds →
                 </Link>
                 </div>
               ) : (
@@ -495,7 +503,7 @@ export default async function DashboardPage() {
           <div className="mt-4 space-y-3">
             {mappingRows.length === 0 ? (
               <p className="text-sm text-[var(--easa-color-text-muted)]">
-                No flight books imported yet. Upload manuals from the app or run{" "}
+                No flight books uploaded yet. Upload manuals from the app or run{" "}
                 <code className="text-xs">scripts/import-flightbooks.mjs</code>{" "}
                 if you are doing a bulk import.
               </p>
