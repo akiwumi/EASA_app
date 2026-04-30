@@ -2,6 +2,14 @@ import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "") ||
+    /relation .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 async function loadBook(id: string) {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,19 +17,24 @@ async function loadBook(id: string) {
     { auth: { autoRefreshToken: false, persistSession: false } },
   );
 
-  const { data: book } = await admin
+  const { data: book, error: bookError } = await admin
     .from("flightbooks")
     .select("id, name, doc_type, version_label, active, created_at")
     .eq("id", id)
     .maybeSingle();
 
+  if (bookError && isMissingSchemaError(bookError)) return null;
   if (!book) return null;
 
-  const { data: sections } = await admin
+  const { data: sections, error: sectionsError } = await admin
     .from("flightbook_sections")
     .select("id, section_number, title, body, sort_order")
     .eq("flightbook_id", id)
     .order("sort_order");
+
+  if (sectionsError && isMissingSchemaError(sectionsError)) {
+    return { book, sections: [] };
+  }
 
   return { book, sections: sections ?? [] };
 }

@@ -1,11 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  Bot,
+  BookOpen,
+  CheckCircle2,
+  Clock3,
+  Newspaper,
+  Radio,
+  ShieldCheck,
+} from "lucide-react";
 import StatCard from "@/components/cards/StatCard";
 import AiScrapeButton from "@/components/dashboard/AiScrapeButton";
 import NoFeedsWarning from "@/components/dashboard/NoFeedsWarning";
 import ScheduleCard from "@/components/dashboard/ScheduleCard";
 import {
   loadDashboardStats,
+  loadDashboardSetupSummary,
   loadFlightbookMappingRows,
   loadLastRssIngestAt,
   loadOrgContext,
@@ -21,7 +31,7 @@ export default async function DashboardPage() {
   const org = await loadOrgContext();
 
   if (!org) {
-    redirect("/login");
+    redirect("/settings?tab=setup");
   }
 
   const [
@@ -33,6 +43,7 @@ export default async function DashboardPage() {
     riskMix,
     pipeline,
     timeMachinePreview,
+    setupSummary,
   ] = await Promise.all([
     loadDashboardStats(org.organizationId),
     loadUpdateQueuePreview(org.organizationId, 5),
@@ -42,6 +53,7 @@ export default async function DashboardPage() {
     loadRiskMix(org.organizationId),
     loadRecentPipelineRun(org.organizationId),
     loadRecentSectionVersions(org.organizationId, 3),
+    loadDashboardSetupSummary(org.organizationId),
   ]);
 
   const health = sourcesHealthLabel(stats.sourcesActive, stats.sourcesTotal);
@@ -98,6 +110,83 @@ export default async function DashboardPage() {
     : "No items ingested yet";
 
   const hasActiveFeeds = rssUrls.some((f) => f.active);
+  const setupTasks = [
+    {
+      label: "RSS feeds connected",
+      done: hasActiveFeeds,
+      hint: hasActiveFeeds
+        ? `${rssUrls.filter((feed) => feed.active).length} active feed(s) ready to ingest.`
+        : "Add or restore EASA feeds so the app can fetch regulation updates.",
+      href: "/settings?tab=sources",
+      action: "Manage feeds",
+      icon: Radio,
+    },
+    {
+      label: "AI analysis configured",
+      done: setupSummary.hasAiConfig && setupSummary.hasAiKey,
+      hint:
+        setupSummary.hasAiConfig && setupSummary.hasAiKey
+          ? "Provider and API key are saved."
+          : "Save your provider, model, and API key so the app can draft update text.",
+      href: "/settings?tab=ai",
+      action: "Open AI settings",
+      icon: Bot,
+    },
+    {
+      label: "Automation schedule saved",
+      done: setupSummary.hasSchedule,
+      hint: setupSummary.hasSchedule
+        ? "The pipeline has a saved schedule."
+        : "Choose when the pipeline should run and whether notifications are enabled.",
+      href: "/settings?tab=automation",
+      action: "Open automation",
+      icon: Clock3,
+    },
+    {
+      label: "Flight books imported",
+      done: setupSummary.hasFlightbooks,
+      hint: setupSummary.hasFlightbooks
+        ? `${setupSummary.flightbookCount} flight book(s) available for comparison.`
+        : "Upload or import flight books so the app has manuals to compare against EASA changes.",
+      href: "/flightbooks/upload",
+      action: "Upload flight books",
+      icon: BookOpen,
+    },
+  ];
+  const setupDoneCount = setupTasks.filter((task) => task.done).length;
+  const isEmptyWorkspace =
+    queuePreview.length === 0 &&
+    mappingRows.length === 0 &&
+    !lastRssAt &&
+    !setupSummary.hasFlightbooks;
+  const featureCards = [
+    {
+      title: "Regulation monitoring",
+      body: hasActiveFeeds
+        ? "Your feeds are connected and ready for manual or scheduled ingest runs."
+        : "Connect EASA feeds first so monitoring can begin.",
+      href: "/settings?tab=sources",
+      cta: hasActiveFeeds ? "Review feeds" : "Connect feeds",
+      icon: Newspaper,
+    },
+    {
+      title: "Manual comparison",
+      body: setupSummary.hasFlightbooks
+        ? "Flight books are available for mapping, retrieval, and update review."
+        : "Bring in your manuals to unlock diffing, mappings, and AI-assisted updates.",
+      href: "/flightbooks",
+      cta: setupSummary.hasFlightbooks ? "Browse flight books" : "Import manuals",
+      icon: BookOpen,
+    },
+    {
+      title: "Human approval",
+      body:
+        "Every proposed amendment stays in review until someone approves, rejects, or sends it back.",
+      href: "/updates",
+      cta: "Open queue",
+      icon: ShieldCheck,
+    },
+  ];
 
   return (
     <main className="flex-1 space-y-6">
@@ -114,8 +203,22 @@ export default async function DashboardPage() {
             Monitor EASA sources, review proposed manual updates, and keep audit
             history aligned with MASTER_BUILD Phase 0–2 delivery.
           </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="easa-badge is-blue">
+              Setup {setupDoneCount}/{setupTasks.length}
+            </span>
+            <span className={`easa-badge ${hasActiveFeeds ? "is-green" : "is-orange"}`}>
+              {hasActiveFeeds ? "Feeds active" : "Feeds missing"}
+            </span>
+            <span className={`easa-badge ${setupSummary.hasFlightbooks ? "is-green" : "is-orange"}`}>
+              {setupSummary.hasFlightbooks ? "Manuals loaded" : "No manuals yet"}
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Link className="easa-btn primary" href="/settings?tab=setup">
+            Finish setup
+          </Link>
           <Link className="easa-btn secondary" href="/results">
             View AI results
           </Link>
@@ -129,6 +232,92 @@ export default async function DashboardPage() {
         {statCards.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.25fr_1fr]">
+        <div className="easa-card p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Start here</h2>
+              <p className="text-sm text-[var(--easa-color-text-muted)]">
+                This dashboard is the control center for the full workflow: monitor
+                EASA feeds, compare them to your manuals, review AI suggestions,
+                then approve with audit history.
+              </p>
+            </div>
+            <Link className="easa-btn secondary text-sm" href="/settings?tab=setup">
+              Open setup guide
+            </Link>
+          </div>
+          <div className="mt-5 space-y-3">
+            {setupTasks.map((task) => {
+              const Icon = task.icon;
+              return (
+                <div
+                  key={task.label}
+                  className="flex items-start gap-3 rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4"
+                >
+                  <div className="mt-0.5 shrink-0">
+                    {task.done ? (
+                      <CheckCircle2
+                        size={18}
+                        className="text-[var(--easa-color-accent-green)]"
+                      />
+                    ) : (
+                      <Icon
+                        size={18}
+                        className="text-[var(--easa-color-text-muted)]"
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{task.label}</p>
+                    <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                      {task.hint}
+                    </p>
+                  </div>
+                  <Link className="easa-btn secondary shrink-0 text-xs" href={task.href}>
+                    {task.action}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="easa-card p-6">
+          <h2 className="text-lg font-semibold">What this app does</h2>
+          <p className="text-sm text-[var(--easa-color-text-muted)]">
+            The dashboard should explain the features even before your project has
+            real data. These are the main workflows available in the app.
+          </p>
+          <div className="mt-5 space-y-3">
+            {featureCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <div
+                  key={card.title}
+                  className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[var(--easa-color-surface-1)]">
+                      <Icon size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{card.title}</p>
+                      <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                        {card.body}
+                      </p>
+                      <Link className="mt-3 inline-flex text-xs underline" href={card.href}>
+                        {card.cta}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
@@ -148,10 +337,9 @@ export default async function DashboardPage() {
           <div className="mt-6 space-y-4">
             {queuePreview.length === 0 ? (
               <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-muted)]">
-                No proposed updates yet. Run the RSS pipeline and apply
-                migrations through <code className="text-xs">009_views.sql</code>{" "}
-                so <code className="text-xs">proposed_updates</code> can populate
-                this list.
+                {isEmptyWorkspace
+                  ? "No proposed updates yet because the workspace is still being set up. Start with feeds, AI settings, and flight book import."
+                  : "No proposed updates yet. Run the RSS pipeline and review incoming regulation items once they have been analyzed."}
               </div>
             ) : (
               queuePreview.map((item) => (
@@ -216,12 +404,12 @@ export default async function DashboardPage() {
               </Link>
             </div>
             <div className="mt-4 max-h-48 space-y-2 overflow-y-auto text-sm">
-              {rssUrls.length === 0 ? (
-                <div className="rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
-                  No feeds configured.{" "}
-                  <Link href="/settings?tab=sources" className="underline">
-                    Add a feed →
-                  </Link>
+            {rssUrls.length === 0 ? (
+              <div className="rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
+                No feeds configured yet.{" "}
+                <Link href="/settings?tab=sources" className="underline">
+                  Add a feed →
+                </Link>
                 </div>
               ) : (
                 rssUrls.map((feed) => (
@@ -270,7 +458,8 @@ export default async function DashboardPage() {
           <div className="mt-5">
             {queuePreview.length === 0 ? (
               <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-muted)]">
-                No pending updates. Run the RSS pipeline to populate the queue.
+                No pending updates yet. Once feeds are connected and analysis runs,
+                the latest proposal will appear here with risk, confidence, and diff context.
               </div>
             ) : (
               <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 space-y-3">
@@ -303,9 +492,9 @@ export default async function DashboardPage() {
           <div className="mt-4 space-y-3">
             {mappingRows.length === 0 ? (
               <p className="text-sm text-[var(--easa-color-text-muted)]">
-                No flight books imported. Run{" "}
+                No flight books imported yet. Upload manuals from the app or run{" "}
                 <code className="text-xs">scripts/import-flightbooks.mjs</code>{" "}
-                after migrations.
+                if you are doing a bulk import.
               </p>
             ) : (
               mappingRows.map((row) => {

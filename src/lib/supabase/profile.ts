@@ -1,15 +1,30 @@
 import type { User } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+function isMissingTableError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "")
+  );
+}
+
 export async function ensureUserProfile(
   supabase: SupabaseClient,
   user: User,
 ): Promise<void> {
-  const { data } = await supabase
+  const { data, error: selectError } = await supabase
     .from("user_profiles")
     .select("id")
     .eq("id", user.id)
     .maybeSingle();
+
+  if (selectError) {
+    if (isMissingTableError(selectError)) {
+      return;
+    }
+    console.error("ensureUserProfile:", selectError.message);
+    return;
+  }
 
   if (data) {
     return;
@@ -27,7 +42,7 @@ export async function ensureUserProfile(
     display_name: displayName,
   });
 
-  if (error && error.code !== "23505") {
+  if (error && error.code !== "23505" && !isMissingTableError(error)) {
     console.error("ensureUserProfile:", error.message);
   }
 }

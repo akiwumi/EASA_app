@@ -215,7 +215,7 @@ export default function AppShell({
                 EASA Console
               </p>
               <p className="text-xs text-[var(--easa-color-text-muted)]">
-                South Sweden Aviation
+                {organizationName || "Your organisation"}
               </p>
             </div>
           </Link>

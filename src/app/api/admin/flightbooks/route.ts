@@ -4,6 +4,14 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
 
+function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "") ||
+    /relation .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 async function getAdminContext() {
   const supabase = await getSupabaseServerClient();
   if (!supabase) return null;
@@ -40,6 +48,9 @@ export async function GET() {
     .eq("organization_id", ctx.orgId)
     .order("created_at", { ascending: false });
 
+  if (error && isMissingSchemaError(error)) {
+    return NextResponse.json({ flightbooks: [], missingSchema: true });
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ flightbooks: data ?? [] });
 }

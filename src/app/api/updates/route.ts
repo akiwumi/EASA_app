@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "") ||
+    /relation .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -75,6 +83,9 @@ export async function GET(request: Request) {
   if (classification) query = query.eq("classification", classification);
 
   const { data, count, error } = await query;
+  if (error && isMissingSchemaError(error)) {
+    return NextResponse.json({ items: [], total: 0, page, limit });
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   return NextResponse.json({ items: data ?? [], total: count ?? 0, page, limit });
@@ -113,6 +124,12 @@ export async function PATCH(request: Request) {
   if (ctx.orgId) updateQ.eq("organization_id", ctx.orgId);
 
   const { error: updateErr } = await updateQ;
+  if (updateErr && isMissingSchemaError(updateErr)) {
+    return NextResponse.json({
+      error:
+        "The updates tables are not set up yet. Run the later Supabase migrations before approving updates.",
+    }, { status: 400 });
+  }
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 });
 
   // Conflict detection — block if section was modified after this update was proposed

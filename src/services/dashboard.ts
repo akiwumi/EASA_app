@@ -6,6 +6,8 @@ export type OrgContext = {
   role: string;
 };
 
+const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
+
 export type DashboardStats = {
   newChanges7d: number;
   pendingApprovals: number;
@@ -38,6 +40,22 @@ export type PipelinePreview = {
   steps: Record<string, unknown> | null;
 };
 
+export type DashboardSetupSummary = {
+  hasAiConfig: boolean;
+  hasAiKey: boolean;
+  hasSchedule: boolean;
+  hasFlightbooks: boolean;
+  flightbookCount: number;
+};
+
+function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "") ||
+    /relation .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 function formatUtc(ts: string | null | undefined): string {
   if (!ts) return "—";
   try {
@@ -69,7 +87,13 @@ export async function loadOrgContext(): Promise<OrgContext | null> {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!row?.organization_id) return null;
+  if (!row?.organization_id) {
+    return {
+      organizationId: DEFAULT_ORG_ID,
+      organizationName: "Demo Flight School",
+      role: "admin",
+    };
+  }
 
   const org = row.organizations as { name?: string } | null;
 
@@ -179,13 +203,14 @@ export async function loadRssSourceUrls(organizationId: string): Promise<RssSour
   const supabase = await getSupabaseServerClient();
   if (!supabase) return [];
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("sources")
     .select("url, active")
     .eq("type", "rss")
     .or(`organization_id.eq.${organizationId},organization_id.is.null`)
     .order("created_at", { ascending: true });
 
+  if (error) return [];
   return (data ?? []).map((s) => ({ url: s.url as string, active: s.active as boolean }));
 }
 
@@ -212,13 +237,14 @@ export async function loadFlightbookMappingRows(
   const supabase = await getSupabaseServerClient();
   if (!supabase) return [];
 
-  const { data: books } = await supabase
+  const { data: books, error: booksError } = await supabase
     .from("flightbooks")
     .select("id, name")
     .eq("organization_id", organizationId)
     .eq("active", true)
     .order("name");
 
+  if (booksError) return [];
   if (!books?.length) return [];
 
   const rows: FlightbookMappingRow[] = [];
@@ -316,6 +342,54 @@ export async function loadRecentSectionVersions(
     at: formatUtc(v.created_at as string),
     note: `${v.change_source as string} · v${v.version_number}`,
   }));
+}
+
+export async function loadDashboardSetupSummary(
+  organizationId: string,
+): Promise<DashboardSetupSummary> {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) {
+    return {
+      hasAiConfig: false,
+      hasAiKey: false,
+      hasSchedule: false,
+      hasFlightbooks: false,
+      flightbookCount: 0,
+    };
+  }
+
+  const [
+    { data: aiConfig, error: aiError },
+    { data: schedule, error: scheduleError },
+    { count: flightbookCount, error: booksError },
+  ] = await Promise.all([
+    supabase
+      .from("ai_provider_config")
+      .select("provider, api_key")
+      .eq("organization_id", organizationId)
+      .maybeSingle(),
+    supabase
+      .from("schedules")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .maybeSingle(),
+    supabase
+      .from("flightbooks")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("active", true),
+  ]);
+
+  return {
+    hasAiConfig: !aiError && Boolean(aiConfig),
+    hasAiKey: !aiError && Boolean(aiConfig?.api_key),
+    hasSchedule:
+      !scheduleError && !isMissingSchemaError(scheduleError ?? {}) && Boolean(schedule),
+    hasFlightbooks:
+      !booksError && !isMissingSchemaError(booksError ?? {}) && (flightbookCount ?? 0) > 0,
+    flightbookCount:
+      !booksError && !isMissingSchemaError(booksError ?? {}) ? flightbookCount ?? 0 : 0,
+  };
 }
 
 export function sourcesHealthLabel(active: number, total: number): {

@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
+function isMissingTableError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "")
+  );
+}
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,6 +41,10 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(50);
 
+  if (error && isMissingTableError(error)) {
+    return NextResponse.json({ notifications: [], unreadCount: 0 });
+  }
+
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const notifications = data ?? [];
@@ -61,6 +72,10 @@ export async function PATCH(request: Request) {
       .eq("user_id", user.id)
       .eq("read", false);
 
+    if (error && isMissingTableError(error)) {
+      return NextResponse.json({ ok: true });
+    }
+
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true });
   }
@@ -71,6 +86,10 @@ export async function PATCH(request: Request) {
       .update({ read: true })
       .in("id", ids)
       .eq("user_id", user.id);
+
+    if (error && isMissingTableError(error)) {
+      return NextResponse.json({ ok: true });
+    }
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true });

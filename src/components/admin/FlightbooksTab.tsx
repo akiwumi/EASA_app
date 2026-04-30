@@ -32,6 +32,9 @@ export default function FlightbooksTab() {
     if (!res.ok) { setError("Failed to load flight books"); setLoading(false); return; }
     const json = await res.json();
     setBooks(json.flightbooks ?? []);
+    if (json.missingSchema) {
+      setError("Flight book tables are not set up yet. Run the flightbooks migration first.");
+    }
     setLoading(false);
   }
 
