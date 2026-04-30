@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const EMBEDDING_DIMENSIONS = 1536;
 export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
+export const MAX_EMBEDDING_INPUT_TOKENS = 5000;
 
 type EmbeddingConfig = {
   apiKey: string;
@@ -17,6 +18,21 @@ export function normalizeEmbeddingInput(text: string) {
 export function estimateTokenCount(text: string) {
   const normalized = normalizeEmbeddingInput(text);
   return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+export function clampEmbeddingInput(text: string, maxTokens = MAX_EMBEDDING_INPUT_TOKENS) {
+  const normalized = normalizeEmbeddingInput(text);
+  if (!normalized) return "";
+  if (estimateTokenCount(normalized) <= maxTokens) return normalized;
+
+  const maxChars = maxTokens * 4;
+  let trimmed = normalized.slice(0, maxChars);
+  const lastWhitespace = trimmed.lastIndexOf(" ");
+  if (lastWhitespace > maxChars * 0.8) {
+    trimmed = trimmed.slice(0, lastWhitespace);
+  }
+
+  return trimmed.trim();
 }
 
 export function hashChunk(text: string) {
@@ -63,7 +79,7 @@ export async function embedTexts(
   const config = await loadEmbeddingConfig(admin, organizationId);
   if (!config) return null;
 
-  const inputs = texts.map(normalizeEmbeddingInput).filter(Boolean);
+  const inputs = texts.map((text) => clampEmbeddingInput(text)).filter(Boolean);
   if (inputs.length === 0) return [];
 
   const res = await fetch(`${config.baseUrl}/embeddings`, {
