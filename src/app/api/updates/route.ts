@@ -85,17 +85,19 @@ export async function PATCH(request: Request) {
   const ctx = await getOrgContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { ids, action, comment } = (await request.json()) as {
+  const { ids, action, comment, flightbookSectionId, aiSuggestedText } = (await request.json()) as {
     ids?: string[];
     action?: string;
     comment?: string;
+    flightbookSectionId?: string;
+    aiSuggestedText?: string;
   };
 
   if (!ids?.length || !action) {
     return NextResponse.json({ error: "ids and action required" }, { status: 400 });
   }
 
-  const validActions = ["approved", "rejected", "watchlist", "pending"];
+  const validActions = ["approved", "rejected", "watchlist", "pending", "revision_requested"];
   if (!validActions.includes(action)) {
     return NextResponse.json({ error: "invalid action" }, { status: 400 });
   }
@@ -113,6 +115,65 @@ export async function PATCH(request: Request) {
   const { error: updateErr } = await updateQ;
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 400 });
 
+  // Conflict detection — block if section was modified after this update was proposed
+  if (action === "approved" && ids.length === 1 && flightbookSectionId) {
+    const [{ data: updateRow }, { data: sectionRow }] = await Promise.all([
+      admin.from("proposed_updates").select("created_at").eq("id", ids[0]).maybeSingle(),
+      admin.from("flightbook_sections").select("updated_at").eq("id", flightbookSectionId).maybeSingle(),
+    ]);
+    if (updateRow && sectionRow) {
+      const sectionUpdatedAt = new Date(sectionRow.updated_at as string).getTime();
+      const updateCreatedAt = new Date(updateRow.created_at as string).getTime();
+      if (sectionUpdatedAt > updateCreatedAt) {
+        return NextResponse.json(
+          {
+            error:
+              "Conflict: the flight book section was modified after this update was proposed. Review the current section body before approving.",
+            conflict: true,
+          },
+          { status: 409 },
+        );
+      }
+    }
+  }
+
+  // When approving a single update that has AI suggested text, apply it to the flight book section
+  if (action === "approved" && ids.length === 1 && flightbookSectionId && aiSuggestedText) {
+    // Get max version number for this section
+    const { data: maxVerRow } = await admin
+      .from("flightbook_section_versions")
+      .select("version_number")
+      .eq("flightbook_section_id", flightbookSectionId)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const nextVersion = ((maxVerRow?.version_number as number | null) ?? 0) + 1;
+
+    // Snapshot current body before overwriting
+    const { data: currentSection } = await admin
+      .from("flightbook_sections")
+      .select("body, organization_id")
+      .eq("id", flightbookSectionId)
+      .maybeSingle();
+
+    if (currentSection) {
+      await admin.from("flightbook_section_versions").insert({
+        organization_id: (currentSection.organization_id as string | null) ?? ctx.orgId,
+        flightbook_section_id: flightbookSectionId,
+        body: currentSection.body,
+        version_number: nextVersion,
+        change_source: "approved_update",
+        created_by: ctx.userId,
+      });
+
+      // Apply the AI suggested text to the section body
+      await admin
+        .from("flightbook_sections")
+        .update({ body: aiSuggestedText, updated_at: new Date().toISOString() })
+        .eq("id", flightbookSectionId);
+    }
+  }
+
   // Insert approval records for approve/reject actions
   if (action === "approved" || action === "rejected") {
     const approvalRecords = ids.map((id) => ({
@@ -125,6 +186,58 @@ export async function PATCH(request: Request) {
 
     // best-effort — don't block on approval insert errors
     await admin.from("approvals").insert(approvalRecords);
+
+    // Send notifications to all org users (best-effort)
+    try {
+      const orgId = ctx.orgId;
+      if (orgId) {
+        const { data: orgUsers } = await admin
+          .from("org_users")
+          .select("user_id")
+          .eq("organization_id", orgId);
+
+        if (orgUsers && orgUsers.length > 0) {
+          const notifTitle =
+            action === "approved"
+              ? `${ids.length} update${ids.length !== 1 ? "s" : ""} approved`
+              : `${ids.length} update${ids.length !== 1 ? "s" : ""} rejected`;
+          const notifBody = comment
+            ? `Comment: ${comment}`
+            : `Status changed to ${action}`;
+
+          const notifRows = orgUsers.flatMap((ou) =>
+            ids.map((id) => ({
+              organization_id: orgId,
+              user_id: ou.user_id as string,
+              type: action,
+              title: notifTitle,
+              body: notifBody,
+              related_entity_type: "proposed_update",
+              related_entity_id: id,
+            })),
+          );
+
+          await admin.from("notifications").insert(notifRows);
+        }
+      }
+    } catch {
+      // best-effort — notifications must never block the main response
+    }
+
+    // Audit log (best-effort)
+    try {
+      const auditRows = ids.map((id) => ({
+        organization_id: ctx.orgId ?? undefined,
+        actor_id: ctx.userId,
+        action: `proposed_update_${action}`,
+        entity_type: "proposed_update",
+        entity_id: id,
+        payload: { action, comment: comment ?? null },
+      }));
+      await admin.from("audit_log").insert(auditRows);
+    } catch {
+      // best-effort — audit must never block the main response
+    }
   }
 
   return NextResponse.json({ ok: true, affected: ids.length });

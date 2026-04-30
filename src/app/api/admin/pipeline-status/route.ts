@@ -17,6 +17,7 @@ export async function GET() {
     { count: sourcesActive },
     { count: rssItems },
     { count: aiFindings },
+    { count: regChanges },
     { data: recentFindings },
     { data: recentItems },
     { data: aiConfig },
@@ -25,6 +26,7 @@ export async function GET() {
     admin.from("sources").select("*", { count: "exact", head: true }).eq("active", true).eq("type", "rss"),
     admin.from("rss_items").select("*", { count: "exact", head: true }),
     admin.from("ai_findings").select("*", { count: "exact", head: true }),
+    admin.from("reg_changes").select("*", { count: "exact", head: true }),
     admin.from("ai_findings").select("id, impact, category, created_at").order("created_at", { ascending: false }).limit(3),
     admin.from("rss_items").select("id, title, created_at").order("created_at", { ascending: false }).limit(3),
     admin.from("ai_provider_config").select("provider, model, api_key").limit(1).maybeSingle(),
@@ -34,6 +36,7 @@ export async function GET() {
     sources: { total: sourcesTotal ?? 0, activeRss: sourcesActive ?? 0 },
     rssItems: rssItems ?? 0,
     aiFindings: aiFindings ?? 0,
+    regChanges: regChanges ?? 0,
     recentRssItems: recentItems ?? [],
     recentFindings: recentFindings ?? [],
     aiConfig: aiConfig

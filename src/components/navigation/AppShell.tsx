@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
@@ -19,6 +19,7 @@ import {
   X,
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import NotificationDrawer from "@/components/notifications/NotificationDrawer";
 
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -28,7 +29,6 @@ const NAV = [
   { href: "/flightbooks/upload", label: "Upload", icon: Upload },
   { href: "/history", label: "Time machine", icon: History },
   { href: "/results", label: "AI results", icon: LineChart },
-  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/profile", label: "Profile", icon: User },
 ] as const;
 
@@ -54,27 +54,117 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [pathname]);
+  // Close mobile menu on route change
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
+  // Initial unread count fetch
   useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+    fetch("/api/notifications")
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (json && typeof json.unreadCount === "number") {
+          setUnreadCount(json.unreadCount);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Supabase Realtime — keep bell badge live even when drawer is closed
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return;
+
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (cancelled || !user) return;
+
+      channel = supabase
+        .channel(`appshell-notif:${user.id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            // Increment badge; drawer will reconcile its own list
+            setUnreadCount((c) => c + 1);
+          },
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            // Re-fetch true count after a mark-read update
+            fetch("/api/notifications")
+              .then((r) => r.ok ? r.json() : null)
+              .then((json) => {
+                if (json && typeof json.unreadCount === "number") {
+                  setUnreadCount(json.unreadCount);
+                }
+              })
+              .catch(() => {});
+          },
+        )
+        .subscribe();
+    });
+
+    return () => {
+      cancelled = true;
+      if (channel) {
+        const sb = getSupabaseBrowserClient();
+        sb?.removeChannel(channel);
+      }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [menuOpen]);
+  }, []);
+
+  const handleUnreadChange = useCallback((count: number) => {
+    setUnreadCount(count);
+  }, []);
 
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    if (supabase) await supabase.auth.signOut();
     window.location.assign("/login");
   };
+
+  const BellButton = ({ onNavigate }: { onNavigate?: () => void }) => (
+    <button
+      type="button"
+      aria-label="Open notifications"
+      className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
+        pathname === "/notifications" || drawerOpen
+          ? "bg-[var(--easa-color-brand-primary)] text-white"
+          : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
+      }`}
+      onClick={() => {
+        onNavigate?.();
+        setDrawerOpen((o) => !o);
+      }}
+    >
+      <span className="relative shrink-0">
+        <Bell size={18} strokeWidth={1.75} />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--easa-color-accent-pink)] px-1 text-[10px] font-bold text-white leading-none">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </span>
+      <span>Notifications</span>
+    </button>
+  );
 
   const renderNavLink = (item: (typeof NAV)[number], onNavigate?: () => void) => {
     const active = navItemActive(pathname, item.href);
@@ -82,7 +172,7 @@ export default function AppShell({
     return (
       <Link
         key={item.href}
-        className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
+        className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
           active
             ? "bg-[var(--easa-color-brand-primary)] text-white"
             : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
@@ -119,7 +209,8 @@ export default function AppShell({
 
           <nav className="order-last hidden w-full min-w-0 md:order-none md:flex md:flex-1 md:flex-wrap md:items-center md:justify-center md:gap-1 lg:gap-2">
             {NAV.map((item) => renderNavLink(item))}
-            {role === "admin" ? (
+            <BellButton />
+            {role === "admin" && (
               <Link
                 className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
                   pathname.startsWith("/settings")
@@ -131,14 +222,12 @@ export default function AppShell({
                 <Settings size={18} strokeWidth={1.75} />
                 <span>Settings</span>
               </Link>
-            ) : null}
+            )}
           </nav>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <div className="hidden max-w-[200px] text-right lg:block">
-              <p className="truncate text-xs text-[var(--easa-color-text-muted)]">
-                Organisation
-              </p>
+              <p className="truncate text-xs text-[var(--easa-color-text-muted)]">Organisation</p>
               <p className="truncate text-sm font-semibold">{organizationName}</p>
             </div>
             <button
@@ -148,11 +237,7 @@ export default function AppShell({
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
             >
-              {menuOpen ? (
-                <X size={20} strokeWidth={1.75} />
-              ) : (
-                <Menu size={20} strokeWidth={1.75} />
-              )}
+              {menuOpen ? <X size={20} strokeWidth={1.75} /> : <Menu size={20} strokeWidth={1.75} />}
             </button>
             <button
               className="easa-btn secondary hidden text-sm sm:inline-flex"
@@ -164,13 +249,12 @@ export default function AppShell({
           </div>
         </div>
 
-        {menuOpen ? (
+        {menuOpen && (
           <div className="border-t border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)] px-4 py-4 md:hidden">
             <div className="mx-auto flex max-w-[1400px] flex-col gap-1">
-              {NAV.map((item) =>
-                renderNavLink(item, () => setMenuOpen(false)),
-              )}
-              {role === "admin" ? (
+              {NAV.map((item) => renderNavLink(item, () => setMenuOpen(false)))}
+              <BellButton onNavigate={() => setMenuOpen(false)} />
+              {role === "admin" && (
                 <Link
                   className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition ${
                     pathname.startsWith("/settings")
@@ -183,11 +267,9 @@ export default function AppShell({
                   <Settings size={18} strokeWidth={1.75} />
                   <span>Settings</span>
                 </Link>
-              ) : null}
+              )}
               <div className="mt-3 rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3">
-                <p className="text-xs text-[var(--easa-color-text-muted)]">
-                  Organisation
-                </p>
+                <p className="text-xs text-[var(--easa-color-text-muted)]">Organisation</p>
                 <p className="mt-1 text-sm font-semibold">{organizationName}</p>
                 <p className="mt-1 text-xs capitalize text-[var(--easa-color-text-muted)]">
                   Role · {role}
@@ -202,10 +284,17 @@ export default function AppShell({
               </button>
             </div>
           </div>
-        ) : null}
+        )}
       </header>
 
       <main className="mx-auto max-w-[1400px] p-4 lg:p-8">{children}</main>
+
+      {/* Notification drawer — rendered outside main so it overlays correctly */}
+      <NotificationDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        onUnreadChange={handleUnreadChange}
+      />
     </div>
   );
 }

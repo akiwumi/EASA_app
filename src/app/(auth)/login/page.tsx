@@ -43,7 +43,9 @@ export default function LoginPage() {
       return;
     }
 
-    window.location.assign("/dashboard");
+    const next = new URLSearchParams(window.location.search).get("next");
+    const nextPath = next && next.startsWith("/") ? next : "/dashboard";
+    window.location.assign(nextPath);
   };
 
   return (

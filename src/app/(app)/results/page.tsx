@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { fetchAiScrapedUpdates } from "@/lib/ai-scraper";
 import AddToQueueButton from "@/components/results/AddToQueueButton";
+import ExportResultsButton from "@/components/results/ExportResultsButton";
 
 export default async function ResultsPage() {
   const results = await fetchAiScrapedUpdates();
@@ -26,9 +27,7 @@ export default async function ResultsPage() {
           <Link className="easa-btn secondary" href="/dashboard">
             Back to dashboard
           </Link>
-          <button className="easa-btn primary" type="button">
-            Export results
-          </button>
+          <ExportResultsButton items={results.items} />
         </div>
       </header>
 

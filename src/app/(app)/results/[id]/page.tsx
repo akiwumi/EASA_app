@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
-import AddToQueueButton from "@/components/results/AddToQueueButton";
+import ReviewPanel from "@/components/results/ReviewPanel";
 
 function getAdminClient() {
   return createClient(
@@ -27,56 +27,52 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
   const rss = Array.isArray(finding.rss_items) ? finding.rss_items[0] : finding.rss_items;
 
   const impactColour =
-    finding.impact === "High" ? "is-red" :
-    finding.impact === "Medium" ? "is-orange" : "is-green";
+    finding.impact === "High" ? "is-red" : finding.impact === "Medium" ? "is-orange" : "is-green";
+
+  const publishedAt = rss?.published_at
+    ? new Date(rss.published_at as string).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
 
   return (
-    <main className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
-        <Link href="/results" className="easa-btn secondary text-sm">← Back</Link>
-        <span className="text-xs text-[var(--easa-color-text-muted)]">AI finding · {id.slice(0, 8)}…</span>
+    <main className="space-y-6 max-w-5xl">
+      {/* ── Header ───────────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Link href="/results" className="easa-btn secondary text-sm">
+          ← Back to results
+        </Link>
+        <span className="text-xs text-[var(--easa-color-text-muted)]">
+          AI finding · {id.slice(0, 8)}…
+        </span>
       </div>
 
-      {/* RSS source */}
-      <div className="easa-card p-6 space-y-3">
-        <p className="text-xs font-medium text-[var(--easa-color-text-muted)] uppercase tracking-wide">Source update</p>
-        <h1 className="text-lg font-semibold">{rss?.title ?? "Untitled"}</h1>
-        <p className="text-sm text-[var(--easa-color-text-muted)]">
-          {rss?.published_at ? new Date(rss.published_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Unknown date"}
-          {rss?.category ? ` · ${rss.category}` : ""}
-        </p>
-        {rss?.summary && (
-          <p className="text-sm text-[var(--easa-color-text-secondary)] leading-relaxed">{rss.summary}</p>
-        )}
-        {rss?.link && (
-          <a href={rss.link} target="_blank" rel="noopener noreferrer"
-            className="inline-block text-xs text-[var(--easa-color-accent-blue)] underline break-all">
-            {rss.link}
-          </a>
+      {/* ── Meta strip ───────────────────────────────────────────────────────── */}
+      <div className="easa-card px-5 py-4 flex flex-wrap items-center gap-3">
+        <span className={`easa-badge ${impactColour}`}>{finding.impact as string} impact</span>
+        <span className="easa-badge is-blue">Confidence {finding.confidence as string}</span>
+        <span className="easa-badge is-orange">{finding.status as string}</span>
+        <span className="easa-badge is-purple">{finding.category as string}</span>
+        {publishedAt && (
+          <span className="ml-auto text-xs text-[var(--easa-color-text-muted)]">{publishedAt}</span>
         )}
       </div>
 
-      {/* AI analysis */}
-      <div className="easa-card p-6 space-y-4">
-        <p className="text-xs font-medium text-[var(--easa-color-text-muted)] uppercase tracking-wide">AI analysis</p>
-        <div className="flex flex-wrap gap-2">
-          <span className={`easa-badge ${impactColour}`}>{finding.impact} impact</span>
-          <span className="easa-badge is-blue">Confidence {finding.confidence}</span>
-          <span className="easa-badge is-orange">{finding.status}</span>
-          <span className="easa-badge is-purple">{finding.category}</span>
-        </div>
-        <p className="text-sm text-[var(--easa-color-text-secondary)] leading-relaxed">{finding.summary}</p>
-        <div className="rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3">
-          <p className="text-xs text-[var(--easa-color-text-muted)]">Mapped flight book section</p>
-          <p className="mt-1 text-sm font-medium">{finding.mapped_section || "—"}</p>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3">
-        <AddToQueueButton findingId={finding.id} />
-        <Link href="/updates" className="easa-btn secondary">View update queue</Link>
-      </div>
+      {/* ── Review panel ─────────────────────────────────────────────────────── */}
+      <ReviewPanel
+        findingId={finding.id as string}
+        update={{
+          title: (rss?.title as string | null) ?? "EASA Update",
+          summary: (rss?.summary as string | null) ?? null,
+          link: (rss?.link as string | null) ?? null,
+          publishedAt,
+          category: (rss?.category as string | null) ?? null,
+          aiSummary: (finding.summary as string | null) ?? "",
+          mappedSection: (finding.mapped_section as string | null) ?? "",
+        }}
+      />
     </main>
   );
 }

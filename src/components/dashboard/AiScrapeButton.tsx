@@ -7,12 +7,14 @@ import Link from "next/link";
 type RunResult = {
   ingest?: { count?: number; results?: { feed: string; inserted: number; error: string | null }[]; note?: string };
   analyze?: { analyzed?: number; provider?: string; bookSectionsUsed?: number };
+  aggregate?: { created?: number } | null;
 };
 
 type PipelineStatus = {
   sources: { total: number; activeRss: number };
   rssItems: number;
   aiFindings: number;
+  regChanges: number;
   aiConfig: { provider: string; model: string; hasKey: boolean } | null;
 };
 
@@ -49,7 +51,7 @@ export default function AiScrapeButton() {
       if (!response.ok || !payload?.ok) throw new Error(payload?.error ?? "Unable to run scrape.");
 
       setStatus("done");
-      setResult({ ingest: payload.ingest, analyze: payload.analyze });
+      setResult({ ingest: payload.ingest, analyze: payload.analyze, aggregate: payload.aggregate });
       await loadStatus();
     } catch (error) {
       setStatus("error");
@@ -64,7 +66,7 @@ export default function AiScrapeButton() {
     <div className="space-y-3">
       {/* Status row */}
       {pipelineStatus && (
-        <div className="grid grid-cols-3 gap-2 text-center text-xs">
+        <div className="grid grid-cols-4 gap-2 text-center text-xs">
           <div className="rounded-[10px] bg-[var(--easa-color-surface-2)] px-2 py-1.5">
             <p className="font-medium">{pipelineStatus.sources.activeRss}</p>
             <p className="text-[var(--easa-color-text-muted)]">active feeds</p>
@@ -76,6 +78,10 @@ export default function AiScrapeButton() {
           <div className="rounded-[10px] bg-[var(--easa-color-surface-2)] px-2 py-1.5">
             <p className="font-medium">{pipelineStatus.aiFindings}</p>
             <p className="text-[var(--easa-color-text-muted)]">AI findings</p>
+          </div>
+          <div className="rounded-[10px] bg-[var(--easa-color-surface-2)] px-2 py-1.5">
+            <p className="font-medium">{pipelineStatus.regChanges ?? 0}</p>
+            <p className="text-[var(--easa-color-text-muted)]">reg changes</p>
           </div>
         </div>
       )}
@@ -137,14 +143,26 @@ export default function AiScrapeButton() {
             {result.analyze?.provider ? ` · ${result.analyze.provider}` : ""}
             {result.analyze?.bookSectionsUsed ? ` · ${result.analyze.bookSectionsUsed} book sections` : ""}
           </p>
+          {(result.aggregate?.created ?? 0) > 0 && (
+            <p className="text-[var(--easa-color-text-muted)]">
+              Aggregated {result.aggregate!.created} new reg changes
+            </p>
+          )}
           {result.ingest?.results?.filter(r => r.error).map(r => (
             <p key={r.feed} className="text-[var(--easa-color-accent-pink)] break-all">⚠ {r.feed}: {r.error}</p>
           ))}
-          {(result.analyze?.analyzed ?? 0) > 0 && (
-            <Link href="/results" className="block mt-1 text-[var(--easa-color-accent-blue)] underline">
-              View results →
-            </Link>
-          )}
+          <div className="flex gap-3 mt-1">
+            {(result.analyze?.analyzed ?? 0) > 0 && (
+              <Link href="/results" className="text-[var(--easa-color-accent-blue)] underline">
+                View results →
+              </Link>
+            )}
+            {(result.aggregate?.created ?? 0) > 0 && (
+              <Link href="/changes" className="text-[var(--easa-color-accent-blue)] underline">
+                View changes →
+              </Link>
+            )}
+          </div>
         </div>
       )}
 

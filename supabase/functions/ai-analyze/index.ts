@@ -177,13 +177,6 @@ serve(async () => {
   // Fall back to environment variable if no key stored in DB yet
   const apiKey = (aiConfig?.api_key as string | null) ?? Deno.env.get("ANTHROPIC_API_KEY") ?? "";
 
-  if (!apiKey) {
-    return new Response(
-      JSON.stringify({ ok: false, error: "No API key configured. Add one in Admin → AI settings." }),
-      { status: 400 },
-    );
-  }
-
   // Fetch unanalyzed RSS items
   const { data: rssItems, error } = await supabase
     .from("rss_items")

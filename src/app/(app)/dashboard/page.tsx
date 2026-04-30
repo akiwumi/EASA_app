@@ -254,34 +254,43 @@ export default async function DashboardPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div id="diff" className="easa-card p-6">
-          <h2 className="text-lg font-semibold">Diff viewer preview</h2>
-          <p className="text-sm text-[var(--easa-color-text-muted)]">
-            Inline vs side-by-side views ship with the update detail route in
-            Phase 3.
-          </p>
-          <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
-              <p className="text-xs text-[var(--easa-color-text-muted)]">
-                EASA section (before)
-              </p>
-              <p className="mt-3 text-sm text-[var(--easa-color-text-secondary)]">
-                Fuel reserves shall include contingency fuel based on the route
-                flown and known meteorological conditions.
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Latest pending update</h2>
+              <p className="text-sm text-[var(--easa-color-text-muted)]">
+                Most recent item in the review queue.
               </p>
             </div>
-            <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
-              <p className="text-xs text-[var(--easa-color-text-muted)]">
-                EASA section (after)
-              </p>
-              <p className="mt-3 text-sm text-[var(--easa-color-text-secondary)]">
-                Fuel reserves shall include{" "}
-                <span className="font-semibold text-[var(--easa-color-accent-blue)]">
-                  additional
-                </span>{" "}
-                contingency fuel based on the route, alternate planning, and
-                known meteorological conditions.
-              </p>
-            </div>
+            {queuePreview.length > 0 && (
+              <Link className="easa-btn secondary text-sm" href={`/updates/${queuePreview[0].id}`}>
+                Open diff viewer
+              </Link>
+            )}
+          </div>
+          <div className="mt-5">
+            {queuePreview.length === 0 ? (
+              <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-muted)]">
+                No pending updates. Run the RSS pipeline to populate the queue.
+              </div>
+            ) : (
+              <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 space-y-3">
+                <p className="text-sm font-semibold">{queuePreview[0].title}</p>
+                <p className="text-sm text-[var(--easa-color-text-secondary)] leading-relaxed">
+                  {queuePreview[0].summary}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <span className={`easa-badge ${queuePreview[0].risk === "High" ? "is-red" : queuePreview[0].risk === "Medium" ? "is-orange" : "is-green"}`}>
+                    {queuePreview[0].risk} risk
+                  </span>
+                  <span className="easa-badge is-blue">
+                    {queuePreview[0].confidence} confidence
+                  </span>
+                  <span className="easa-badge is-purple capitalize">
+                    {queuePreview[0].classification.replace(/_/g, " ")}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -449,8 +458,8 @@ export default async function DashboardPage() {
         <div>
           <h2 className="text-lg font-semibold">Admin settings</h2>
           <p className="text-sm text-[var(--easa-color-text-muted)]">
-            Schedules, sources, and approvals will be managed from the dedicated
-            settings workspace (Phase 6).
+            Manage RSS sources, scrape schedules, approval workflows, and team
+            access from the settings workspace.
           </p>
         </div>
         <Link className="easa-btn primary" href="/settings">

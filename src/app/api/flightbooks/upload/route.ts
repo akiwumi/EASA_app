@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  embedTexts,
+  estimateTokenCount,
+  hashChunk,
+} from "@/lib/ai/embeddings";
 
 export const runtime = "nodejs";
 
@@ -176,17 +181,52 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const rows = doc.sections.map((s) => ({
+    const rows = doc.sections.map((s) => {
+      const combinedText = [s.sectionNumber, s.title, s.body].filter(Boolean).join("\n");
+      return {
       organization_id: orgId,
       flightbook_id: bookId,
       section_number: s.sectionNumber,
       title: s.title,
       body: s.body || "(empty)",
       sort_order: s.sortOrder,
-    }));
+      token_count: estimateTokenCount(combinedText),
+      chunk_hash: hashChunk(combinedText),
+      metadata: {
+        section_number: s.sectionNumber,
+        title: s.title,
+        source: "flightbook_upload",
+      },
+    };
+    });
 
-    const { error: secErr } = await admin.from("flightbook_sections").insert(rows);
+    const { data: insertedSections, error: secErr } = await admin
+      .from("flightbook_sections")
+      .insert(rows)
+      .select("id, section_number, title, body, organization_id");
     if (secErr) return NextResponse.json({ error: secErr.message }, { status: 400 });
+
+    try {
+      const texts = (insertedSections ?? []).map((row) =>
+        [row.section_number, row.title, row.body].filter(Boolean).join("\n"),
+      );
+      const embeddings = await embedTexts(admin, orgId, texts);
+      if (embeddings && embeddings.length > 0) {
+        for (let i = 0; i < insertedSections.length; i += 1) {
+          const embedding = embeddings[i];
+          if (!embedding?.length) continue;
+          await admin
+            .from("flightbook_sections")
+            .update({
+              embedding,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", insertedSections[i].id);
+        }
+      }
+    } catch {
+      // Keep uploads usable even if the embedding provider is unavailable.
+    }
 
     results.push({ bookName: doc.docName, sectionsImported: doc.sections.length });
   }

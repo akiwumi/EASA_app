@@ -148,6 +148,11 @@ body {
   color: var(--easa-color-accent-purple);
 }
 
+.easa-badge.is-muted {
+  background: var(--easa-color-surface-2);
+  color: var(--easa-color-text-muted);
+}
+
 .easa-btn {
   display: inline-flex;
   align-items: center;
