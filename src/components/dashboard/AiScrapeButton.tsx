@@ -6,6 +6,13 @@ import Link from "next/link";
 
 type RunResult = {
   ingest?: { count?: number; results?: { feed: string; inserted: number; error: string | null }[]; note?: string };
+  regulationIngest?: {
+    processed?: number;
+    snapshotsCreated?: number;
+    sectionsCreated?: number;
+    embeddedSections?: number;
+    results?: { source: string; status: string; sectionsCreated: number; error: string | null }[];
+  } | null;
   analyze?: { analyzed?: number; provider?: string; bookSectionsUsed?: number };
   aggregate?: { created?: number } | null;
 };
@@ -15,6 +22,8 @@ type PipelineStatus = {
   rssItems: number;
   aiFindings: number;
   regChanges: number;
+  sourceSnapshots: number;
+  documentSections: number;
   aiConfig: { provider: string; model: string; hasKey: boolean } | null;
 };
 
@@ -51,7 +60,12 @@ export default function AiScrapeButton() {
       if (!response.ok || !payload?.ok) throw new Error(payload?.error ?? "Unable to run scrape.");
 
       setStatus("done");
-      setResult({ ingest: payload.ingest, analyze: payload.analyze, aggregate: payload.aggregate });
+      setResult({
+        ingest: payload.ingest,
+        regulationIngest: payload.regulationIngest,
+        analyze: payload.analyze,
+        aggregate: payload.aggregate,
+      });
       await loadStatus();
     } catch (error) {
       setStatus("error");
@@ -66,7 +80,7 @@ export default function AiScrapeButton() {
     <div className="space-y-3">
       {/* Status row */}
       {pipelineStatus && (
-        <div className="grid grid-cols-4 gap-2 text-center text-xs">
+        <div className="grid grid-cols-3 gap-2 text-center text-xs md:grid-cols-6">
           <div className="rounded-[10px] bg-[var(--easa-color-surface-2)] px-2 py-1.5">
             <p className="font-medium">{pipelineStatus.sources.activeRss}</p>
             <p className="text-[var(--easa-color-text-muted)]">active feeds</p>
@@ -82,6 +96,14 @@ export default function AiScrapeButton() {
           <div className="rounded-[10px] bg-[var(--easa-color-surface-2)] px-2 py-1.5">
             <p className="font-medium">{pipelineStatus.regChanges ?? 0}</p>
             <p className="text-[var(--easa-color-text-muted)]">reg changes</p>
+          </div>
+          <div className="rounded-[10px] bg-[var(--easa-color-surface-2)] px-2 py-1.5">
+            <p className="font-medium">{pipelineStatus.sourceSnapshots ?? 0}</p>
+            <p className="text-[var(--easa-color-text-muted)]">snapshots</p>
+          </div>
+          <div className="rounded-[10px] bg-[var(--easa-color-surface-2)] px-2 py-1.5">
+            <p className="font-medium">{pipelineStatus.documentSections ?? 0}</p>
+            <p className="text-[var(--easa-color-text-muted)]">reg sections</p>
           </div>
         </div>
       )}
@@ -138,6 +160,14 @@ export default function AiScrapeButton() {
           ) : (
             <p className="text-[var(--easa-color-text-muted)]">Fetched {result.ingest?.count ?? 0} RSS items</p>
           )}
+          {result.regulationIngest && (
+            <p className="text-[var(--easa-color-text-muted)]">
+              Regulation corpus: {result.regulationIngest.sectionsCreated ?? 0} new sections
+              {typeof result.regulationIngest.embeddedSections === "number"
+                ? ` · ${result.regulationIngest.embeddedSections} embedded`
+                : ""}
+            </p>
+          )}
           <p className="text-[var(--easa-color-text-muted)]">
             Analysed {result.analyze?.analyzed ?? 0} new items
             {result.analyze?.provider ? ` · ${result.analyze.provider}` : ""}
@@ -150,6 +180,9 @@ export default function AiScrapeButton() {
           )}
           {result.ingest?.results?.filter(r => r.error).map(r => (
             <p key={r.feed} className="text-[var(--easa-color-accent-pink)] break-all">⚠ {r.feed}: {r.error}</p>
+          ))}
+          {result.regulationIngest?.results?.filter((r) => r.error).map((r) => (
+            <p key={r.source} className="text-[var(--easa-color-accent-pink)] break-all">⚠ {r.source}: {r.error}</p>
           ))}
           <div className="flex gap-3 mt-1">
             {(result.analyze?.analyzed ?? 0) > 0 && (

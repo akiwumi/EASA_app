@@ -97,6 +97,42 @@ export async function POST() {
   await updateRun({ steps, items_processed: itemsProcessed });
 
   // ── Step 2: AI analysis ─────────────────────────────────────────────────────
+  let regulationData: {
+    processed?: number;
+    snapshotsCreated?: number;
+    sectionsCreated?: number;
+    embeddedSections?: number;
+  } | null = null;
+  const regulationStart = new Date().toISOString();
+  steps["regulation-ingest"] = { status: "running", started_at: regulationStart };
+  await updateRun({ steps });
+
+  const { data: regulationIngestData, error: regulationIngestError } = await supabase.functions.invoke("regulation-ingest");
+
+  if (regulationIngestError) {
+    steps["regulation-ingest"] = {
+      status: "error",
+      started_at: regulationStart,
+      finished_at: new Date().toISOString(),
+      error: regulationIngestError.message,
+    };
+    await updateRun({ steps });
+  } else {
+    regulationData = (regulationIngestData as {
+      processed?: number;
+      snapshotsCreated?: number;
+      sectionsCreated?: number;
+      embeddedSections?: number;
+    } | null) ?? null;
+    steps["regulation-ingest"] = {
+      status: "complete",
+      started_at: regulationStart,
+      finished_at: new Date().toISOString(),
+    };
+    await updateRun({ steps });
+  }
+
+  // ── Step 3: AI analysis ─────────────────────────────────────────────────────
   const analyzeStart = new Date().toISOString();
   steps["ai-analyze"] = { status: "running", started_at: analyzeStart };
   await updateRun({ steps });
@@ -117,7 +153,7 @@ export async function POST() {
   steps["ai-analyze"] = { status: "complete", started_at: analyzeStart, finished_at: new Date().toISOString() };
   await updateRun({ steps, changes_found: analyzed });
 
-  // ── Step 3: Aggregate reg_changes (best-effort) ─────────────────────────────
+  // ── Step 4: Aggregate reg_changes (best-effort) ─────────────────────────────
   let aggregateData: { created?: number } | null = null;
   const aggStart = new Date().toISOString();
   steps["aggregate"] = { status: "running", started_at: aggStart };
@@ -147,6 +183,7 @@ export async function POST() {
     ok: true,
     runId,
     ingest: ingestData ?? null,
+    regulationIngest: regulationData,
     analyze: analyzeData ?? null,
     aggregate: aggregateData ?? null,
   });
