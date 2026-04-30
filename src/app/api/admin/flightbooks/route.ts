@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
@@ -15,8 +14,8 @@ export async function GET() {
   const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const supabase = await getSupabaseServerClient();
-  const { data, error } = await supabase!
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
     .from("flightbooks")
     .select("id, name, doc_type, version_label, active, created_at")
     .eq("organization_id", ctx.orgId)
