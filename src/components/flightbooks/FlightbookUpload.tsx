@@ -87,7 +87,7 @@ export default function FlightbookUpload({ existingBooks }: Props) {
           </div>
           <ul className="mt-2 space-y-1 text-xs text-[var(--easa-color-text-muted)]">
             {results.map((r, i) => (
-              <li key={i}>"{r.bookName}" — {r.sectionsImported} section{r.sectionsImported !== 1 ? "s" : ""}</li>
+              <li key={i}>&quot;{r.bookName}&quot; — {r.sectionsImported} section{r.sectionsImported !== 1 ? "s" : ""}</li>
             ))}
           </ul>
         </div>

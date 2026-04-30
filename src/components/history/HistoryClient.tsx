@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { ArrowLeftRight, GitCompare } from "lucide-react";
 import RollbackButton from "@/components/history/RollbackButton";
 import ComparePanel from "@/components/history/ComparePanel";
@@ -93,11 +93,6 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
   function scrollToDate(dateKey: string) {
     dateGroupRefs.current.get(dateKey)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
-
-  // Open compare when 2 are selected
-  useEffect(() => {
-    if (selected.length === 2) setCompareOpen(true);
-  }, [selected]);
 
   function closeCompare() {
     setCompareOpen(false);

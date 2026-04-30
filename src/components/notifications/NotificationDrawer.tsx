@@ -82,7 +82,11 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
 
   // Initial load when drawer first opens
   useEffect(() => {
-    if (open) load();
+    if (!open) return;
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [open, load]);
 
   // Supabase Realtime subscription — live inserts on the notifications table

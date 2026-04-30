@@ -6,7 +6,6 @@ import { Plus, CheckCircle } from "lucide-react";
 
 export default function AddToQueueButton({ findingId }: { findingId: string }) {
   const [state, setState] = useState<"idle" | "loading" | "done" | "exists">("idle");
-  const [queueId, setQueueId] = useState<string | null>(null);
 
   async function add() {
     setState("loading");
@@ -17,7 +16,6 @@ export default function AddToQueueButton({ findingId }: { findingId: string }) {
     });
     const json = await res.json();
     if (res.ok) {
-      setQueueId(json.id);
       setState(json.alreadyQueued ? "exists" : "done");
     } else {
       setState("idle");

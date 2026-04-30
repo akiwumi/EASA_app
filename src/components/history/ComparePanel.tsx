@@ -99,18 +99,22 @@ export default function ComparePanel({ v1, v2, onClose }: Props) {
   const [viewMode, setViewMode] = useState<"split" | "unified">("split");
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    fetch(`/api/history/compare?v1=${v1.id}&v2=${v2.id}`)
-      .then((r) => r.ok ? r.json() : r.json().then((j) => Promise.reject(j.error)))
-      .then((json) => {
-        const [left, right] = json.versions as VersionFull[];
-        setVersions([left, right]);
-        const d = diffLines(left.body.split("\n"), right.body.split("\n"));
-        setDiff(d);
-      })
-      .catch((e) => setError(typeof e === "string" ? e : "Failed to load versions"))
-      .finally(() => setLoading(false));
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setError(null);
+      fetch(`/api/history/compare?v1=${v1.id}&v2=${v2.id}`)
+        .then((r) => r.ok ? r.json() : r.json().then((j) => Promise.reject(j.error)))
+        .then((json) => {
+          const [left, right] = json.versions as VersionFull[];
+          setVersions([left, right]);
+          const d = diffLines(left.body.split("\n"), right.body.split("\n"));
+          setDiff(d);
+        })
+        .catch((e) => setError(typeof e === "string" ? e : "Failed to load versions"))
+        .finally(() => setLoading(false));
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [v1.id, v2.id]);
 
   const sectionLabel = [

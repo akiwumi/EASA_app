@@ -29,7 +29,12 @@ export default function SourcesTab() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function seedDefaults() {
     setSeeding(true);
@@ -184,7 +189,7 @@ export default function SourcesTab() {
       </div>
 
       <div className="easa-card p-4 text-xs text-[var(--easa-color-text-muted)] space-y-1">
-        <p><strong className="text-[var(--easa-color-text-secondary)]">Active feeds</strong> are fetched when you run "Check for updates" from the dashboard.</p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">Active feeds</strong> are fetched when you run &quot;Check for updates&quot; from the dashboard.</p>
         <p>Disabled feeds are kept for reference but skipped during ingestion.</p>
       </div>
     </div>

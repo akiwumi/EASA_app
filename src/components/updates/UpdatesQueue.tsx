@@ -108,6 +108,14 @@ export default function UpdatesQueue() {
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkMsg, setBulkMsg] = useState<string | null>(null);
 
+  function updateFilter(
+    setter: React.Dispatch<React.SetStateAction<string>>,
+    value: string,
+  ) {
+    setter(value);
+    setPage(1);
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -125,10 +133,12 @@ export default function UpdatesQueue() {
     setLoading(false);
   }, [page, filterStatus, filterRisk, filterClass]);
 
-  useEffect(() => { load(); }, [load]);
-
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [filterStatus, filterRisk, filterClass]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   function toggleAll() {
     if (selected.size === items.length) {
@@ -198,19 +208,24 @@ export default function UpdatesQueue() {
       {/* Filters */}
       <div className="easa-card flex flex-wrap gap-3 p-4">
         <Filter size={15} strokeWidth={1.75} className="mt-2 shrink-0 text-[var(--easa-color-text-muted)]" />
-        <select className="easa-input flex-1 min-w-[140px]" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+        <select className="easa-input flex-1 min-w-[140px]" value={filterStatus} onChange={(e) => updateFilter(setFilterStatus, e.target.value)}>
           {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select className="easa-input flex-1 min-w-[140px]" value={filterRisk} onChange={(e) => setFilterRisk(e.target.value)}>
+        <select className="easa-input flex-1 min-w-[140px]" value={filterRisk} onChange={(e) => updateFilter(setFilterRisk, e.target.value)}>
           {RISK_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select className="easa-input flex-1 min-w-[160px]" value={filterClass} onChange={(e) => setFilterClass(e.target.value)}>
+        <select className="easa-input flex-1 min-w-[160px]" value={filterClass} onChange={(e) => updateFilter(setFilterClass, e.target.value)}>
           {CLASS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {(filterStatus || filterRisk || filterClass) && (
           <button
             className="text-xs text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)]"
-            onClick={() => { setFilterStatus(""); setFilterRisk(""); setFilterClass(""); }}
+            onClick={() => {
+              setFilterStatus("");
+              setFilterRisk("");
+              setFilterClass("");
+              setPage(1);
+            }}
           >
             Clear
           </button>

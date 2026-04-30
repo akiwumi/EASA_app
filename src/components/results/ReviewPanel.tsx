@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Wand2, CheckCircle, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
 
@@ -317,12 +318,12 @@ export default function ReviewPanel({
             </pre>
           </div>
           <div className="flex gap-3">
-            <a href="/flightbooks" className="easa-btn secondary flex items-center gap-1.5">
+            <Link href="/flightbooks" className="easa-btn secondary flex items-center gap-1.5">
               View flight books <ChevronRight size={13} strokeWidth={2} />
-            </a>
-            <a href="/updates" className="easa-btn secondary flex items-center gap-1.5">
+            </Link>
+            <Link href="/updates" className="easa-btn secondary flex items-center gap-1.5">
               View update queue <ChevronRight size={13} strokeWidth={2} />
-            </a>
+            </Link>
           </div>
         </div>
       )}

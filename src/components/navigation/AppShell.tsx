@@ -32,6 +32,39 @@ const NAV = [
   { href: "/profile", label: "Profile", icon: User },
 ] as const;
 
+function BellButton({
+  active,
+  unreadCount,
+  onClick,
+}: {
+  active: boolean;
+  unreadCount: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="Open notifications"
+      className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
+        active
+          ? "bg-[var(--easa-color-brand-primary)] text-white"
+          : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
+      }`}
+      onClick={onClick}
+    >
+      <span className="relative shrink-0">
+        <Bell size={18} strokeWidth={1.75} />
+        {unreadCount > 0 && (
+          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--easa-color-accent-pink)] px-1 text-[10px] font-bold leading-none text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </span>
+      <span>Notifications</span>
+    </button>
+  );
+}
+
 function navItemActive(pathname: string, href: string) {
   if (href === "/flightbooks") {
     if (!pathname.startsWith("/flightbooks")) return false;
@@ -58,7 +91,13 @@ export default function AppShell({
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Close mobile menu on route change
-  useEffect(() => { setMenuOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const timer = window.setTimeout(() => {
+      setMenuOpen(false);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [menuOpen, pathname]);
 
   // Initial unread count fetch
   useEffect(() => {
@@ -140,32 +179,6 @@ export default function AppShell({
     window.location.assign("/login");
   };
 
-  const BellButton = ({ onNavigate }: { onNavigate?: () => void }) => (
-    <button
-      type="button"
-      aria-label="Open notifications"
-      className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
-        pathname === "/notifications" || drawerOpen
-          ? "bg-[var(--easa-color-brand-primary)] text-white"
-          : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
-      }`}
-      onClick={() => {
-        onNavigate?.();
-        setDrawerOpen((o) => !o);
-      }}
-    >
-      <span className="relative shrink-0">
-        <Bell size={18} strokeWidth={1.75} />
-        {unreadCount > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--easa-color-accent-pink)] px-1 text-[10px] font-bold text-white leading-none">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </span>
-      <span>Notifications</span>
-    </button>
-  );
-
   const renderNavLink = (item: (typeof NAV)[number], onNavigate?: () => void) => {
     const active = navItemActive(pathname, item.href);
     const Icon = item.icon;
@@ -209,7 +222,11 @@ export default function AppShell({
 
           <nav className="order-last hidden w-full min-w-0 md:order-none md:flex md:flex-1 md:flex-wrap md:items-center md:justify-center md:gap-1 lg:gap-2">
             {NAV.map((item) => renderNavLink(item))}
-            <BellButton />
+            <BellButton
+              active={pathname === "/notifications" || drawerOpen}
+              unreadCount={unreadCount}
+              onClick={() => setDrawerOpen((o) => !o)}
+            />
             {role === "admin" && (
               <Link
                 className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
@@ -253,7 +270,14 @@ export default function AppShell({
           <div className="border-t border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)] px-4 py-4 md:hidden">
             <div className="mx-auto flex max-w-[1400px] flex-col gap-1">
               {NAV.map((item) => renderNavLink(item, () => setMenuOpen(false)))}
-              <BellButton onNavigate={() => setMenuOpen(false)} />
+              <BellButton
+                active={pathname === "/notifications" || drawerOpen}
+                unreadCount={unreadCount}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setDrawerOpen((o) => !o);
+                }}
+              />
               {role === "admin" && (
                 <Link
                   className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition ${

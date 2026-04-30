@@ -31,7 +31,12 @@ export default function UsersTab() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   async function invite() {
     if (!inviteEmail.trim()) return;
