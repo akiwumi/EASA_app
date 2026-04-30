@@ -189,7 +189,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <main className="flex-1 space-y-6">
+    <main id="top" className="flex-1 space-y-6">
       {!hasActiveFeeds && <NoFeedsWarning />}
       <header className="flex flex-col gap-4 rounded-[28px] bg-[var(--easa-color-surface-1)] p-6 shadow-[var(--easa-shadow-1)] md:flex-row md:items-center md:justify-between">
         <div>
@@ -219,6 +219,7 @@ export default async function DashboardPage() {
           <Link className="easa-btn primary" href="/settings?tab=setup">
             Finish setup
           </Link>
+          <AiScrapeButton compact />
           <Link className="easa-btn secondary" href="/results">
             View AI results
           </Link>
@@ -426,9 +427,11 @@ export default async function DashboardPage() {
               )}
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-2">
-              <AiScrapeButton />
               <Link className="easa-btn secondary" href="/results">
                 Collated results
+              </Link>
+              <Link className="easa-btn secondary" href="#top">
+                Run from dashboard header
               </Link>
             </div>
             <p className="mt-3 text-xs text-[var(--easa-color-text-muted)]">

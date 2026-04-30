@@ -190,7 +190,7 @@ serve(async () => {
   }
 
   // Fetch active flightbook section titles for mapping context
-  const { data: rawSections } = await supabase
+  const { data: rawSections, error: rawSectionsError } = await supabase
     .from("flightbook_sections")
     .select("id, section_number, title, flightbooks!inner(name, active)")
     .eq("flightbooks.active", true)
@@ -198,7 +198,7 @@ serve(async () => {
     .order("sort_order", { ascending: true })
     .limit(60);
 
-  const sections: FlightbookSection[] = (rawSections ?? []).map((s) => {
+  const sections: FlightbookSection[] = (rawSectionsError ? [] : (rawSections ?? [])).map((s) => {
     const fb = Array.isArray(s.flightbooks) ? s.flightbooks[0] : s.flightbooks;
     return { id: s.id, section_number: s.section_number, title: s.title, flightbook_name: (fb as { name: string })?.name ?? "Unknown" };
   });
@@ -220,7 +220,9 @@ serve(async () => {
   }
 
   if (findingsPayload.length > 0) {
-    const { error: insertError } = await supabase.from("ai_findings").insert(findingsPayload);
+    const { error: insertError } = await supabase
+      .from("ai_findings")
+      .upsert(findingsPayload, { onConflict: "rss_item_id" });
     if (insertError) {
       return new Response(JSON.stringify({ ok: false, error: insertError.message }), { status: 500 });
     }

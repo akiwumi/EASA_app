@@ -27,7 +27,11 @@ type PipelineStatus = {
   aiConfig: { provider: string; model: string; hasKey: boolean } | null;
 };
 
-export default function AiScrapeButton() {
+type AiScrapeButtonProps = {
+  compact?: boolean;
+};
+
+export default function AiScrapeButton({ compact = false }: AiScrapeButtonProps) {
   const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [result, setResult] = useState<RunResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -75,6 +79,34 @@ export default function AiScrapeButton() {
 
   const noActiveFeeds = pipelineStatus && pipelineStatus.sources.activeRss === 0;
   const noApiKey = pipelineStatus && !pipelineStatus.aiConfig?.hasKey;
+
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-2">
+        <button
+          className="easa-btn secondary flex items-center gap-1.5"
+          type="button"
+          onClick={runScrape}
+          disabled={status === "running"}
+        >
+          <RefreshCw size={13} strokeWidth={1.75} className={status === "running" ? "animate-spin" : ""} />
+          {status === "running" ? "Running now…" : "Run now"}
+        </button>
+
+        {status === "error" && errorMsg && (
+          <p className="max-w-xs text-xs text-[var(--easa-color-accent-pink)]">
+            {errorMsg}
+          </p>
+        )}
+
+        {status === "done" && (
+          <p className="max-w-xs text-xs text-[var(--easa-color-accent-green)]">
+            Pipeline started and finished successfully.
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">

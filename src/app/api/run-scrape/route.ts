@@ -12,6 +12,59 @@ function getAdminClient() {
   );
 }
 
+type FunctionSuccess<T> = {
+  ok: true;
+  data: T | null;
+};
+
+type FunctionFailure = {
+  ok: false;
+  error: string;
+};
+
+async function invokeEdgeFunction<T>(name: string): Promise<FunctionSuccess<T> | FunctionFailure> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceRoleKey) {
+    return { ok: false, error: "Supabase server credentials missing." };
+  }
+
+  const response = await fetch(`${url}/functions/v1/${name}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${serviceRoleKey}`,
+      apikey: serviceRoleKey,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+
+  const text = await response.text();
+  const payload = text ? (() => {
+    try {
+      return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      return null;
+    }
+  })() : null;
+
+  if (!response.ok) {
+    const details =
+      (payload?.error as string | undefined) ??
+      (payload?.message as string | undefined) ??
+      text.trim() ??
+      `Edge Function ${name} returned ${response.status}`;
+
+    return {
+      ok: false,
+      error: `${name}: ${details || `HTTP ${response.status}`}`,
+    };
+  }
+
+  return { ok: true, data: (payload as T | null) ?? null };
+}
+
 async function getOrgId(): Promise<string> {
   const supabase = await getSupabaseServerClient();
   if (!supabase) return DEFAULT_ORG_ID;
@@ -72,20 +125,20 @@ export async function POST() {
     await admin.from("pipeline_runs").update(patch).eq("id", runId);
   }
 
-  const supabase = createClient(url, serviceRoleKey);
-
   // ── Step 1: RSS ingest ──────────────────────────────────────────────────────
   const ingestStart = new Date().toISOString();
   steps["rss-ingest"] = { status: "running", started_at: ingestStart };
   await updateRun({ steps });
 
-  const { data: ingestData, error: ingestError } = await supabase.functions.invoke("rss-ingest");
+  const ingestResult = await invokeEdgeFunction<Record<string, unknown>>("rss-ingest");
 
-  if (ingestError) {
-    steps["rss-ingest"] = { status: "error", started_at: ingestStart, finished_at: new Date().toISOString(), error: ingestError.message };
-    await updateRun({ status: "error", finished_at: new Date().toISOString(), steps, error_message: ingestError.message });
-    return NextResponse.json({ ok: false, error: ingestError.message }, { status: 500 });
+  if (!ingestResult.ok) {
+    steps["rss-ingest"] = { status: "error", started_at: ingestStart, finished_at: new Date().toISOString(), error: ingestResult.error };
+    await updateRun({ status: "error", finished_at: new Date().toISOString(), steps, error_message: ingestResult.error });
+    return NextResponse.json({ ok: false, error: ingestResult.error }, { status: 500 });
   }
+
+  const ingestData = ingestResult.data;
 
   steps["rss-ingest"] = { status: "complete", started_at: ingestStart, finished_at: new Date().toISOString() };
 
@@ -107,23 +160,23 @@ export async function POST() {
   steps["regulation-ingest"] = { status: "running", started_at: regulationStart };
   await updateRun({ steps });
 
-  const { data: regulationIngestData, error: regulationIngestError } = await supabase.functions.invoke("regulation-ingest");
+  const regulationIngestResult = await invokeEdgeFunction<{
+    processed?: number;
+    snapshotsCreated?: number;
+    sectionsCreated?: number;
+    embeddedSections?: number;
+  }>("regulation-ingest");
 
-  if (regulationIngestError) {
+  if (!regulationIngestResult.ok) {
     steps["regulation-ingest"] = {
       status: "error",
       started_at: regulationStart,
       finished_at: new Date().toISOString(),
-      error: regulationIngestError.message,
+      error: regulationIngestResult.error,
     };
     await updateRun({ steps });
   } else {
-    regulationData = (regulationIngestData as {
-      processed?: number;
-      snapshotsCreated?: number;
-      sectionsCreated?: number;
-      embeddedSections?: number;
-    } | null) ?? null;
+    regulationData = regulationIngestResult.data ?? null;
     steps["regulation-ingest"] = {
       status: "complete",
       started_at: regulationStart,
@@ -137,13 +190,15 @@ export async function POST() {
   steps["ai-analyze"] = { status: "running", started_at: analyzeStart };
   await updateRun({ steps });
 
-  const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("ai-analyze");
+  const analyzeResult = await invokeEdgeFunction<Record<string, unknown>>("ai-analyze");
 
-  if (analyzeError) {
-    steps["ai-analyze"] = { status: "error", started_at: analyzeStart, finished_at: new Date().toISOString(), error: analyzeError.message };
-    await updateRun({ status: "error", finished_at: new Date().toISOString(), steps, error_message: analyzeError.message });
-    return NextResponse.json({ ok: false, error: analyzeError.message }, { status: 500 });
+  if (!analyzeResult.ok) {
+    steps["ai-analyze"] = { status: "error", started_at: analyzeStart, finished_at: new Date().toISOString(), error: analyzeResult.error };
+    await updateRun({ status: "error", finished_at: new Date().toISOString(), steps, error_message: analyzeResult.error });
+    return NextResponse.json({ ok: false, error: analyzeResult.error }, { status: 500 });
   }
+
+  const analyzeData = analyzeResult.data;
 
   const analyzed: number =
     typeof (analyzeData as Record<string, unknown> | null)?.analyzed === "number"
