@@ -9,6 +9,10 @@ const DEFAULT_SCHEDULE = {
   runTimeUtc: "06:00",
   runsPerDay: 1,
   enabled: true,
+  autoApproveLow: false,
+  autoApproveDelayHours: 24,
+  notifyOnDetect: true,
+  defaultExportFmt: "pdf",
 };
 
 function getAdminClient() {
@@ -43,13 +47,28 @@ function firstRunTimeUtc(row: { run_times_utc?: string[] | null; run_time_utc?: 
   return DEFAULT_SCHEDULE.runTimeUtc;
 }
 
+function buildRunTimesUtc(runTimeUtc: string, runsPerDay: number): string[] {
+  const [hourText, minuteText] = runTimeUtc.split(":");
+  const baseMinutes = Number(hourText) * 60 + Number(minuteText);
+  const spacing = Math.floor((24 * 60) / runsPerDay);
+
+  return Array.from({ length: runsPerDay }, (_, index) => {
+    const totalMinutes = (baseMinutes + spacing * index) % (24 * 60);
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+    const minutes = String(totalMinutes % 60).padStart(2, "0");
+    return `${hours}:${minutes}:00`;
+  });
+}
+
 export async function GET() {
   const orgId = await getOrgId();
   const admin = getAdminClient();
 
   const { data: schedule } = await admin
     .from("schedules")
-    .select("cadence, run_time_utc, run_times_utc, runs_per_day, enabled")
+    .select(
+      "cadence, run_time_utc, run_times_utc, runs_per_day, enabled, auto_approve_low, auto_approve_delay_hours, notify_on_detect, default_export_fmt",
+    )
     .eq("organization_id", orgId)
     .maybeSingle();
 
@@ -63,6 +82,14 @@ export async function GET() {
       runTimeUtc: firstRunTimeUtc(schedule),
       runsPerDay: Number(schedule.runs_per_day ?? DEFAULT_SCHEDULE.runsPerDay),
       enabled: schedule.enabled ?? DEFAULT_SCHEDULE.enabled,
+      autoApproveLow:
+        schedule.auto_approve_low ?? DEFAULT_SCHEDULE.autoApproveLow,
+      autoApproveDelayHours:
+        Number(schedule.auto_approve_delay_hours ?? DEFAULT_SCHEDULE.autoApproveDelayHours),
+      notifyOnDetect:
+        schedule.notify_on_detect ?? DEFAULT_SCHEDULE.notifyOnDetect,
+      defaultExportFmt:
+        schedule.default_export_fmt ?? DEFAULT_SCHEDULE.defaultExportFmt,
     },
   });
 }
@@ -76,6 +103,10 @@ export async function POST(request: Request) {
     runTimeUtc?: string;
     runsPerDay?: number;
     enabled?: boolean;
+    autoApproveLow?: boolean;
+    autoApproveDelayHours?: number;
+    notifyOnDetect?: boolean;
+    defaultExportFmt?: string;
   };
 
   const runTimeUtc = payload.runTimeUtc ?? DEFAULT_SCHEDULE.runTimeUtc;
@@ -86,8 +117,24 @@ export async function POST(request: Request) {
     cadence: payload.cadence ?? DEFAULT_SCHEDULE.cadence,
     run_time_utc: timeForDb,
     runs_per_day: runsPerDay,
-    run_times_utc: Array.from({ length: runsPerDay }, () => timeForDb),
+    run_times_utc: buildRunTimesUtc(runTimeUtc, runsPerDay),
     enabled: payload.enabled ?? DEFAULT_SCHEDULE.enabled,
+    auto_approve_low:
+      payload.autoApproveLow ?? DEFAULT_SCHEDULE.autoApproveLow,
+    auto_approve_delay_hours: Math.min(
+      168,
+      Math.max(
+        1,
+        Number(
+          payload.autoApproveDelayHours ??
+            DEFAULT_SCHEDULE.autoApproveDelayHours,
+        ) || DEFAULT_SCHEDULE.autoApproveDelayHours,
+      ),
+    ),
+    notify_on_detect:
+      payload.notifyOnDetect ?? DEFAULT_SCHEDULE.notifyOnDetect,
+    default_export_fmt:
+      payload.defaultExportFmt === "docx" ? "docx" : "pdf",
     updated_at: new Date().toISOString(),
   };
 

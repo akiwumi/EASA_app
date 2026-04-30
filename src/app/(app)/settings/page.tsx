@@ -2,17 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Users, BookOpen, Bot, Rss } from "lucide-react";
+import { Users, BookOpen, Bot, Rss, Rocket, TimerReset } from "lucide-react";
 import UsersTab from "@/components/admin/UsersTab";
 import FlightbooksTab from "@/components/admin/FlightbooksTab";
 import AiSettingsTab from "@/components/admin/AiSettingsTab";
 import SourcesTab from "@/components/admin/SourcesTab";
+import SetupTab from "@/components/admin/SetupTab";
+import AutomationTab from "@/components/admin/AutomationTab";
 
 const TABS = [
+  { id: "setup", label: "Setup", icon: Rocket },
   { id: "users", label: "Users", icon: Users },
   { id: "flightbooks", label: "Flight books", icon: BookOpen },
   { id: "sources", label: "RSS feeds", icon: Rss },
   { id: "ai", label: "AI settings", icon: Bot },
+  { id: "automation", label: "Automation", icon: TimerReset },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -21,8 +25,8 @@ const TAB_IDS = TABS.map((t) => t.id) as readonly string[];
 export default function SettingsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const initial = (searchParams.get("tab") ?? "users") as TabId;
-  const [active, setActive] = useState<TabId>(TAB_IDS.includes(initial) ? initial : "users");
+  const initial = (searchParams.get("tab") ?? "setup") as TabId;
+  const [active, setActive] = useState<TabId>(TAB_IDS.includes(initial) ? initial : "setup");
 
   // Keep URL in sync when tab changes
   useEffect(() => {
@@ -34,7 +38,7 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-xl font-semibold">Admin panel</h1>
         <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-          Manage users, flight books, RSS feeds, and AI provider configuration.
+          Start with setup, then manage users, flight books, feeds, AI, and automation.
         </p>
       </div>
 
@@ -61,10 +65,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Tab content */}
+      {active === "setup" && <SetupTab onOpenTab={setActive} />}
       {active === "users" && <UsersTab />}
       {active === "flightbooks" && <FlightbooksTab />}
       {active === "sources" && <SourcesTab />}
       {active === "ai" && <AiSettingsTab />}
+      {active === "automation" && <AutomationTab />}
     </div>
   );
 }
