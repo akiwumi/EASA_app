@@ -3,22 +3,22 @@
 import { useEffect, useState } from "react";
 import { Save, Eye, EyeOff } from "lucide-react";
 
-const PROVIDERS: Record<string, { label: string; models: string[] }> = {
+const PROVIDERS: Record<string, { label: string; suggestedModels: string[] }> = {
   openai: {
     label: "OpenAI",
-    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+    suggestedModels: ["gpt-5.2", "gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4o", "gpt-4o-mini"],
   },
   anthropic: {
     label: "Anthropic",
-    models: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
+    suggestedModels: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
   },
   groq: {
     label: "Groq",
-    models: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+    suggestedModels: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
   },
   google: {
     label: "Google Gemini",
-    models: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    suggestedModels: ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
   },
 };
 
@@ -47,7 +47,7 @@ export default function AiSettingsTab() {
   // When provider changes, reset model to first option
   function handleProviderChange(p: string) {
     setProvider(p);
-    setModel(PROVIDERS[p]?.models[0] ?? "");
+    setModel(PROVIDERS[p]?.suggestedModels[0] ?? "");
   }
 
   async function save() {
@@ -63,7 +63,8 @@ export default function AiSettingsTab() {
     setSaving(false);
   }
 
-  const models = PROVIDERS[provider]?.models ?? [];
+  const suggestedModels = PROVIDERS[provider]?.suggestedModels ?? [];
+  const modelSuggestionsId = `${provider}-model-suggestions`;
 
   return (
     <div className="space-y-6">
@@ -97,13 +98,24 @@ export default function AiSettingsTab() {
               <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">
                 Model
               </label>
-              <select
+              <input
                 className="easa-input w-full"
                 value={model}
+                list={modelSuggestionsId}
+                placeholder="Enter a model ID"
                 onChange={(e) => setModel(e.target.value)}
-              >
-                {models.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              />
+              <datalist id={modelSuggestionsId}>
+                {suggestedModels.map((suggestedModel) => (
+                  <option key={suggestedModel} value={suggestedModel}>
+                    {suggestedModel}
+                  </option>
+                ))}
+              </datalist>
+              <p className="mt-1.5 text-xs text-[var(--easa-color-text-muted)]">
+                Any valid {PROVIDERS[provider]?.label ?? "provider"} model ID is allowed. Suggested models appear as
+                you type.
+              </p>
             </div>
 
             <div>
