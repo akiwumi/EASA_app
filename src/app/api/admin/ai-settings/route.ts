@@ -32,22 +32,18 @@ export async function POST(request: Request) {
 
   const admin = getSupabaseAdminClient();
 
-  const body = {
-    provider,
-    model,
-    api_key: apiKey ?? null,
-    updated_at: new Date().toISOString(),
-  };
-
-  const { data: existing } = await admin
+  const { error } = await admin
     .from("ai_provider_config")
-    .select("id")
-    .eq("organization_id", ctx.orgId)
-    .maybeSingle();
-
-  const { error } = existing
-    ? await admin.from("ai_provider_config").update(body).eq("organization_id", ctx.orgId)
-    : await admin.from("ai_provider_config").insert({ ...body, organization_id: ctx.orgId });
+    .upsert(
+      {
+        organization_id: ctx.orgId,
+        provider,
+        model,
+        api_key: apiKey ?? null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "organization_id" },
+    );
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ ok: true });
