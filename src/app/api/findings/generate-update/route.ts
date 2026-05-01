@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/access";
 import {
   ensureQueuedUpdatesForOrg,
+  findLatestQueuedProposal,
   generateDraftForProposedUpdate,
+  insertProposedUpdateWithFallback,
   mapRiskLevel,
   parseConfidence,
 } from "@/lib/ai/proposed-updates";
@@ -49,37 +51,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: regChangeError.message }, { status: 400 });
   }
 
-  const regChangeProposal = regChange?.id
-    ? await admin
-        .from("proposed_updates")
-        .select("id")
-        .eq("organization_id", orgId)
-        .eq("reg_change_id", String(regChange.id))
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
+  const proposalLookup = await findLatestQueuedProposal(admin, orgId, {
+    regChangeId: (regChange?.id as string | null) ?? null,
+    rationale: (finding.summary as string | null) ?? null,
+  });
 
-  const rationaleProposal =
-    regChangeProposal.data || !finding.summary
-      ? { data: null }
-      : await admin
-          .from("proposed_updates")
-          .select("id")
-          .eq("organization_id", orgId)
-          .eq("ai_rationale", String(finding.summary))
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
+  const proposalLookupError = "error" in proposalLookup ? proposalLookup.error : undefined;
+  if (proposalLookupError) {
+    return NextResponse.json({ error: proposalLookupError.message }, { status: 400 });
+  }
 
-  const proposedUpdate = regChangeProposal.data ?? rationaleProposal.data;
+  const proposedUpdate = proposalLookup.data;
 
   let resolvedProposedUpdate = proposedUpdate;
 
   if (!resolvedProposedUpdate) {
-    const { data: createdProposal, error: createProposalError } = await admin
-      .from("proposed_updates")
-      .insert({
+    const { data: createdProposal, error: createProposalError } = await insertProposedUpdateWithFallback(admin, {
         organization_id: orgId,
         reg_change_id: (regChange?.id as string | null) ?? null,
         classification: "watchlist",
@@ -89,9 +76,7 @@ export async function POST(request: Request) {
         status: "pending",
         ai_model: "generate-update-fallback",
         ai_generated_at: new Date().toISOString(),
-      })
-      .select("id")
-      .single();
+      });
 
     if (createProposalError) {
       return NextResponse.json({ error: createProposalError.message }, { status: 400 });

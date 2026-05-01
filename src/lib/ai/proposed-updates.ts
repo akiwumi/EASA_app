@@ -64,6 +64,83 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
   );
 }
 
+function isMissingColumnError(
+  error: { code?: string | null; message?: string | null } | null | undefined,
+  columnName: string,
+) {
+  return new RegExp(`column .*${columnName}.* does not exist`, "i").test(error?.message ?? "");
+}
+
+type ProposedUpdateInsertInput = {
+  organization_id: string;
+  reg_change_id?: string | null;
+  flightbook_section_id?: string | null;
+  classification: string;
+  risk_level: string;
+  ai_rationale: string | null;
+  ai_suggested_text?: string | null;
+  confidence_score: number | null;
+  status: string;
+  auto_approve_at?: string | null;
+  ai_model: string;
+  ai_generated_at: string;
+};
+
+export async function insertProposedUpdateWithFallback(
+  admin: SupabaseClient,
+  row: ProposedUpdateInsertInput,
+) {
+  const attempt = await admin.from("proposed_updates").insert(row).select("id").single();
+  if (!attempt.error || !isMissingColumnError(attempt.error, "reg_change_id")) {
+    return attempt;
+  }
+
+  const { reg_change_id: _regChangeId, ...fallbackRow } = row;
+  return admin.from("proposed_updates").insert(fallbackRow).select("id").single();
+}
+
+export async function findLatestQueuedProposal(
+  admin: SupabaseClient,
+  organizationId: string,
+  options: { regChangeId?: string | null; rationale?: string | null },
+): Promise<
+  | { data: { id: string } | null; usedFallback: boolean; error?: undefined }
+  | { data?: undefined; usedFallback?: undefined; error: { message: string } }
+> {
+  if (options.regChangeId) {
+    const byRegChange = await admin
+      .from("proposed_updates")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("reg_change_id", options.regChangeId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!byRegChange.error) {
+      if (byRegChange.data) return { data: byRegChange.data, usedFallback: false };
+    } else if (!isMissingColumnError(byRegChange.error, "reg_change_id")) {
+        return { error: { message: byRegChange.error.message } };
+    }
+  }
+
+  if (!options.rationale) {
+    return { data: null, usedFallback: true };
+  }
+
+  const byRationale = await admin
+    .from("proposed_updates")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("ai_rationale", options.rationale)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (byRationale.error) return { error: { message: byRationale.error.message } };
+  return { data: byRationale.data, usedFallback: true };
+}
+
 export function parseConfidence(str: string | null): number | null {
   if (!str) return null;
   const n = parseFloat(str.replace("%", ""));
@@ -252,13 +329,47 @@ export async function ensureQueuedUpdatesForOrg(
     return { ok: false as const, error: regChangesError.message };
   }
 
-  const { data: existingUpdates, error: existingError } = await admin
+  let existingUpdates:
+    | {
+        id: string;
+        reg_change_id: string | null;
+        ai_rationale: string | null;
+      }[]
+    | null = null;
+
+  const existingWithRegChange = await admin
     .from("proposed_updates")
     .select("id, reg_change_id, ai_rationale")
     .eq("organization_id", organizationId);
 
+  const existingError = existingWithRegChange.error;
+  if (!existingError) {
+    existingUpdates = (existingWithRegChange.data ?? []) as {
+      id: string;
+      reg_change_id: string | null;
+      ai_rationale: string | null;
+    }[];
+  } else if (isMissingColumnError(existingError, "reg_change_id")) {
+    const fallbackExisting = await admin
+      .from("proposed_updates")
+      .select("id, ai_rationale")
+      .eq("organization_id", organizationId);
+
+    if (fallbackExisting.error) {
+      return { ok: false as const, error: fallbackExisting.error.message };
+    }
+
+    existingUpdates = (fallbackExisting.data ?? []).map((row) => ({
+      id: String(row.id),
+      reg_change_id: null,
+      ai_rationale: (row.ai_rationale as string | null) ?? null,
+    }));
+  }
+
   if (existingError) {
-    return { ok: false as const, error: existingError.message };
+    if (!isMissingColumnError(existingError, "reg_change_id")) {
+      return { ok: false as const, error: existingError.message };
+    }
   }
 
   const existingByRegChangeId = new Map<string, { id: string; ai_rationale: string | null }>();
@@ -292,14 +403,19 @@ export async function ensureQueuedUpdatesForOrg(
     const rationale = finding.summary ?? "";
     const matchingExisting = rationale ? existingByRationale.get(rationale) : null;
     if (matchingExisting?.id && !matchingExisting.reg_change_id) {
-      await admin
+      const updateResult = await admin
         .from("proposed_updates")
         .update({
           reg_change_id: regChangeId,
           updated_at: new Date().toISOString(),
         })
         .eq("id", matchingExisting.id);
-      linkedExisting += 1;
+
+      if (!updateResult.error || isMissingColumnError(updateResult.error, "reg_change_id")) {
+        linkedExisting += 1;
+      } else {
+        return { ok: false as const, error: updateResult.error.message };
+      }
       continue;
     }
 
@@ -328,7 +444,15 @@ export async function ensureQueuedUpdatesForOrg(
   if (rowsToInsert.length > 0) {
     const { error: insertError } = await admin.from("proposed_updates").insert(rowsToInsert);
     if (insertError) {
-      return { ok: false as const, error: insertError.message };
+      if (!isMissingColumnError(insertError, "reg_change_id")) {
+        return { ok: false as const, error: insertError.message };
+      }
+
+      const fallbackRows = rowsToInsert.map(({ reg_change_id: _regChangeId, ...row }) => row);
+      const { error: fallbackInsertError } = await admin.from("proposed_updates").insert(fallbackRows);
+      if (fallbackInsertError) {
+        return { ok: false as const, error: fallbackInsertError.message };
+      }
     }
   }
 
@@ -344,13 +468,53 @@ export async function generateDraftForProposedUpdate(
   proposedUpdateId: string,
   notes?: string[],
 ) {
-  const { data: proposedUpdate, error: proposedUpdateError } = await admin
+  let proposedUpdate:
+    | {
+        id: string;
+        organization_id: string | null;
+        reg_change_id: string | null;
+        ai_rationale: string | null;
+      }
+    | null = null;
+
+  const proposedUpdateWithRegChange = await admin
     .from("proposed_updates")
     .select("id, organization_id, reg_change_id, ai_rationale")
     .eq("id", proposedUpdateId)
     .maybeSingle();
 
-  if (proposedUpdateError) return { ok: false as const, error: proposedUpdateError.message };
+  const proposedUpdateError = proposedUpdateWithRegChange.error;
+  if (!proposedUpdateError) {
+    proposedUpdate = proposedUpdateWithRegChange.data as {
+      id: string;
+      organization_id: string | null;
+      reg_change_id: string | null;
+      ai_rationale: string | null;
+    } | null;
+  } else if (isMissingColumnError(proposedUpdateError, "reg_change_id")) {
+    const fallbackProposal = await admin
+      .from("proposed_updates")
+      .select("id, organization_id, ai_rationale")
+      .eq("id", proposedUpdateId)
+      .maybeSingle();
+
+    if (fallbackProposal.error) {
+      return { ok: false as const, error: fallbackProposal.error.message };
+    }
+
+    proposedUpdate = fallbackProposal.data
+      ? {
+          id: String(fallbackProposal.data.id),
+          organization_id: (fallbackProposal.data.organization_id as string | null) ?? null,
+          reg_change_id: null,
+          ai_rationale: (fallbackProposal.data.ai_rationale as string | null) ?? null,
+        }
+      : null;
+  }
+
+  if (proposedUpdateError && !isMissingColumnError(proposedUpdateError, "reg_change_id")) {
+    return { ok: false as const, error: proposedUpdateError.message };
+  }
   if (!proposedUpdate) return { ok: false as const, error: "Proposed update not found." };
 
   const orgId = (proposedUpdate.organization_id as string | null) ?? DEFAULT_ORG_ID;
@@ -557,7 +721,7 @@ export async function generateDraftsForOrg(
   organizationId: string,
   limit = 20,
 ) {
-  const { data: pendingUpdates, error } = await admin
+  const pendingWithRegChange = await admin
     .from("proposed_updates")
     .select("id")
     .eq("organization_id", organizationId)
@@ -567,8 +731,25 @@ export async function generateDraftsForOrg(
     .order("created_at", { ascending: false })
     .limit(limit);
 
-  if (error) {
-    return { ok: false as const, error: error.message };
+  let pendingUpdates = pendingWithRegChange.data ?? null;
+  if (pendingWithRegChange.error) {
+    if (!isMissingColumnError(pendingWithRegChange.error, "reg_change_id")) {
+      return { ok: false as const, error: pendingWithRegChange.error.message };
+    }
+
+    const fallbackPending = await admin
+      .from("proposed_updates")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("status", "pending")
+      .is("ai_suggested_text", null)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (fallbackPending.error) {
+      return { ok: false as const, error: fallbackPending.error.message };
+    }
+    pendingUpdates = fallbackPending.data ?? null;
   }
 
   let generated = 0;

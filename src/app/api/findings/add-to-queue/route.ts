@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
-import { mapRiskLevel, parseConfidence } from "@/lib/ai/proposed-updates";
+import { insertProposedUpdateWithFallback, mapRiskLevel, parseConfidence } from "@/lib/ai/proposed-updates";
 
 export async function POST(request: Request) {
   const ctx = await getOrgAccessContext();
@@ -45,9 +45,7 @@ export async function POST(request: Request) {
     .eq("ai_finding_id", findingId)
     .maybeSingle();
 
-  const { data: created, error: createErr } = await admin
-    .from("proposed_updates")
-    .insert({
+  const { data: created, error: createErr } = await insertProposedUpdateWithFallback(admin, {
       organization_id: ctx.orgId,
       reg_change_id: (regChange?.id as string | null) ?? null,
       classification: "watchlist",
@@ -57,9 +55,7 @@ export async function POST(request: Request) {
       status: "pending",
       ai_model: "ai-analyze",
       ai_generated_at: new Date().toISOString(),
-    })
-    .select("id")
-    .single();
+    });
 
   if (createErr) return NextResponse.json({ error: createErr.message }, { status: 400 });
   return NextResponse.json({ ok: true, id: created.id });
