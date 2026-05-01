@@ -32,6 +32,12 @@ type UpdateQueueViewRow = {
   regulation_part: string | null;
 };
 
+type FilterableQuery = {
+  eq: (column: string, value: string) => FilterableQuery;
+  order: (column: string, options: { ascending: boolean }) => FilterableQuery;
+  range: (from: number, to: number) => FilterableQuery;
+};
+
 function mapQueueRow(row: UpdateQueueViewRow) {
   return {
     id: row.id,
@@ -72,12 +78,11 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
 
   const admin = getSupabaseAdminClient();
-  const applyFilters = <T extends {
-    eq: (column: string, value: string) => T;
-    order: (column: string, options: { ascending: boolean }) => T;
-    range: (from: number, to: number) => T;
-  }>(query: T) => {
-    let next = query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+  const untypedAdmin = admin as any;
+  const applyFilters = (query: FilterableQuery) => {
+    let next: FilterableQuery = query
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
     if (ctx.orgId) next = next.eq("organization_id", ctx.orgId);
     if (status) next = next.eq("status", status);
     if (risk) next = next.eq("risk_level", risk);
@@ -86,7 +91,7 @@ export async function GET(request: Request) {
   };
 
   const viewQuery = applyFilters(
-    admin
+    untypedAdmin
       .from("v_update_queue")
       .select(`
         id,
@@ -105,10 +110,10 @@ export async function GET(request: Request) {
         flightbook_section_title,
         reg_number,
         regulation_part
-      `, { count: "exact" }),
+      `, { count: "exact" }) as FilterableQuery,
   );
 
-  const viewResult = await viewQuery;
+  const viewResult: any = await viewQuery;
   if (!viewResult.error) {
     return NextResponse.json({
       items: ((viewResult.data ?? []) as UpdateQueueViewRow[]).map(mapQueueRow),
@@ -123,7 +128,7 @@ export async function GET(request: Request) {
   }
 
   const fallbackQuery = applyFilters(
-    admin
+    untypedAdmin
       .from("proposed_updates")
       .select(`
         id,
@@ -145,10 +150,10 @@ export async function GET(request: Request) {
           section_number,
           title
         )
-      `, { count: "exact" }),
+      `, { count: "exact" }) as FilterableQuery,
   );
 
-  const fallbackResult = await fallbackQuery;
+  const fallbackResult: any = await fallbackQuery;
   if (fallbackResult.error && isMissingSchemaError(fallbackResult.error)) {
     return NextResponse.json({ items: [], total: 0, page, limit });
   }
