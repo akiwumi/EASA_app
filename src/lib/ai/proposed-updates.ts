@@ -166,12 +166,25 @@ function unwrapMaybeArray<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
+async function extractProviderError(res: Response): Promise<string> {
+  try {
+    const json = await res.json() as Record<string, unknown>;
+    const msg =
+      (json?.error as { message?: string } | null)?.message ??
+      (json?.error as string | null) ??
+      (json?.message as string | null) ??
+      null;
+    if (msg) return `${res.status}: ${msg}`;
+  } catch { /* fall through */ }
+  return `HTTP ${res.status} from AI provider`;
+}
+
 async function callOpenAI(
   apiKey: string,
   model: string,
   baseUrl: string,
   prompt: string,
-): Promise<string | null> {
+): Promise<string> {
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -181,12 +194,14 @@ async function callOpenAI(
       messages: [{ role: "user", content: prompt }],
     }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(await extractProviderError(res));
   const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  return json.choices?.[0]?.message?.content ?? null;
+  const text = json.choices?.[0]?.message?.content ?? null;
+  if (!text) throw new Error("AI provider returned an empty response.");
+  return text;
 }
 
-async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<string | null> {
+async function callAnthropic(apiKey: string, model: string, prompt: string): Promise<string> {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -196,12 +211,14 @@ async function callAnthropic(apiKey: string, model: string, prompt: string): Pro
     },
     body: JSON.stringify({ model, max_tokens: 2048, messages: [{ role: "user", content: prompt }] }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(await extractProviderError(res));
   const json = (await res.json()) as { content?: { type: string; text: string }[] };
-  return json.content?.find((b) => b.type === "text")?.text ?? null;
+  const text = json.content?.find((b) => b.type === "text")?.text ?? null;
+  if (!text) throw new Error("AI provider returned an empty response.");
+  return text;
 }
 
-async function callGoogle(apiKey: string, model: string, prompt: string): Promise<string | null> {
+async function callGoogle(apiKey: string, model: string, prompt: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const res = await fetch(url, {
     method: "POST",
@@ -211,17 +228,19 @@ async function callGoogle(apiKey: string, model: string, prompt: string): Promis
       generationConfig: { maxOutputTokens: 2048 },
     }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) throw new Error(await extractProviderError(res));
   const json = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
-  return json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  if (!text) throw new Error("AI provider returned an empty response.");
+  return text;
 }
 
-async function callAI(provider: string, model: string, apiKey: string, prompt: string): Promise<string | null> {
+async function callAI(provider: string, model: string, apiKey: string, prompt: string): Promise<string> {
   if (provider === "openai") return callOpenAI(apiKey, model, "https://api.openai.com/v1", prompt);
   if (provider === "groq") return callOpenAI(apiKey, model, "https://api.groq.com/openai/v1", prompt);
   if (provider === "anthropic") return callAnthropic(apiKey, model, prompt);
   if (provider === "google") return callGoogle(apiKey, model, prompt);
-  return null;
+  throw new Error(`Unknown AI provider "${provider}". Check Admin → AI settings.`);
 }
 
 function makeFallbackDraft(
@@ -663,9 +682,11 @@ export async function generateDraftForProposedUpdate(
     notes,
   });
 
-  const aiText = await callAI(aiConfig.provider, aiConfig.model, aiConfig.apiKey, prompt);
-  if (!aiText) {
-    return { ok: false as const, error: "AI provider did not return a response." };
+  let aiText: string;
+  try {
+    aiText = await callAI(aiConfig.provider, aiConfig.model, aiConfig.apiKey, prompt);
+  } catch (err) {
+    return { ok: false as const, error: err instanceof Error ? err.message : "AI provider did not return a response." };
   }
 
   const parsedDraft =
