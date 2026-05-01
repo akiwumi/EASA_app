@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
+import DownloadFlightbookButton from "@/components/flightbooks/DownloadFlightbookButton";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
@@ -35,10 +36,22 @@ async function loadBook(id: string) {
     .order("sort_order");
 
   if (sectionsError && isMissingSchemaError(sectionsError)) {
-    return { auth: true as const, book, sections: [] };
+    return { auth: true as const, book, sections: [], exports: [] };
   }
 
-  return { auth: true as const, book, sections: sections ?? [] };
+  const { data: exports, error: exportsError } = await admin
+    .from("flightbook_exports")
+    .select("id, version_number, change_source, created_at, note")
+    .eq("flightbook_id", id)
+    .eq("organization_id", ctx.orgId)
+    .order("version_number", { ascending: false })
+    .limit(12);
+
+  if (exportsError && isMissingSchemaError(exportsError)) {
+    return { auth: true as const, book, sections: sections ?? [], exports: [] };
+  }
+
+  return { auth: true as const, book, sections: sections ?? [], exports: exports ?? [] };
 }
 
 export default async function FlightbookDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -49,7 +62,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
   }
   if (!data.book) notFound();
 
-  const { book, sections } = data;
+  const { book, sections, exports } = data;
 
   return (
     <div className="space-y-6">
@@ -71,17 +84,20 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
             </span>
           </p>
         </div>
-        <Link href={`/flightbooks/upload`} className="easa-btn secondary text-sm">
-          Re-import
-        </Link>
-        <DeleteFlightbookButton id={book.id as string} name={book.name as string} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={`/flightbooks/upload`} className="easa-btn secondary text-sm">
+            Re-import
+          </Link>
+          <DownloadFlightbookButton id={book.id as string} />
+          <DeleteFlightbookButton id={book.id as string} name={book.name as string} />
+        </div>
       </div>
 
       {sections.length === 0 ? (
         <div className="easa-card p-10 text-center">
           <p className="text-sm font-medium">No sections imported yet</p>
           <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-            Upload a PDF or text file on the upload page, then select this book.
+            Upload a PDF, TXT, or MD file on the upload page, then select this book.
           </p>
           <Link href="/flightbooks/upload" className="easa-btn primary mt-4 inline-flex">
             Upload content
@@ -117,6 +133,54 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
           </table>
         </div>
       )}
+
+      <div className="easa-card p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Export history</h2>
+            <p className="text-sm text-[var(--easa-color-text-muted)]">
+              Download retained full-book versions generated after approvals or rollbacks.
+            </p>
+          </div>
+          <span className="easa-badge is-blue">
+            {exports.length} version{exports.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {exports.length === 0 ? (
+          <p className="mt-4 text-sm text-[var(--easa-color-text-muted)]">
+            No retained full-book exports yet. Approving an update or rolling back a section will generate one automatically.
+          </p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {exports.map((exportRow) => (
+              <div
+                key={exportRow.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">
+                    Full-book export v{String(exportRow.version_number).padStart(4, "0")}
+                  </p>
+                  <p className="text-xs text-[var(--easa-color-text-muted)]">
+                    {new Date(exportRow.created_at as string).toLocaleString("en-GB")} · {exportRow.change_source as string}
+                  </p>
+                  {(exportRow.note as string | null) && (
+                    <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                      {exportRow.note as string}
+                    </p>
+                  )}
+                </div>
+                <DownloadFlightbookButton
+                  id={book.id as string}
+                  exportId={exportRow.id as string}
+                  label="Download MD"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

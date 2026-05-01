@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { createFlightbookExport } from "@/lib/flightbook-exports";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
@@ -149,7 +150,7 @@ export async function PATCH(request: Request) {
     // Snapshot current body before overwriting
     const { data: currentSection } = await admin
       .from("flightbook_sections")
-      .select("body, organization_id")
+      .select("body, organization_id, flightbook_id")
       .eq("id", flightbookSectionId)
       .maybeSingle();
 
@@ -168,6 +169,17 @@ export async function PATCH(request: Request) {
         .from("flightbook_sections")
         .update({ body: aiSuggestedText, updated_at: new Date().toISOString() })
         .eq("id", flightbookSectionId);
+
+      if (currentSection.flightbook_id) {
+        await createFlightbookExport(admin, {
+          organizationId: (currentSection.organization_id as string | null) ?? ctx.orgId,
+          flightbookId: currentSection.flightbook_id as string,
+          changeSource: "approved_update",
+          createdBy: ctx.userId,
+          proposedUpdateId: ids[0],
+          note: "Generated automatically after approval.",
+        });
+      }
     }
   }
 

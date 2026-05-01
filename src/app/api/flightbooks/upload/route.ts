@@ -24,60 +24,116 @@ interface ParsedSection {
   sortOrder: number;
 }
 
-/** Detect section boundaries by numbered heading patterns common in aviation manuals. */
-function detectSections(text: string): ParsedSection[] {
-  // Normalise line endings
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+function chunkWholeDocument(text: string): ParsedSection[] {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((para) => para.trim())
+    .filter(Boolean);
 
-  const SECTION_RE = /^((\d{1,3})(\.\d{1,3}){0,4})\s{1,4}([A-Z].{2,80})$/;
-  const HEADING_RE = /^(Chapter|Section|Part|Appendix|Annex)\s+\d+[\s:–—]/i;
+  if (paragraphs.length === 0) return [];
+
+  const sections: ParsedSection[] = [];
+  const maxCharsPerChunk = 3500;
+  let buffer = "";
+  let chunkIndex = 1;
+
+  for (const paragraph of paragraphs) {
+    const candidate = buffer ? `${buffer}\n\n${paragraph}` : paragraph;
+    if (candidate.length > maxCharsPerChunk && buffer) {
+      sections.push({
+        sectionNumber: null,
+        title: `Document chunk ${chunkIndex}`,
+        body: buffer,
+        sortOrder: chunkIndex * 10,
+      });
+      buffer = paragraph;
+      chunkIndex += 1;
+    } else {
+      buffer = candidate;
+    }
+  }
+
+  if (buffer) {
+    sections.push({
+      sectionNumber: null,
+      title: `Document chunk ${chunkIndex}`,
+      body: buffer,
+      sortOrder: chunkIndex * 10,
+    });
+  }
+
+  return sections;
+}
+
+/** Detect section boundaries, but fall back to full-document chunking if heading parsing loses too much content. */
+function detectSections(text: string): ParsedSection[] {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = normalized.split("\n");
+
+  const SECTION_RE = /^((\d{1,3})(\.\d{1,3}){0,4})\s{1,4}(.{2,140})$/;
+  const HEADING_RE = /^(Chapter|Section|Part|Appendix|Annex)\s+[A-Z0-9.-]+[\s:–—-]+(.{2,140})$/i;
+  const MARKDOWN_HEADING_RE = /^(#{1,6})\s+(.{2,140})$/;
 
   const sections: ParsedSection[] = [];
   let current: { number: string | null; title: string | null; lines: string[] } | null = null;
   let order = 0;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    const secMatch = trimmed.match(SECTION_RE);
-    const headMatch = !secMatch && trimmed.match(HEADING_RE);
-
-    if (secMatch || headMatch) {
-      if (current) {
-        const body = current.lines.join("\n").trim();
-        if (body || current.title) {
-          sections.push({ sectionNumber: current.number, title: current.title, body, sortOrder: order += 10 });
-        }
-      }
-      if (secMatch) {
-        current = { number: secMatch[1], title: secMatch[4].trim(), lines: [] };
-      } else {
-        current = { number: null, title: trimmed, lines: [] };
-      }
-    } else if (current) {
-      current.lines.push(line);
-    } else if (trimmed) {
-      // Content before first heading — create a preamble section
-      current = { number: null, title: "Preamble", lines: [line] };
-    }
-  }
-
-  if (current) {
+  function pushCurrent() {
+    if (!current) return;
     const body = current.lines.join("\n").trim();
     if (body || current.title) {
-      sections.push({ sectionNumber: current.number, title: current.title, body, sortOrder: order += 10 });
+      sections.push({
+        sectionNumber: current.number,
+        title: current.title,
+        body: body || current.title || "(empty)",
+        sortOrder: (order += 10),
+      });
     }
   }
 
-  // Fall back: if no sections detected, treat each paragraph as a section
-  if (sections.length === 0) {
-    const paragraphs = text.split(/\n{2,}/);
-    paragraphs.forEach((para, i) => {
-      const p = para.trim();
-      if (p.length > 20) {
-        const firstLine = p.split("\n")[0].slice(0, 80);
-        sections.push({ sectionNumber: null, title: firstLine, body: p, sortOrder: (i + 1) * 10 });
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (current) current.lines.push("");
+      continue;
+    }
+
+    const secMatch = trimmed.match(SECTION_RE);
+    const headMatch = !secMatch ? trimmed.match(HEADING_RE) : null;
+    const markdownMatch = !secMatch && !headMatch ? trimmed.match(MARKDOWN_HEADING_RE) : null;
+
+    if (secMatch || headMatch || markdownMatch) {
+      pushCurrent();
+      if (secMatch) {
+        current = { number: secMatch[1], title: secMatch[4].trim(), lines: [] };
+      } else if (headMatch) {
+        current = { number: null, title: trimmed, lines: [] };
+      } else {
+        current = { number: null, title: markdownMatch?.[2].trim() ?? trimmed, lines: [] };
       }
-    });
+      continue;
+    }
+
+    if (!current) {
+      current = { number: null, title: "Preamble", lines: [line] };
+    } else {
+      current.lines.push(line);
+    }
+  }
+
+  pushCurrent();
+
+  const totalBodyChars = sections.reduce((sum, section) => sum + section.body.length, 0);
+  const normalizedChars = normalized.trim().length;
+  const bodyCoverage = normalizedChars > 0 ? totalBodyChars / normalizedChars : 0;
+  const emptyOrHeadingOnly =
+    sections.length > 0 &&
+    sections.filter((section) => section.body.trim().length <= (section.title?.trim().length ?? 0) + 8).length /
+      sections.length >
+      0.4;
+
+  if (sections.length === 0 || bodyCoverage < 0.6 || emptyOrHeadingOnly) {
+    return chunkWholeDocument(normalized);
   }
 
   return sections;

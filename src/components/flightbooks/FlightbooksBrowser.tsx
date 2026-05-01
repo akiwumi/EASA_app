@@ -32,7 +32,7 @@ export default function FlightbooksBrowser({ books }: Props) {
           <BookOpen size={36} strokeWidth={1.25} className="mx-auto text-[var(--easa-color-text-muted)]" />
           <p className="mt-3 text-sm font-medium">No flight books yet</p>
           <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-            Upload a PDF, TXT, or JSON file to import your first flight book.
+            Upload a PDF, TXT, MD, or JSON file to import your first flight book.
           </p>
           <Link className="easa-btn primary mt-4 inline-flex items-center gap-2" href="/flightbooks/upload">
             <Upload size={15} strokeWidth={1.75} /> Upload flight book

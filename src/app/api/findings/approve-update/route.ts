@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { createFlightbookExport } from "@/lib/flightbook-exports";
 
 export async function POST(request: Request) {
   const ctx = await getOrgAdminContext();
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
   // 2. Fetch the current section (to snapshot old body)
   const { data: section } = await admin
     .from("flightbook_sections")
-    .select("id, body, organization_id")
+    .select("id, body, organization_id, flightbook_id")
     .eq("id", sectionId)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
@@ -86,6 +87,16 @@ export async function POST(request: Request) {
     })
     .eq("ai_rationale", (finding.summary as string | null) ?? "")
     .eq("organization_id", orgId);
+
+  if (section.flightbook_id) {
+    await createFlightbookExport(admin, {
+      organizationId: orgId,
+      flightbookId: section.flightbook_id as string,
+      changeSource: "approved_finding",
+      createdBy: ctx.userId,
+      note: `Generated automatically from approved finding ${findingId}.`,
+    });
+  }
 
   return NextResponse.json({ ok: true, versionNumber: nextVersion });
 }

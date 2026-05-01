@@ -110,13 +110,13 @@ export default async function DashboardPage() {
     ? new Date(lastRssAt).toISOString().replace("T", " ").slice(0, 16) + " UTC"
     : "No items ingested yet";
 
-  const hasActiveFeeds = rssUrls.some((f) => f.active);
+  const hasActiveFeeds = setupSummary.activeRssCount > 0;
   const setupTasks = [
     {
       label: "RSS feeds connected",
       done: hasActiveFeeds,
       hint: hasActiveFeeds
-        ? `${rssUrls.filter((feed) => feed.active).length} active feed(s) ready to ingest.`
+        ? `${setupSummary.activeRssCount} active feed(s) ready to ingest.`
         : "Add or restore EASA feeds so the app can fetch regulation updates to compare with your manuals.",
       href: "/settings?tab=sources",
       action: "Manage feeds",

@@ -75,7 +75,7 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       <div>
         <h1 className="text-xl font-semibold">Upload flight book</h1>
         <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-          Import a PDF, plain text, or JSON fixture. Sections are extracted automatically and indexed for AI regulation comparison.
+          Import a PDF, TXT, MD, or JSON fixture. The full file is preserved through section parsing or full-document chunking and then indexed for AI regulation comparison.
         </p>
       </div>
 
@@ -192,8 +192,8 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       </div>
 
       <div className="easa-card p-4 text-xs text-[var(--easa-color-text-muted)] space-y-1">
-        <p><strong className="text-[var(--easa-color-text-secondary)]">PDF</strong> — text extracted and split by numbered headings (1.2.3 pattern)</p>
-        <p><strong className="text-[var(--easa-color-text-secondary)]">TXT / MD</strong> — same section detection on plain text</p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">PDF</strong> — text extracted, then stored by detected sections or full-document chunks if headings are unreliable</p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">TXT / MD</strong> — plain text or Markdown, stored by headings when useful and by full-document chunks when needed</p>
         <p><strong className="text-[var(--easa-color-text-secondary)]">JSON</strong> — use the <code>sample-import.json</code> format from <code>data/fixtures/flightbooks/</code></p>
       </div>
     </div>

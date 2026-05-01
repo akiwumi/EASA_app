@@ -49,6 +49,8 @@ export type DashboardSetupSummary = {
   hasSchedule: boolean;
   hasFlightbooks: boolean;
   flightbookCount: number;
+  rssSourceCount: number;
+  activeRssCount: number;
 };
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
@@ -96,8 +98,55 @@ export async function loadOrgContext(): Promise<OrgContext | null> {
 export async function loadDashboardStats(
   organizationId: string,
 ): Promise<DashboardStats> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) {
+  const admin = getSupabaseAdminClient();
+
+  const weekStartUtc = new Date();
+  weekStartUtc.setUTCHours(0, 0, 0, 0);
+  weekStartUtc.setUTCDate(weekStartUtc.getUTCDate() - ((weekStartUtc.getUTCDay() + 6) % 7));
+
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    { count: newChanges7d, error: regChangesError },
+    { count: pendingApprovals, error: pendingError },
+    { data: approvedUpdates, error: approvedUpdatesError },
+    { count: sourcesTotal, error: sourcesTotalError },
+    { count: sourcesActive, error: sourcesActiveError },
+  ] = await Promise.all([
+    admin
+      .from("reg_changes")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .gte("detected_at", sevenDaysAgo),
+    admin
+      .from("proposed_updates")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("status", "pending"),
+    admin
+      .from("proposed_updates")
+      .select("id")
+      .eq("organization_id", organizationId),
+    admin
+      .from("sources")
+      .select("id", { count: "exact", head: true })
+      .eq("type", "rss")
+      .eq("organization_id", organizationId),
+    admin
+      .from("sources")
+      .select("id", { count: "exact", head: true })
+      .eq("type", "rss")
+      .eq("organization_id", organizationId)
+      .eq("active", true),
+  ]);
+
+  if (
+    regChangesError ||
+    pendingError ||
+    approvedUpdatesError ||
+    sourcesTotalError ||
+    sourcesActiveError
+  ) {
     return {
       newChanges7d: 0,
       pendingApprovals: 0,
@@ -107,30 +156,22 @@ export async function loadDashboardStats(
     };
   }
 
-  const { data, error } = await supabase
-    .from("v_dashboard_stats")
-    .select(
-      "new_changes_7d, pending_approvals, approved_this_week, sources_total, sources_active",
-    )
-    .eq("organization_id", organizationId)
-    .maybeSingle();
-
-  if (error || !data) {
-    return {
-      newChanges7d: 0,
-      pendingApprovals: 0,
-      approvedThisWeek: 0,
-      sourcesTotal: 0,
-      sourcesActive: 0,
-    };
-  }
+  const proposedUpdateIds = (approvedUpdates ?? []).map((row) => row.id as string);
+  const { count: approvedThisWeek } = proposedUpdateIds.length
+    ? await admin
+        .from("approvals")
+        .select("id", { count: "exact", head: true })
+        .in("proposed_update_id", proposedUpdateIds)
+        .in("action", ["approved", "auto_approved"])
+        .gte("decided_at", weekStartUtc.toISOString())
+    : { count: 0 };
 
   return {
-    newChanges7d: Number(data.new_changes_7d ?? 0),
-    pendingApprovals: Number(data.pending_approvals ?? 0),
-    approvedThisWeek: Number(data.approved_this_week ?? 0),
-    sourcesTotal: Number(data.sources_total ?? 0),
-    sourcesActive: Number(data.sources_active ?? 0),
+    newChanges7d: Number(newChanges7d ?? 0),
+    pendingApprovals: Number(pendingApprovals ?? 0),
+    approvedThisWeek: Number(approvedThisWeek ?? 0),
+    sourcesTotal: Number(sourcesTotal ?? 0),
+    sourcesActive: Number(sourcesActive ?? 0),
   };
 }
 
@@ -189,14 +230,13 @@ export async function loadUpdateQueuePreview(
 export type RssSourceRow = { url: string; active: boolean };
 
 export async function loadRssSourceUrls(organizationId: string): Promise<RssSourceRow[]> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return [];
+  const admin = getSupabaseAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("sources")
     .select("url, active")
     .eq("type", "rss")
-    .or(`organization_id.eq.${organizationId},organization_id.is.null`)
+    .eq("organization_id", organizationId)
     .order("created_at", { ascending: true });
 
   if (error) return [];
@@ -206,10 +246,9 @@ export async function loadRssSourceUrls(organizationId: string): Promise<RssSour
 export async function loadLastRssIngestAt(
   organizationId: string,
 ): Promise<string | null> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
+  const admin = getSupabaseAdminClient();
 
-  const { data } = await supabase
+  const { data } = await admin
     .from("rss_items")
     .select("created_at")
     .eq("organization_id", organizationId)
@@ -223,10 +262,9 @@ export async function loadLastRssIngestAt(
 export async function loadFlightbookMappingRows(
   organizationId: string,
 ): Promise<FlightbookMappingRow[]> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return [];
+  const admin = getSupabaseAdminClient();
 
-  const { data: books, error: booksError } = await supabase
+  const { data: books, error: booksError } = await admin
     .from("flightbooks")
     .select("id, name")
     .eq("organization_id", organizationId)
@@ -239,7 +277,7 @@ export async function loadFlightbookMappingRows(
   const rows: FlightbookMappingRow[] = [];
 
   for (const book of books) {
-    const { data: sections } = await supabase
+    const { data: sections } = await admin
       .from("flightbook_sections")
       .select("id")
       .eq("flightbook_id", book.id);
@@ -247,7 +285,7 @@ export async function loadFlightbookMappingRows(
     const sectionIds = (sections ?? []).map((s) => s.id);
     let mapped = 0;
     if (sectionIds.length) {
-      const { count } = await supabase
+      const { count } = await admin
         .from("flightbook_mappings")
         .select("id", { count: "exact", head: true })
         .in("flightbook_section_id", sectionIds);
@@ -336,14 +374,17 @@ export async function loadRecentSectionVersions(
 export async function loadDashboardSetupSummary(
   organizationId: string,
 ): Promise<DashboardSetupSummary> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) {
+  const admin = getSupabaseAdminClient();
+
+  if (!organizationId) {
     return {
       hasAiConfig: false,
       hasAiKey: false,
       hasSchedule: false,
       hasFlightbooks: false,
       flightbookCount: 0,
+      rssSourceCount: 0,
+      activeRssCount: 0,
     };
   }
 
@@ -351,21 +392,34 @@ export async function loadDashboardSetupSummary(
     { data: aiConfig, error: aiError },
     { data: schedule, error: scheduleError },
     { count: flightbookCount, error: booksError },
+    { count: rssSourceCount, error: rssError },
+    { count: activeRssCount, error: activeRssError },
   ] = await Promise.all([
-    supabase
+    admin
       .from("ai_provider_config")
       .select("provider, api_key")
       .eq("organization_id", organizationId)
       .maybeSingle(),
-    supabase
+    admin
       .from("schedules")
       .select("id")
       .eq("organization_id", organizationId)
       .maybeSingle(),
-    supabase
+    admin
       .from("flightbooks")
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organizationId)
+      .eq("active", true),
+    admin
+      .from("sources")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("type", "rss"),
+    admin
+      .from("sources")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("type", "rss")
       .eq("active", true),
   ]);
 
@@ -378,6 +432,10 @@ export async function loadDashboardSetupSummary(
       !booksError && !isMissingSchemaError(booksError ?? {}) && (flightbookCount ?? 0) > 0,
     flightbookCount:
       !booksError && !isMissingSchemaError(booksError ?? {}) ? flightbookCount ?? 0 : 0,
+    rssSourceCount:
+      !rssError && !isMissingSchemaError(rssError ?? {}) ? rssSourceCount ?? 0 : 0,
+    activeRssCount:
+      !activeRssError && !isMissingSchemaError(activeRssError ?? {}) ? activeRssCount ?? 0 : 0,
   };
 }
 

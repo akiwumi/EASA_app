@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { createFlightbookExport } from "@/lib/flightbook-exports";
 
 function getAdminClient() {
   return createClient(
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
   // 2. Get current section body
   const { data: section, error: secErr } = await admin
     .from("flightbook_sections")
-    .select("body, organization_id")
+    .select("body, organization_id, flightbook_id")
     .eq("id", sectionId)
     .maybeSingle();
 
@@ -126,6 +127,16 @@ export async function POST(request: Request) {
       reason: reason ?? null,
     },
   });
+
+  if (section.flightbook_id) {
+    await createFlightbookExport(admin, {
+      organizationId: orgId,
+      flightbookId: section.flightbook_id as string,
+      changeSource: "rollback",
+      createdBy: user.id,
+      note: reason ? `Generated automatically after rollback. Reason: ${reason}` : "Generated automatically after rollback.",
+    });
+  }
 
   return NextResponse.json({ ok: true, newVersionNumber });
 }

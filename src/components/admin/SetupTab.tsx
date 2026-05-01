@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Circle, Copy, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, Circle, Loader2 } from "lucide-react";
 
 type SetupTabId =
   | "users"
@@ -39,10 +39,6 @@ type SetupStatus = {
   };
 };
 
-const DEMO_ORG_ID = "00000000-0000-4000-8000-000000000001";
-
-type CopyState = Record<string, boolean>;
-
 export default function SetupTab({
   onOpenTab,
 }: {
@@ -53,7 +49,6 @@ export default function SetupTab({
   const [error, setError] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
-  const [copied, setCopied] = useState<CopyState>({});
 
   async function load() {
     setLoading(true);
@@ -86,57 +81,6 @@ export default function SetupTab({
   useEffect(() => {
     void load();
   }, []);
-
-  const linkUserSql = useMemo(() => {
-    const userId = status?.currentUser.id ?? "PASTE_REAL_AUTH_USER_UUID_HERE";
-    return `insert into org_users (organization_id, user_id, role)
-select
-  '${DEMO_ORG_ID}',
-  '${userId}',
-  'admin'
-where not exists (
-  select 1
-  from org_users
-  where organization_id = '${DEMO_ORG_ID}'
-    and user_id = '${userId}'
-);`;
-  }, [status?.currentUser.id]);
-
-  const aiConfigSql = `insert into ai_provider_config (
-  organization_id,
-  provider,
-  model,
-  api_key
-)
-values (
-  '${DEMO_ORG_ID}',
-  'openai',
-  'gpt-4o',
-  'PASTE_REAL_API_KEY_HERE'
-)
-on conflict (organization_id) do update
-set
-  provider = excluded.provider,
-  model = excluded.model,
-  api_key = excluded.api_key,
-  updated_at = now();`;
-
-  const orgSql = `insert into organizations (id, name)
-values ('${DEMO_ORG_ID}', 'Demo Flight School')
-on conflict (id) do update
-set name = excluded.name;`;
-
-  async function copy(key: string, value: string) {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied((prev) => ({ ...prev, [key]: true }));
-      window.setTimeout(() => {
-        setCopied((prev) => ({ ...prev, [key]: false }));
-      }, 1600);
-    } catch {
-      // ignore clipboard failures
-    }
-  }
 
   async function seedDefaults() {
     setSeeding(true);
@@ -367,82 +311,31 @@ set name = excluded.name;`;
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <SqlCard
-          title="If the organization row is missing"
-          description="Run this in Supabase SQL Editor only if the checklist says the demo organization does not exist."
-          code={orgSql}
-          copied={copied.organization}
-          onCopy={() => copy("organization", orgSql)}
-        />
-        <SqlCard
-          title="If your user is not linked to the app"
-          description="This is the most common reason the app looks empty after login."
-          code={linkUserSql}
-          copied={copied.orgUser}
-          onCopy={() => copy("orgUser", linkUserSql)}
-        />
-        <SqlCard
-          title="If AI settings are still missing"
-          description="You can also save this from the AI settings tab, which is easier for most beginners."
-          code={aiConfigSql}
-          copied={copied.ai}
-          onCopy={() => copy("ai", aiConfigSql)}
-        />
         <div className="easa-card p-6">
-          <h3 className="text-sm font-semibold">Beginner reminder</h3>
+          <h3 className="text-sm font-semibold">Troubleshooting without SQL</h3>
           <div className="mt-3 space-y-3 text-sm text-[var(--easa-color-text-muted)]">
             <p>
-              Use the app tabs whenever possible. SQL should be the backup plan,
-              not the first plan.
+              The app should create and link the default organisation for you
+              automatically. If this page still says your user is not linked,
+              sign out and sign back in, then refresh the dashboard.
             </p>
             <p>
-              If you copy SQL, paste one block at a time in Supabase SQL Editor and
-              run it slowly. Check the result after each block before moving on.
+              If feeds are missing, use <strong className="text-[var(--easa-color-text-secondary)]">Restore EASA defaults</strong> or open the RSS feeds tab and add them there.
+            </p>
+            <p>
+              If AI is not producing results, open AI settings and save a provider,
+              model, and API key from the app instead of editing the database directly.
             </p>
             <p>
               After setup is done, go back to the dashboard and click
               <strong className="text-[var(--easa-color-text-secondary)]">
-                {" "}Check for updates
+                {" "}Run now
               </strong>
-              .
+              to fetch feeds and compare them with your uploaded flight books.
             </p>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SqlCard({
-  title,
-  description,
-  code,
-  copied,
-  onCopy,
-}: {
-  title: string;
-  description: string;
-  code: string;
-  copied?: boolean;
-  onCopy: () => void;
-}) {
-  return (
-    <div className="easa-card p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-            {description}
-          </p>
-        </div>
-        <button className="easa-btn secondary" onClick={onCopy}>
-          <Copy size={14} strokeWidth={1.75} />
-          {copied ? "Copied" : "Copy"}
-        </button>
-      </div>
-      <pre className="mt-4 overflow-x-auto rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-xs leading-6 text-[var(--easa-color-text-secondary)]">
-        <code>{code}</code>
-      </pre>
     </div>
   );
 }
