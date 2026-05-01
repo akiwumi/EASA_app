@@ -53,47 +53,67 @@ function vectorLiteral(values: number[]) {
   return `[${values.join(",")}]`;
 }
 
+function mapFlightbookRows(rows: Record<string, unknown>[], score = 0.25): RetrievedChunk[] {
+  return rows.map((row) => {
+    const flightbook = Array.isArray(row.flightbooks) ? row.flightbooks[0] : row.flightbooks;
+    return {
+      id: String(row.id),
+      kind: "flightbook" as const,
+      score,
+      title: (row.title as string | null) ?? null,
+      sectionNumber: (row.section_number as string | null) ?? null,
+      body: String(row.body ?? ""),
+      metadata: (row.metadata as Record<string, unknown> | null) ?? {},
+      flightbookName: (flightbook as { name?: string } | null)?.name ?? "Unknown",
+    };
+  });
+}
+
 async function fallbackFlightbookSearch(
   admin: SupabaseClient,
   organizationId: string,
   queryText: string,
   limit: number,
   flightbookId?: string | null,
-) {
+): Promise<RetrievedChunk[]> {
   const tokens = queryText
     .replace(/[^\w\s-]/g, " ")
     .split(/\s+/)
     .filter((token) => token.length > 2)
-    .slice(0, 4);
+    .slice(0, 6);
 
-  const ilike = tokens.join("%");
-  let query = admin
-    .from("flightbook_sections")
-    .select("id, section_number, title, body, metadata, flightbooks!inner(name, active)")
-    .eq("organization_id", organizationId)
-    .eq("flightbooks.active", true)
-    .or(`title.ilike.%${ilike}%,body.ilike.%${ilike}%`)
-    .limit(limit);
+  const baseQuery = () =>
+    admin
+      .from("flightbook_sections")
+      .select("id, section_number, title, body, metadata, flightbooks!inner(name, active)")
+      .eq("organization_id", organizationId)
+      .eq("flightbooks.active", true);
 
-  if (flightbookId) {
-    query = query.eq("flightbook_id", flightbookId);
+  const withBookFilter = <T extends ReturnType<typeof baseQuery>>(q: T) =>
+    flightbookId ? q.eq("flightbook_id", flightbookId) : q;
+
+  // Pass 1: all tokens must appear (in any order) — strict, fast
+  if (tokens.length > 0) {
+    const strictFilter = tokens
+      .map((t) => `title.ilike.%${t}%,body.ilike.%${t}%`)
+      .join(",");
+    const { data: strict } = await withBookFilter(baseQuery().or(strictFilter)).limit(limit);
+    if (strict && strict.length > 0) return mapFlightbookRows(strict);
   }
 
-  const { data } = await query;
+  // Pass 2: any single token matches — broad keyword search
+  if (tokens.length > 0) {
+    const broadFilter = tokens
+      .flatMap((t) => [`title.ilike.%${t}%`, `body.ilike.%${t}%`])
+      .join(",");
+    const { data: broad } = await withBookFilter(baseQuery().or(broadFilter)).limit(limit);
+    if (broad && broad.length > 0) return mapFlightbookRows(broad, 0.15);
+  }
 
-  return (data ?? []).map((row) => {
-    const flightbook = Array.isArray(row.flightbooks) ? row.flightbooks[0] : row.flightbooks;
-    return {
-      id: row.id,
-      kind: "flightbook" as const,
-      score: 0.25,
-      title: row.title,
-      sectionNumber: row.section_number,
-      body: row.body,
-      metadata: (row.metadata as Record<string, unknown> | null) ?? {},
-      flightbookName: (flightbook as { name?: string } | null)?.name ?? "Unknown",
-    };
-  });
+  // Pass 3: no keyword match — return the first sections by sort order so the
+  // AI always has flightbook context if any sections exist for this org/book.
+  const { data: any } = await withBookFilter(baseQuery().order("sort_order", { ascending: true })).limit(limit);
+  return mapFlightbookRows(any ?? [], 0.1);
 }
 
 async function fallbackRegulationSearch(
