@@ -56,6 +56,14 @@ type ProposalSourceRow = {
     | null;
 };
 
+function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "PGRST205" ||
+    /could not find the table/i.test(error.message ?? "") ||
+    /relation .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 export function parseConfidence(str: string | null): number | null {
   if (!str) return null;
   const n = parseFloat(str.replace("%", ""));
@@ -234,6 +242,13 @@ export async function ensureQueuedUpdatesForOrg(
     .limit(200);
 
   if (regChangesError) {
+    if (isMissingSchemaError(regChangesError)) {
+      return {
+        ok: false as const,
+        error:
+          "The regulation change tables are not set up yet. Run the Supabase schema migrations before generating AI drafts.",
+      };
+    }
     return { ok: false as const, error: regChangesError.message };
   }
 
@@ -329,13 +344,22 @@ export async function generateDraftForProposedUpdate(
   proposedUpdateId: string,
   notes?: string[],
 ) {
-  const { data, error } = await admin
+  const { data: proposedUpdate, error: proposedUpdateError } = await admin
     .from("proposed_updates")
-    .select(`
-      id,
-      organization_id,
-      reg_change_id,
-      reg_changes (
+    .select("id, organization_id, reg_change_id, ai_rationale")
+    .eq("id", proposedUpdateId)
+    .maybeSingle();
+
+  if (proposedUpdateError) return { ok: false as const, error: proposedUpdateError.message };
+  if (!proposedUpdate) return { ok: false as const, error: "Proposed update not found." };
+
+  const orgId = (proposedUpdate.organization_id as string | null) ?? DEFAULT_ORG_ID;
+  let finding: FindingRow | null = null;
+
+  if (proposedUpdate.reg_change_id) {
+    const { data, error } = await admin
+      .from("reg_changes")
+      .select(`
         id,
         ai_finding_id,
         ai_findings (
@@ -348,33 +372,70 @@ export async function generateDraftForProposedUpdate(
           category,
           rss_items ( title, summary, link, published_at, category )
         )
-      )
-    `)
-    .eq("id", proposedUpdateId)
-    .maybeSingle();
+      `)
+      .eq("id", String(proposedUpdate.reg_change_id))
+      .maybeSingle();
 
-  if (error) return { ok: false as const, error: error.message };
-  if (!data) return { ok: false as const, error: "Proposed update not found." };
+    if (error && !isMissingSchemaError(error)) {
+      return { ok: false as const, error: error.message };
+    }
 
-  const orgId = (data.organization_id as string | null) ?? DEFAULT_ORG_ID;
-  const regChange = unwrapMaybeArray(
-    data.reg_changes as
-      | {
-          id: string;
-          ai_finding_id: string | null;
-          ai_findings: FindingRow | FindingRow[] | null;
-        }
-      | {
-          id: string;
-          ai_finding_id: string | null;
-          ai_findings: FindingRow | FindingRow[] | null;
-        }[]
-      | null,
-  );
-  const finding = unwrapMaybeArray(regChange?.ai_findings);
+    const regChange = unwrapMaybeArray(
+      data as
+        | {
+            id: string;
+            ai_finding_id: string | null;
+            ai_findings: FindingRow | FindingRow[] | null;
+          }
+        | {
+            id: string;
+            ai_finding_id: string | null;
+            ai_findings: FindingRow | FindingRow[] | null;
+          }[]
+        | null,
+    );
+    finding = unwrapMaybeArray(regChange?.ai_findings);
+  }
+
+  if (!finding && proposedUpdate.ai_rationale) {
+    const { data: fallbackFinding, error: fallbackFindingError } = await admin
+      .from("ai_findings")
+      .select(`
+        id,
+        impact,
+        confidence,
+        mapped_section,
+        summary,
+        organization_id,
+        category,
+        rss_items ( title, summary, link, published_at, category )
+      `)
+      .eq("organization_id", orgId)
+      .eq("summary", String(proposedUpdate.ai_rationale))
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (fallbackFindingError) {
+      return { ok: false as const, error: fallbackFindingError.message };
+    }
+    finding = (fallbackFinding as FindingRow | null) ?? null;
+  }
 
   if (!finding) {
     return { ok: false as const, error: "No linked finding was found for this proposed update." };
+  }
+
+  const { error: refreshLinkError } = await admin
+    .from("proposed_updates")
+    .update({
+      ai_rationale: finding.summary ?? proposedUpdate.ai_rationale ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", proposedUpdateId);
+
+  if (refreshLinkError && !isMissingSchemaError(refreshLinkError)) {
+    return { ok: false as const, error: refreshLinkError.message };
   }
 
   const aiConfig = await loadAiConfig(admin, orgId);

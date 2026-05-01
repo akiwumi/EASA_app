@@ -4,6 +4,40 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import DiffViewer from "@/components/updates/DiffViewer";
 
+type JoinedUpdateRow = {
+  id: string;
+  classification: string | null;
+  risk_level: string | null;
+  confidence_score: number | null;
+  status: string | null;
+  ai_rationale: string | null;
+  ai_suggested_text: string | null;
+  flightbook_section_id: string | null;
+  reg_changes?: unknown[] | unknown | null;
+  flightbook_sections?: unknown[] | unknown | null;
+};
+
+type LegacyUpdateRow = {
+  id: string;
+  classification: string | null;
+  risk_level: string | null;
+  confidence_score: number | null;
+  status: string | null;
+  ai_rationale: string | null;
+  ai_suggested_text: string | null;
+  flightbook_section_id: string | null;
+};
+
+function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "42703" ||
+    error.code === "PGRST205" ||
+    /column .* does not exist/i.test(error.message ?? "") ||
+    /could not find the table/i.test(error.message ?? "") ||
+    /relation .* does not exist/i.test(error.message ?? "")
+  );
+}
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,16 +115,40 @@ export default async function UpdateDetailPage({
 
   if (orgId) query = query.eq("organization_id", orgId);
 
-  const { data, error } = await query.maybeSingle();
+  const { data: joinedData, error } = await query.maybeSingle();
 
-  if (error || !data) {
+  let data: JoinedUpdateRow | LegacyUpdateRow | null = joinedData as JoinedUpdateRow | null;
+  if (error && isMissingSchemaError(error)) {
+    let legacyQuery = admin
+      .from("proposed_updates")
+      .select(`
+        id,
+        classification,
+        risk_level,
+        confidence_score,
+        status,
+        ai_rationale,
+        ai_suggested_text,
+        flightbook_section_id
+      `)
+      .eq("id", id);
+
+    if (orgId) legacyQuery = legacyQuery.eq("organization_id", orgId);
+
+    const { data: legacyData, error: legacyError } = await legacyQuery.maybeSingle();
+    if (legacyError || !legacyData) {
+      notFound();
+    }
+    data = legacyData as LegacyUpdateRow;
+  } else if (error || !data) {
     notFound();
   }
 
   // Unwrap nested joins (Supabase returns arrays for one-to-one FK relationships)
-  const regChange = Array.isArray(data.reg_changes)
-    ? data.reg_changes[0]
-    : data.reg_changes;
+  const regChangesValue = "reg_changes" in data ? data.reg_changes : null;
+  const regChange = Array.isArray(regChangesValue)
+    ? regChangesValue[0]
+    : regChangesValue;
 
   const finding = regChange
     ? Array.isArray((regChange as Record<string, unknown>).ai_findings)
@@ -104,9 +162,10 @@ export default async function UpdateDetailPage({
       : (finding as Record<string, unknown>).rss_items
     : null;
 
-  const fbSection = Array.isArray(data.flightbook_sections)
-    ? data.flightbook_sections[0]
-    : data.flightbook_sections;
+  const flightbookSectionsValue = "flightbook_sections" in data ? data.flightbook_sections : null;
+  const fbSection = Array.isArray(flightbookSectionsValue)
+    ? flightbookSectionsValue[0]
+    : flightbookSectionsValue;
 
   const flightbook = fbSection
     ? Array.isArray((fbSection as Record<string, unknown>).flightbooks)

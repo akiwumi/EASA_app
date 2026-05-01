@@ -4,7 +4,9 @@ import { createFlightbookExport } from "@/lib/flightbook-exports";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
+    error.code === "42703" ||
     error.code === "PGRST205" ||
+    /column .* does not exist/i.test(error.message ?? "") ||
     /could not find the table/i.test(error.message ?? "") ||
     /relation .* does not exist/i.test(error.message ?? "")
   );
@@ -32,10 +34,35 @@ type UpdateQueueViewRow = {
   regulation_part: string | null;
 };
 
+type UpdateQueueLegacyRow = {
+  id: string;
+  classification: string | null;
+  risk_level: string | null;
+  confidence_score: number | null;
+  status: string | null;
+  ai_rationale: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type FilterableQuery = {
   eq: (column: string, value: string) => FilterableQuery;
   order: (column: string, options: { ascending: boolean }) => FilterableQuery;
   range: (from: number, to: number) => FilterableQuery;
+};
+
+type SchemaError = { code?: string | null; message?: string | null };
+
+type QueryResult<T> = {
+  data: T[] | null;
+  error: SchemaError | null;
+  count: number | null;
+};
+
+type UntypedSupabaseClient = {
+  from: (table: string) => {
+    select: (columns: string, options?: { count?: "exact" }) => FilterableQuery;
+  };
 };
 
 function mapQueueRow(row: UpdateQueueViewRow) {
@@ -64,6 +91,32 @@ function mapQueueRow(row: UpdateQueueViewRow) {
   };
 }
 
+function mapLegacyQueueRow(row: UpdateQueueLegacyRow) {
+  return {
+    id: row.id,
+    classification: row.classification ?? "watchlist",
+    risk_level: row.risk_level ?? "medium",
+    confidence_score: row.confidence_score,
+    status: row.status ?? "pending",
+    ai_rationale: row.ai_rationale,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    reg_changes: {
+      section_ref: null,
+      change_type: null,
+      diff_text: null,
+      reg_documents: {
+        reg_number: null,
+        part: null,
+      },
+    },
+    flightbook_sections: {
+      section_number: null,
+      title: null,
+    },
+  };
+}
+
 // GET /api/updates?status=&risk=&classification=&page=1&limit=50
 export async function GET(request: Request) {
   const ctx = await getOrgContext();
@@ -78,7 +131,7 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
 
   const admin = getSupabaseAdminClient();
-  const untypedAdmin = admin as any;
+  const untypedAdmin = admin as unknown as UntypedSupabaseClient;
   const applyFilters = (query: FilterableQuery) => {
     let next: FilterableQuery = query
       .order("created_at", { ascending: false })
@@ -113,7 +166,7 @@ export async function GET(request: Request) {
       `, { count: "exact" }) as FilterableQuery,
   );
 
-  const viewResult: any = await viewQuery;
+  const viewResult = (await viewQuery) as unknown as QueryResult<UpdateQueueViewRow>;
   if (!viewResult.error) {
     return NextResponse.json({
       items: ((viewResult.data ?? []) as UpdateQueueViewRow[]).map(mapQueueRow),
@@ -123,8 +176,9 @@ export async function GET(request: Request) {
     });
   }
 
-  if (isMissingSchemaError(viewResult.error)) {
-    return NextResponse.json({ items: [], total: 0, page, limit });
+  const shouldTryFallback = isMissingSchemaError(viewResult.error);
+  if (!shouldTryFallback) {
+    return NextResponse.json({ error: viewResult.error.message }, { status: 400 });
   }
 
   const fallbackQuery = applyFilters(
@@ -153,9 +207,60 @@ export async function GET(request: Request) {
       `, { count: "exact" }) as FilterableQuery,
   );
 
-  const fallbackResult: any = await fallbackQuery;
+  const fallbackResult = (await fallbackQuery) as unknown as QueryResult<{
+    id: string;
+    classification: string | null;
+    risk_level: string | null;
+    confidence_score: number | null;
+    status: string | null;
+    ai_rationale: string | null;
+    created_at: string;
+    updated_at: string;
+    reg_changes: {
+      section_ref: string | null;
+      change_type: string | null;
+      diff_text: string | null;
+      reg_documents: {
+        reg_number: string | null;
+        part: string | null;
+      } | null;
+    } | null;
+    flightbook_sections: {
+      section_number: string | null;
+      title: string | null;
+    } | null;
+  }>;
   if (fallbackResult.error && isMissingSchemaError(fallbackResult.error)) {
-    return NextResponse.json({ items: [], total: 0, page, limit });
+    const legacyQuery = applyFilters(
+      untypedAdmin
+        .from("proposed_updates")
+        .select(`
+          id,
+          organization_id,
+          classification,
+          risk_level,
+          confidence_score,
+          status,
+          ai_rationale,
+          created_at,
+          updated_at
+        `, { count: "exact" }) as FilterableQuery,
+    );
+
+    const legacyResult = (await legacyQuery) as unknown as QueryResult<UpdateQueueLegacyRow>;
+    if (legacyResult.error && isMissingSchemaError(legacyResult.error)) {
+      return NextResponse.json({ items: [], total: 0, page, limit });
+    }
+    if (legacyResult.error) {
+      return NextResponse.json({ error: legacyResult.error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      items: ((legacyResult.data ?? []) as UpdateQueueLegacyRow[]).map(mapLegacyQueueRow),
+      total: legacyResult.count ?? 0,
+      page,
+      limit,
+    });
   }
   if (fallbackResult.error) {
     return NextResponse.json({ error: fallbackResult.error.message }, { status: 400 });
