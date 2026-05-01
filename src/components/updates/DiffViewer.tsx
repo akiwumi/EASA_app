@@ -16,6 +16,17 @@ interface GenerateResult {
   error?: string;
 }
 
+async function readJsonSafely(res: Response) {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as GenerateResult;
+  } catch {
+    return { error: text };
+  }
+}
+
 interface Props {
   updateId: string;
   classification: string;
@@ -263,19 +274,25 @@ export default function DiffViewer({
     }
     setGenerating(true);
     setGenerateError(null);
-    const res = await fetch("/api/findings/generate-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        findingId,
-        notes: notes.length > 0 ? notes.map((n) => n.body) : undefined,
-      }),
-    });
-    const json: GenerateResult = await res.json();
-    if (!res.ok || json.error) {
-      setGenerateError(json.error ?? "AI generation failed");
-    } else {
-      setSuggestedText(json.suggestedText ?? null);
+
+    try {
+      const res = await fetch("/api/findings/generate-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          findingId,
+          notes: notes.length > 0 ? notes.map((n) => n.body) : undefined,
+        }),
+      });
+      const json = await readJsonSafely(res);
+
+      if (!res.ok || json?.error) {
+        setGenerateError(json?.error ?? "AI generation failed");
+      } else {
+        setSuggestedText(json?.suggestedText ?? null);
+      }
+    } catch (error) {
+      setGenerateError(error instanceof Error ? error.message : "AI generation failed");
     }
     setGenerating(false);
   }

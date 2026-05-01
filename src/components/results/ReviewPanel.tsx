@@ -37,6 +37,17 @@ interface SectionDraft {
 
 type Step = "review" | "generating" | "draft" | "approving" | "approved";
 
+async function readJsonSafely(res: Response) {
+  const text = await res.text();
+  if (!text) return null;
+
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return { error: text };
+  }
+}
+
 export default function ReviewPanel({
   findingId,
   update,
@@ -52,20 +63,28 @@ export default function ReviewPanel({
   async function generateDraft() {
     setStep("generating");
     setError(null);
-    const res = await fetch("/api/findings/generate-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ findingId }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error ?? "Failed to generate draft");
+
+    try {
+      const res = await fetch("/api/findings/generate-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ findingId }),
+      });
+      const json = await readJsonSafely(res);
+
+      if (!res.ok) {
+        setError(String(json?.error ?? "Failed to generate draft"));
+        setStep("review");
+        return;
+      }
+
+      setDraft(json as SectionDraft);
+      setEditedText(String(json?.suggestedText ?? ""));
+      setStep("draft");
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Failed to generate draft");
       setStep("review");
-      return;
     }
-    setDraft(json as SectionDraft);
-    setEditedText(json.suggestedText);
-    setStep("draft");
   }
 
   async function approveUpdate() {

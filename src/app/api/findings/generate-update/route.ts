@@ -20,53 +20,54 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
 }
 
 export async function POST(request: Request) {
-  const { findingId, notes } = (await request.json()) as { findingId?: string; notes?: string[] };
-  if (!findingId) return NextResponse.json({ error: "findingId required" }, { status: 400 });
+  try {
+    const { findingId, notes } = (await request.json()) as { findingId?: string; notes?: string[] };
+    if (!findingId) return NextResponse.json({ error: "findingId required" }, { status: 400 });
 
-  const admin = getSupabaseAdminClient();
+    const admin = getSupabaseAdminClient();
 
-  const { data: finding } = await admin
-    .from("ai_findings")
-    .select("id, organization_id, summary, impact, confidence")
-    .eq("id", findingId)
-    .maybeSingle();
+    const { data: finding } = await admin
+      .from("ai_findings")
+      .select("id, organization_id, summary, impact, confidence")
+      .eq("id", findingId)
+      .maybeSingle();
 
-  if (!finding) return NextResponse.json({ error: "Finding not found" }, { status: 404 });
+    if (!finding) return NextResponse.json({ error: "Finding not found" }, { status: 404 });
 
-  const orgId: string = (finding.organization_id as string | null) ?? DEFAULT_ORG_ID;
-  const queueResult = await ensureQueuedUpdatesForOrg(admin, orgId);
+    const orgId: string = (finding.organization_id as string | null) ?? DEFAULT_ORG_ID;
+    const queueResult = await ensureQueuedUpdatesForOrg(admin, orgId);
 
-  if (!queueResult.ok && !queueResult.error.includes("regulation change tables are not set up yet")) {
-    return NextResponse.json({ error: queueResult.error }, { status: 400 });
-  }
+    if (!queueResult.ok && !queueResult.error.includes("regulation change tables are not set up yet")) {
+      return NextResponse.json({ error: queueResult.error }, { status: 400 });
+    }
 
-  const { data: regChange, error: regChangeError } = await admin
-    .from("reg_changes")
-    .select("id")
-    .eq("organization_id", orgId)
-    .eq("ai_finding_id", findingId)
-    .maybeSingle();
+    const { data: regChange, error: regChangeError } = await admin
+      .from("reg_changes")
+      .select("id")
+      .eq("organization_id", orgId)
+      .eq("ai_finding_id", findingId)
+      .maybeSingle();
 
-  if (regChangeError && !isMissingSchemaError(regChangeError)) {
-    return NextResponse.json({ error: regChangeError.message }, { status: 400 });
-  }
+    if (regChangeError && !isMissingSchemaError(regChangeError)) {
+      return NextResponse.json({ error: regChangeError.message }, { status: 400 });
+    }
 
-  const proposalLookup = await findLatestQueuedProposal(admin, orgId, {
-    regChangeId: (regChange?.id as string | null) ?? null,
-    rationale: (finding.summary as string | null) ?? null,
-  });
+    const proposalLookup = await findLatestQueuedProposal(admin, orgId, {
+      regChangeId: (regChange?.id as string | null) ?? null,
+      rationale: (finding.summary as string | null) ?? null,
+    });
 
-  const proposalLookupError = "error" in proposalLookup ? proposalLookup.error : undefined;
-  if (proposalLookupError) {
-    return NextResponse.json({ error: proposalLookupError.message }, { status: 400 });
-  }
+    const proposalLookupError = "error" in proposalLookup ? proposalLookup.error : undefined;
+    if (proposalLookupError) {
+      return NextResponse.json({ error: proposalLookupError.message }, { status: 400 });
+    }
 
-  const proposedUpdate = proposalLookup.data;
+    const proposedUpdate = proposalLookup.data;
 
-  let resolvedProposedUpdate = proposedUpdate;
+    let resolvedProposedUpdate = proposedUpdate;
 
-  if (!resolvedProposedUpdate) {
-    const { data: createdProposal, error: createProposalError } = await insertProposedUpdateWithFallback(admin, {
+    if (!resolvedProposedUpdate) {
+      const { data: createdProposal, error: createProposalError } = await insertProposedUpdateWithFallback(admin, {
         organization_id: orgId,
         reg_change_id: (regChange?.id as string | null) ?? null,
         classification: "watchlist",
@@ -78,29 +79,33 @@ export async function POST(request: Request) {
         ai_generated_at: new Date().toISOString(),
       });
 
-    if (createProposalError) {
-      return NextResponse.json({ error: createProposalError.message }, { status: 400 });
+      if (createProposalError) {
+        return NextResponse.json({ error: createProposalError.message }, { status: 400 });
+      }
+
+      resolvedProposedUpdate = createdProposal;
     }
 
-    resolvedProposedUpdate = createdProposal;
-  }
+    const result = await generateDraftForProposedUpdate(admin, String(resolvedProposedUpdate.id), notes);
+    if (!result.ok) {
+      const status =
+        result.error.includes("Upload a flight book first") || result.error.includes("configured")
+          ? 400
+          : result.error.includes("not found")
+            ? 404
+            : 502;
+      const error = result.error.includes("regulation change tables are not set up yet")
+        ? "Your Supabase project is missing the regulation change tables. Run the schema migrations, especially `supabase/migrations/schema/004_reg_documents.sql`."
+        : result.error;
+      return NextResponse.json({ error }, { status });
+    }
 
-  const result = await generateDraftForProposedUpdate(admin, String(resolvedProposedUpdate.id), notes);
-  if (!result.ok) {
-    const status =
-      result.error.includes("Upload a flight book first") || result.error.includes("configured")
-        ? 400
-        : result.error.includes("not found")
-          ? 404
-          : 502;
-    const error = result.error.includes("regulation change tables are not set up yet")
-      ? "Your Supabase project is missing the regulation change tables. Run the schema migrations, especially `supabase/migrations/schema/004_reg_documents.sql`."
-      : result.error;
-    return NextResponse.json({ error }, { status });
+    return NextResponse.json({
+      ok: true,
+      ...result.data,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unexpected error while generating draft.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
-
-  return NextResponse.json({
-    ok: true,
-    ...result.data,
-  });
 }
