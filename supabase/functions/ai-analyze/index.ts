@@ -43,12 +43,20 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 }
 
 type FlightbookSection = { id: string; section_number: string | null; title: string | null; flightbook_name: string };
+type SimilarItem = { title: string; summary: string; category: string; similarity: number };
 
-function buildPrompt(title: string, summary: string, sections: FlightbookSection[]): string {
+function buildPrompt(title: string, summary: string, sections: FlightbookSection[], similarItems: SimilarItem[]): string {
   const sectionList = sections
     .slice(0, 40)
     .map((s) => `- [${s.flightbook_name}] ${s.section_number ? s.section_number + " " : ""}${s.title ?? "(untitled)"}`)
     .join("\n");
+
+  const similarBlock = similarItems.length > 0
+    ? `\nRelated past EASA items (for context — do not copy their classifications blindly):\n` +
+      similarItems.slice(0, 3).map((item) =>
+        `- [${item.category}] ${item.title}: ${item.summary?.slice(0, 120) ?? ""}…`
+      ).join("\n")
+    : "";
 
   return `You are a compliance assistant for an aviation flight school.
 Analyse this EASA regulatory update and return a single JSON object with keys:
@@ -62,10 +70,52 @@ Analyse this EASA regulatory update and return a single JSON object with keys:
 EASA Update:
 Title: ${title}
 Summary: ${summary}
+${similarBlock}
 
 ${sections.length > 0 ? `Flight book sections:\n${sectionList}` : "No flight book sections uploaded yet. Use a general reference."}
 
 Return only valid JSON, no markdown or commentary.`;
+}
+
+async function fetchEmbedding(text: string, openAiKey: string): Promise<number[] | null> {
+  try {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openAiKey}` },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: text.slice(0, 20000), encoding_format: "float" }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json() as { data?: { embedding?: number[] }[] };
+    return json.data?.[0]?.embedding ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function vectorLiteral(values: number[]) {
+  return `[${values.join(",")}]`;
+}
+
+// deno-lint-ignore no-explicit-any
+async function fetchSimilarItems(
+  supabase: any,
+  organizationId: string,
+  embedding: number[],
+  excludeId: string,
+): Promise<SimilarItem[]> {
+  const { data } = await supabase.rpc("match_rss_items", {
+    query_embedding: vectorLiteral(embedding),
+    match_count: 3,
+    min_similarity: 0.75,
+    filter_organization_id: organizationId,
+    exclude_id: excludeId,
+  });
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    title: String(row.title ?? ""),
+    summary: String(row.summary ?? ""),
+    category: String(row.category ?? ""),
+    similarity: Number(row.similarity ?? 0),
+  }));
 }
 
 // ── OpenAI-compatible providers (OpenAI, Groq) ──────────────────────────────
@@ -117,8 +167,9 @@ async function aiAnalysis(
   provider: string,
   model: string,
   apiKey: string,
+  similarItems: SimilarItem[] = [],
 ): Promise<AnalysisResult> {
-  const prompt = buildPrompt(title, summary, sections);
+  const prompt = buildPrompt(title, summary, sections, similarItems);
 
   try {
     let text: string | null = null;
@@ -235,10 +286,27 @@ serve(async (request) => {
     return { id: s.id, section_number: s.section_number, title: s.title, flightbook_name: (fb as { name: string })?.name ?? "Unknown" };
   });
 
+  // Resolve an OpenAI key for embeddings (independent of the primary AI provider).
+  const openAiKey: string | null = (() => {
+    if (provider === "openai" && apiKey && apiKey.startsWith("sk-") && !apiKey.startsWith("sk-ant-")) return apiKey;
+    const envKey = Deno.env.get("OPENAI_API_KEY") ?? "";
+    return envKey && envKey.startsWith("sk-") && !envKey.startsWith("sk-ant-") ? envKey : null;
+  })();
+
   const findingsPayload = [];
 
   for (const item of pendingItems) {
-    const analysis = await aiAnalysis(item.title, item.summary ?? "", sections, provider, model, apiKey);
+    let similarItems: SimilarItem[] = [];
+    if (openAiKey && item.organization_id) {
+      const queryText = [item.title, item.summary].filter(Boolean).join("\n");
+      const embedding = await fetchEmbedding(queryText, openAiKey);
+      if (embedding) {
+        similarItems = await fetchSimilarItems(supabase, item.organization_id as string, embedding, item.id as string);
+        // Persist the embedding so future items can match against this one
+        await supabase.from("rss_items").update({ embedding: vectorLiteral(embedding) }).eq("id", item.id);
+      }
+    }
+    const analysis = await aiAnalysis(item.title, item.summary ?? "", sections, provider, model, apiKey, similarItems);
     findingsPayload.push({
       rss_item_id: item.id,
       organization_id: item.organization_id ?? null,

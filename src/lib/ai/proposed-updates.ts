@@ -275,13 +275,19 @@ async function loadAiConfig(
     .maybeSingle();
 
   const row = (data ?? null) as AiConfigRow | null;
-  const provider = row?.provider ?? "anthropic";
+  const provider = (row?.provider ?? "anthropic").toLowerCase();
   const model = row?.model ?? "claude-sonnet-4-20250514";
-  const apiKey =
-    row?.api_key ??
-    process.env.ANTHROPIC_API_KEY ??
-    process.env.OPENAI_API_KEY ??
-    "";
+
+  let apiKey = row?.api_key ?? "";
+  if (!apiKey) {
+    if (provider === "openai" || provider === "groq") {
+      apiKey = process.env.OPENAI_API_KEY ?? "";
+    } else if (provider === "google") {
+      apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? "";
+    } else {
+      apiKey = process.env.ANTHROPIC_API_KEY ?? "";
+    }
+  }
 
   return apiKey ? { provider, model, apiKey } : null;
 }

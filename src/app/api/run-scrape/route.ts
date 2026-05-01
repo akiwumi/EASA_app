@@ -6,6 +6,7 @@ import {
   generateDraftsForOrg,
 } from "@/lib/ai/proposed-updates";
 import { aggregateRegChangesForOrg } from "@/lib/pipeline/aggregate-reg-changes";
+import { enrichRssItemEmbeddings } from "@/lib/ai/embeddings";
 
 type FunctionSuccess<T> = {
   ok: true;
@@ -173,6 +174,22 @@ export async function POST() {
         : 0;
 
     await updateRun({ steps, items_processed: itemsProcessed });
+
+    // ── Step 1.5: Embed new RSS items (best-effort, no pipeline failure on error) ─
+    try {
+      const { data: unembedded } = await admin
+        .from("rss_items")
+        .select("id, organization_id, title, summary, category")
+        .eq("organization_id", orgId)
+        .is("embedding", null)
+        .limit(50);
+
+      if (unembedded && unembedded.length > 0) {
+        await enrichRssItemEmbeddings(admin, unembedded as Parameters<typeof enrichRssItemEmbeddings>[1]);
+      }
+    } catch {
+      // Embedding failures are non-fatal; ai-analyze falls back to keyword search.
+    }
 
     // ── Step 2: AI analysis ─────────────────────────────────────────────────────
     let regulationData: {

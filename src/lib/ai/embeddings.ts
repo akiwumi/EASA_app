@@ -39,6 +39,11 @@ export function hashChunk(text: string) {
   return crypto.createHash("sha256").update(normalizeEmbeddingInput(text)).digest("hex");
 }
 
+function isOpenAiCompatibleKey(key: string) {
+  // Anthropic keys ("sk-ant-…") must not be sent to OpenAI's embeddings endpoint.
+  return key.length > 10 && key.startsWith("sk-") && !key.startsWith("sk-ant-");
+}
+
 async function loadEmbeddingConfig(
   admin: SupabaseClient,
   organizationId: string,
@@ -52,7 +57,7 @@ async function loadEmbeddingConfig(
   const provider = String(aiConfig?.provider ?? "").toLowerCase();
   const dbApiKey = String(aiConfig?.api_key ?? "");
 
-  if (provider === "openai" && dbApiKey) {
+  if (provider === "openai" && dbApiKey && isOpenAiCompatibleKey(dbApiKey)) {
     return {
       apiKey: dbApiKey,
       baseUrl: "https://api.openai.com/v1",
@@ -60,9 +65,10 @@ async function loadEmbeddingConfig(
     };
   }
 
-  if (process.env.OPENAI_API_KEY) {
+  const envKey = process.env.OPENAI_API_KEY ?? "";
+  if (isOpenAiCompatibleKey(envKey)) {
     return {
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: envKey,
       baseUrl: "https://api.openai.com/v1",
       model: process.env.OPENAI_EMBEDDING_MODEL ?? DEFAULT_EMBEDDING_MODEL,
     };
@@ -129,6 +135,37 @@ type DocumentSectionRow = {
   body: string;
   metadata?: Record<string, unknown> | null;
 };
+
+type RssItemRow = {
+  id: string;
+  organization_id: string | null;
+  title: string | null;
+  summary: string | null;
+  category: string | null;
+};
+
+export async function enrichRssItemEmbeddings(
+  admin: SupabaseClient,
+  rows: RssItemRow[],
+) {
+  if (rows.length === 0) return;
+  const organizationId = rows.find((r) => r.organization_id)?.organization_id;
+  if (!organizationId) return;
+
+  const texts = rows.map((row) =>
+    [row.title, row.category, row.summary].filter(Boolean).join("\n"),
+  );
+
+  const embeddings = await embedTexts(admin, organizationId, texts);
+  if (!embeddings || embeddings.length === 0) return;
+
+  for (let i = 0; i < rows.length; i += 1) {
+    const row = rows[i];
+    const embedding = embeddings[i];
+    if (!embedding?.length) continue;
+    await admin.from("rss_items").update({ embedding }).eq("id", row.id);
+  }
+}
 
 export async function enrichFlightbookSectionEmbeddings(
   admin: SupabaseClient,
