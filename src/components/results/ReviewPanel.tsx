@@ -48,6 +48,57 @@ async function readJsonSafely(res: Response) {
   }
 }
 
+function parseSectionDraft(json: Record<string, unknown> | null): SectionDraft | null {
+  if (!json) return null;
+
+  const {
+    sectionId,
+    sectionTitle,
+    sectionNumber,
+    flightbookName,
+    currentBody,
+    suggestedText,
+    changeSummary,
+    whyThisSection,
+    confidence,
+    citations,
+  } = json;
+
+  if (
+    typeof sectionId !== "string" ||
+    typeof flightbookName !== "string" ||
+    typeof currentBody !== "string" ||
+    typeof suggestedText !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    sectionId,
+    sectionTitle: typeof sectionTitle === "string" ? sectionTitle : null,
+    sectionNumber: typeof sectionNumber === "string" ? sectionNumber : null,
+    flightbookName,
+    currentBody,
+    suggestedText,
+    changeSummary: typeof changeSummary === "string" ? changeSummary : undefined,
+    whyThisSection: typeof whyThisSection === "string" ? whyThisSection : undefined,
+    confidence: typeof confidence === "string" ? confidence : undefined,
+    citations: Array.isArray(citations)
+      ? citations
+          .filter((citation): citation is Record<string, unknown> => typeof citation === "object" && citation !== null)
+          .map((citation) => ({
+            kind: typeof citation.kind === "string" ? citation.kind : "unknown",
+            id: typeof citation.id === "string" ? citation.id : "",
+            score: typeof citation.score === "number" ? citation.score : undefined,
+            section_number: typeof citation.section_number === "string" ? citation.section_number : null,
+            title: typeof citation.title === "string" ? citation.title : null,
+            flightbook_name: typeof citation.flightbook_name === "string" ? citation.flightbook_name : null,
+            quote: typeof citation.quote === "string" ? citation.quote : null,
+          }))
+      : undefined,
+  };
+}
+
 export default function ReviewPanel({
   findingId,
   update,
@@ -78,8 +129,15 @@ export default function ReviewPanel({
         return;
       }
 
-      setDraft(json as SectionDraft);
-      setEditedText(String(json?.suggestedText ?? ""));
+      const nextDraft = parseSectionDraft(json);
+      if (!nextDraft) {
+        setError("Received an unexpected draft response.");
+        setStep("review");
+        return;
+      }
+
+      setDraft(nextDraft);
+      setEditedText(nextDraft.suggestedText);
       setStep("draft");
     } catch (error) {
       setError(error instanceof Error ? error.message : "Failed to generate draft");
