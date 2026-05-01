@@ -10,7 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import StatCard from "@/components/cards/StatCard";
-import AiScrapeButton from "@/components/dashboard/AiScrapeButton";
+import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
 import NoFeedsWarning from "@/components/dashboard/NoFeedsWarning";
 import ScheduleCard from "@/components/dashboard/ScheduleCard";
 import SetupAssistCard from "@/components/dashboard/SetupAssistCard";
@@ -216,18 +216,7 @@ export default async function DashboardPage() {
             </span>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-          <Link className="easa-btn primary whitespace-nowrap text-sm" href="/settings?tab=setup">
-            Finish setup
-          </Link>
-          <AiScrapeButton compact />
-          <Link className="easa-btn secondary whitespace-nowrap text-sm" href="/results">
-            View AI results
-          </Link>
-          <Link className="easa-btn secondary whitespace-nowrap text-sm" href="/updates">
-            Open update queue
-          </Link>
-        </div>
+        <DashboardHeaderActions />
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
