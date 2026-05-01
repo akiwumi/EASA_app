@@ -82,7 +82,7 @@ export default function AiScrapeButton({ compact = false }: AiScrapeButtonProps)
 
   if (compact) {
     return (
-      <div className="shrink-0">
+      <div className="min-w-0 shrink-0 space-y-2">
         <button
           className="easa-btn secondary flex items-center gap-1.5 whitespace-nowrap text-sm"
           type="button"
@@ -92,6 +92,27 @@ export default function AiScrapeButton({ compact = false }: AiScrapeButtonProps)
           <RefreshCw size={13} strokeWidth={1.75} className={status === "running" ? "animate-spin" : ""} />
           {status === "running" ? "Running now…" : "Run now"}
         </button>
+        {status === "error" && errorMsg && (
+          <div className="max-w-[20rem] rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-accent-pink)]">
+            <div className="flex items-start gap-1.5">
+              <AlertCircle size={13} strokeWidth={1.75} className="mt-0.5 shrink-0" />
+              <span className="break-words">{errorMsg}</span>
+            </div>
+          </div>
+        )}
+        {status === "done" && result && (
+          <div className="max-w-[20rem] rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
+            <div className="flex items-start gap-1.5">
+              <CheckCircle size={13} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-accent-green)]" />
+              <span className="break-words">
+                Pipeline complete.
+                {result.ingest?.note
+                  ? ` ${result.ingest.note}`
+                  : ` Fetched ${result.ingest?.count ?? 0} RSS items.`}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 import { createFlightbookExport } from "@/lib/flightbook-exports";
 
@@ -13,6 +12,50 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
 
 async function getOrgContext() {
   return getOrgAccessContext();
+}
+
+type UpdateQueueViewRow = {
+  id: string;
+  classification: string | null;
+  risk_level: string | null;
+  confidence_score: number | null;
+  status: string | null;
+  ai_rationale: string | null;
+  created_at: string;
+  updated_at: string;
+  reg_section_ref: string | null;
+  change_type: string | null;
+  diff_text: string | null;
+  section_number: string | null;
+  flightbook_section_title: string | null;
+  reg_number: string | null;
+  regulation_part: string | null;
+};
+
+function mapQueueRow(row: UpdateQueueViewRow) {
+  return {
+    id: row.id,
+    classification: row.classification ?? "watchlist",
+    risk_level: row.risk_level ?? "medium",
+    confidence_score: row.confidence_score,
+    status: row.status ?? "pending",
+    ai_rationale: row.ai_rationale,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    reg_changes: {
+      section_ref: row.reg_section_ref,
+      change_type: row.change_type,
+      diff_text: row.diff_text,
+      reg_documents: {
+        reg_number: row.reg_number,
+        part: row.regulation_part,
+      },
+    },
+    flightbook_sections: {
+      section_number: row.section_number,
+      title: row.flightbook_section_title,
+    },
+  };
 }
 
 // GET /api/updates?status=&risk=&classification=&page=1&limit=50
@@ -29,47 +72,96 @@ export async function GET(request: Request) {
   const offset = (page - 1) * limit;
 
   const admin = getSupabaseAdminClient();
+  const applyFilters = <T extends {
+    eq: (column: string, value: string) => T;
+    order: (column: string, options: { ascending: boolean }) => T;
+    range: (from: number, to: number) => T;
+  }>(query: T) => {
+    let next = query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
+    if (ctx.orgId) next = next.eq("organization_id", ctx.orgId);
+    if (status) next = next.eq("status", status);
+    if (risk) next = next.eq("risk_level", risk);
+    if (classification) next = next.eq("classification", classification);
+    return next;
+  };
 
-  let query = admin
-    .from("proposed_updates")
-    .select(`
-      id,
-      classification,
-      risk_level,
-      confidence_score,
-      status,
-      ai_rationale,
-      ai_suggested_text,
-      created_at,
-      updated_at,
-      reg_changes (
-        section_ref,
+  const viewQuery = applyFilters(
+    admin
+      .from("v_update_queue")
+      .select(`
+        id,
+        organization_id,
+        classification,
+        risk_level,
+        confidence_score,
+        status,
+        ai_rationale,
+        created_at,
+        updated_at,
+        reg_section_ref,
         change_type,
         diff_text,
-        reg_documents ( reg_number, part )
-      ),
-      flightbook_sections (
         section_number,
-        title
-      )
-    `, { count: "exact" })
-    .order("created_at", { ascending: false })
-    .range(offset, offset + limit - 1);
+        flightbook_section_title,
+        reg_number,
+        regulation_part
+      `, { count: "exact" }),
+  );
 
-  if (ctx.orgId) {
-    query = query.eq("organization_id", ctx.orgId);
+  const viewResult = await viewQuery;
+  if (!viewResult.error) {
+    return NextResponse.json({
+      items: ((viewResult.data ?? []) as UpdateQueueViewRow[]).map(mapQueueRow),
+      total: viewResult.count ?? 0,
+      page,
+      limit,
+    });
   }
-  if (status) query = query.eq("status", status);
-  if (risk) query = query.eq("risk_level", risk);
-  if (classification) query = query.eq("classification", classification);
 
-  const { data, count, error } = await query;
-  if (error && isMissingSchemaError(error)) {
+  if (isMissingSchemaError(viewResult.error)) {
     return NextResponse.json({ items: [], total: 0, page, limit });
   }
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  return NextResponse.json({ items: data ?? [], total: count ?? 0, page, limit });
+  const fallbackQuery = applyFilters(
+    admin
+      .from("proposed_updates")
+      .select(`
+        id,
+        organization_id,
+        classification,
+        risk_level,
+        confidence_score,
+        status,
+        ai_rationale,
+        created_at,
+        updated_at,
+        reg_changes (
+          section_ref,
+          change_type,
+          diff_text,
+          reg_documents ( reg_number, part )
+        ),
+        flightbook_sections (
+          section_number,
+          title
+        )
+      `, { count: "exact" }),
+  );
+
+  const fallbackResult = await fallbackQuery;
+  if (fallbackResult.error && isMissingSchemaError(fallbackResult.error)) {
+    return NextResponse.json({ items: [], total: 0, page, limit });
+  }
+  if (fallbackResult.error) {
+    return NextResponse.json({ error: fallbackResult.error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({
+    items: fallbackResult.data ?? [],
+    total: fallbackResult.count ?? 0,
+    page,
+    limit,
+  });
 }
 
 // PATCH /api/updates — bulk action
