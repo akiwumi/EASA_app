@@ -68,7 +68,37 @@ function isMissingColumnError(
   error: { code?: string | null; message?: string | null } | null | undefined,
   columnName: string,
 ) {
-  return new RegExp(`column .*${columnName}.* does not exist`, "i").test(error?.message ?? "");
+  const message = error?.message ?? "";
+  return (
+    new RegExp(`column .*${columnName}.* does not exist`, "i").test(message) ||
+    new RegExp(`could not find the '${columnName}' column`, "i").test(message)
+  );
+}
+
+async function updateProposedDraftWithFallback(
+  admin: SupabaseClient,
+  proposedUpdateId: string,
+  payload: Record<string, unknown>,
+) {
+  const optionalColumns = [
+    "generation_prompt_version",
+    "retrieval_context",
+    "source_citations",
+    "retrieved_at",
+  ] as const;
+
+  let nextPayload = { ...payload };
+
+  while (true) {
+    const result = await admin.from("proposed_updates").update(nextPayload).eq("id", proposedUpdateId);
+    if (!result.error) return result;
+
+    const missingColumn = optionalColumns.find((column) => isMissingColumnError(result.error, column));
+    if (!missingColumn) return result;
+
+    const { [missingColumn]: _omitted, ...rest } = nextPayload;
+    nextPayload = rest;
+  }
 }
 
 type ProposedUpdateInsertInput = {
@@ -714,21 +744,24 @@ export async function generateDraftForProposedUpdate(
     primaryFlightbookSectionId: primaryFlightbook.id,
   };
 
-  const { error: updateError } = await admin
-    .from("proposed_updates")
-    .update({
-      ai_suggested_text: parsedDraft.suggestedText,
-      ai_rationale: parsedDraft.changeSummary || finding.summary || null,
-      flightbook_section_id: primaryFlightbook.id,
-      retrieval_context: retrievalContext,
-      generation_prompt_version: GENERATION_PROMPT_VERSION,
-      source_citations: sourceCitations,
-      retrieved_at: new Date().toISOString(),
-      ai_model: aiConfig.model,
-      ai_generated_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", proposedUpdateId);
+  const draftUpdatePayload = {
+    ai_suggested_text: parsedDraft.suggestedText,
+    ai_rationale: parsedDraft.changeSummary || finding.summary || null,
+    flightbook_section_id: primaryFlightbook.id,
+    retrieval_context: retrievalContext,
+    generation_prompt_version: GENERATION_PROMPT_VERSION,
+    source_citations: sourceCitations,
+    retrieved_at: new Date().toISOString(),
+    ai_model: aiConfig.model,
+    ai_generated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: updateError } = await updateProposedDraftWithFallback(
+    admin,
+    proposedUpdateId,
+    draftUpdatePayload,
+  );
 
   if (updateError) {
     return { ok: false as const, error: updateError.message };
