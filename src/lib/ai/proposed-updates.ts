@@ -179,6 +179,11 @@ async function extractProviderError(res: Response): Promise<string> {
   return `HTTP ${res.status} from AI provider`;
 }
 
+function openAiTokenParam(model: string, tokens: number): Record<string, number> {
+  // o1 / o3 / o4 reasoning models use max_completion_tokens; everything else uses max_tokens.
+  return /^o\d/i.test(model) ? { max_completion_tokens: tokens } : { max_tokens: tokens };
+}
+
 async function callOpenAI(
   apiKey: string,
   model: string,
@@ -190,7 +195,7 @@ async function callOpenAI(
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
-      max_tokens: 2048,
+      ...openAiTokenParam(model, 2048),
       messages: [{ role: "user", content: prompt }],
     }),
   });

@@ -118,12 +118,16 @@ async function fetchSimilarItems(
   }));
 }
 
+function openAiTokenParam(model: string, tokens: number): Record<string, number> {
+  return /^o\d/i.test(model) ? { max_completion_tokens: tokens } : { max_tokens: tokens };
+}
+
 // ── OpenAI-compatible providers (OpenAI, Groq) ──────────────────────────────
 async function callOpenAI(apiKey: string, model: string, baseUrl: string, prompt: string): Promise<string | null> {
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, max_tokens: 512, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model, ...openAiTokenParam(model, 512), messages: [{ role: "user", content: prompt }] }),
   });
   if (!res.ok) return null;
   const json = await res.json() as { choices?: { message?: { content?: string } }[] };
