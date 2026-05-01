@@ -147,6 +147,12 @@ export default function DiffViewer({
   const realtimeRef = useRef<any>(null);
 
   const loadNotes = useCallback(async () => {
+    if (!updateId) {
+      setNotes([]);
+      setNotesLoading(false);
+      return;
+    }
+
     setNotesLoading(true);
     try {
       const res = await fetch(`/api/notes?updateId=${updateId}`);
@@ -165,6 +171,8 @@ export default function DiffViewer({
 
   // Realtime — live note inserts from other users
   useEffect(() => {
+    if (!updateId) return;
+
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
 
@@ -207,7 +215,7 @@ export default function DiffViewer({
   }, [updateId]);
 
   async function submitNote() {
-    if (!noteBody.trim()) return;
+    if (!updateId || !noteBody.trim()) return;
     setNoteSubmitting(true);
     setNoteError(null);
     const res = await fetch("/api/notes", {

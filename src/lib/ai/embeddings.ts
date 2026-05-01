@@ -96,7 +96,8 @@ export async function embedTexts(
   });
 
   if (!res.ok) {
-    throw new Error(`Embedding request failed with status ${res.status}`);
+    console.warn(`Embedding request failed with status ${res.status}; falling back to non-embedding retrieval.`);
+    return null;
   }
 
   const json = (await res.json()) as { data?: { embedding?: number[] }[] };
