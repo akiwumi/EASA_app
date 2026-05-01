@@ -473,6 +473,7 @@ export async function generateDraftForProposedUpdate(
   admin: SupabaseClient,
   proposedUpdateId: string,
   notes?: string[],
+  flightbookId?: string | null,
 ) {
   let proposedUpdate:
     | {
@@ -642,6 +643,7 @@ export async function generateDraftForProposedUpdate(
       regPart,
       limit: 5,
       minSimilarity: 0.2,
+      flightbookId: flightbookId ?? null,
     }),
   ]);
 

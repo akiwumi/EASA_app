@@ -58,6 +58,7 @@ async function fallbackFlightbookSearch(
   organizationId: string,
   queryText: string,
   limit: number,
+  flightbookId?: string | null,
 ) {
   const tokens = queryText
     .replace(/[^\w\s-]/g, " ")
@@ -66,13 +67,19 @@ async function fallbackFlightbookSearch(
     .slice(0, 4);
 
   const ilike = tokens.join("%");
-  const { data } = await admin
+  let query = admin
     .from("flightbook_sections")
     .select("id, section_number, title, body, metadata, flightbooks!inner(name, active)")
     .eq("organization_id", organizationId)
     .eq("flightbooks.active", true)
     .or(`title.ilike.%${ilike}%,body.ilike.%${ilike}%`)
     .limit(limit);
+
+  if (flightbookId) {
+    query = query.eq("flightbook_id", flightbookId);
+  }
+
+  const { data } = await query;
 
   return (data ?? []).map((row) => {
     const flightbook = Array.isArray(row.flightbooks) ? row.flightbooks[0] : row.flightbooks;
@@ -136,13 +143,14 @@ export async function retrieveFlightbookChunks(
     regPart?: string | null;
     limit?: number;
     minSimilarity?: number;
+    flightbookId?: string | null;
   },
 ): Promise<RetrievedChunk[]> {
   const queryEmbedding = await embedSingleText(admin, input.organizationId, input.queryText);
   const limit = input.limit ?? 5;
 
   if (!queryEmbedding) {
-    return fallbackFlightbookSearch(admin, input.organizationId, input.queryText, limit);
+    return fallbackFlightbookSearch(admin, input.organizationId, input.queryText, limit, input.flightbookId);
   }
 
   const { data } = await admin.rpc("match_flightbook_sections", {
@@ -151,6 +159,7 @@ export async function retrieveFlightbookChunks(
     min_similarity: input.minSimilarity ?? 0.25,
     filter_organization_id: input.organizationId,
     filter_part: input.regPart ?? null,
+    filter_flightbook_id: input.flightbookId ?? null,
   });
 
   const matches = (data ?? []).map((row: Record<string, unknown>) => ({
@@ -166,7 +175,7 @@ export async function retrieveFlightbookChunks(
 
   return matches.length > 0
     ? matches
-    : fallbackFlightbookSearch(admin, input.organizationId, input.queryText, limit);
+    : fallbackFlightbookSearch(admin, input.organizationId, input.queryText, limit, input.flightbookId);
 }
 
 export async function retrieveRegulationChunks(

@@ -21,7 +21,7 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
 
 export async function POST(request: Request) {
   try {
-    const { findingId, notes } = (await request.json()) as { findingId?: string; notes?: string[] };
+    const { findingId, notes, flightbookId } = (await request.json()) as { findingId?: string; notes?: string[]; flightbookId?: string };
     if (!findingId) return NextResponse.json({ error: "findingId required" }, { status: 400 });
 
     const admin = getSupabaseAdminClient();
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       resolvedProposedUpdate = createdProposal;
     }
 
-    const result = await generateDraftForProposedUpdate(admin, String(resolvedProposedUpdate.id), notes);
+    const result = await generateDraftForProposedUpdate(admin, String(resolvedProposedUpdate.id), notes, flightbookId);
     if (!result.ok) {
       const status =
         result.error.includes("Upload a flight book first") || result.error.includes("configured")

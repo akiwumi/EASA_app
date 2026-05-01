@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Wand2, CheckCircle, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
 
 interface EasaUpdate {
@@ -99,6 +99,8 @@ function parseSectionDraft(json: Record<string, unknown> | null): SectionDraft |
   };
 }
 
+type Flightbook = { id: string; name: string };
+
 export default function ReviewPanel({
   findingId,
   update,
@@ -110,6 +112,18 @@ export default function ReviewPanel({
   const [draft, setDraft] = useState<SectionDraft | null>(null);
   const [editedText, setEditedText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [flightbooks, setFlightbooks] = useState<Flightbook[]>([]);
+  const [selectedFlightbookId, setSelectedFlightbookId] = useState<string>("");
+
+  useEffect(() => {
+    fetch("/api/flightbooks")
+      .then((r) => r.json())
+      .then((json: { flightbooks?: Flightbook[] }) => {
+        const books = json.flightbooks ?? [];
+        setFlightbooks(books);
+      })
+      .catch(() => {});
+  }, []);
 
   async function generateDraft() {
     setStep("generating");
@@ -119,7 +133,10 @@ export default function ReviewPanel({
       const res = await fetch("/api/findings/generate-update", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ findingId }),
+        body: JSON.stringify({
+          findingId,
+          ...(selectedFlightbookId ? { flightbookId: selectedFlightbookId } : {}),
+        }),
       });
       const json = await readJsonSafely(res);
 
@@ -216,6 +233,27 @@ export default function ReviewPanel({
               </p>
             </div>
           </div>
+
+          {flightbooks.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[var(--easa-color-text-muted)]">
+                Flight book to update
+              </label>
+              <select
+                className="easa-input text-sm"
+                value={selectedFlightbookId}
+                onChange={(e) => setSelectedFlightbookId(e.target.value)}
+                disabled={step === "generating"}
+              >
+                <option value="">Let AI choose the best match</option>
+                {flightbooks.map((book) => (
+                  <option key={book.id} value={book.id}>
+                    {book.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-center gap-2 rounded-[10px] border border-[var(--easa-color-accent-pink)]/30 bg-[var(--easa-color-accent-pink)]/8 px-4 py-3 text-sm text-[var(--easa-color-accent-pink)]">
