@@ -382,12 +382,18 @@ export async function loadRecentSectionVersions(
   const supabase = await getSupabaseServerClient();
   if (!supabase) return [];
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("flightbook_section_versions")
     .select("created_at, change_source, version_number")
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
     .limit(limit);
+
+  if (error) {
+    if (isMissingSchemaError(error)) return [];
+    console.error("Failed to load recent flightbook section versions", error);
+    return [];
+  }
 
   return (data ?? []).map((v) => ({
     at: formatUtc(v.created_at as string),
