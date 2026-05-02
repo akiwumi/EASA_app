@@ -24,6 +24,8 @@ interface Notification {
   created_at: string;
 }
 
+type ViewerRole = "admin" | "editor" | "viewer" | "instructor" | "student" | "compliance_manager";
+
 function NotificationIcon({ type }: { type: string }) {
   const cls = "shrink-0";
   if (type === "approved")
@@ -55,7 +57,37 @@ function relativeTime(iso: string): string {
   });
 }
 
-export default function NotificationsList() {
+function roleCopy(role: ViewerRole) {
+  if (role === "student") {
+    return {
+      subtitle: "Reading assignments, acknowledgements, and approved changes relevant to you.",
+      emptyTitle: "No student notifications yet",
+      emptyBody: "You will see assigned reading and actions that need your acknowledgement here.",
+    };
+  }
+  if (role === "instructor") {
+    return {
+      subtitle: "Training actions, sign-offs, and compliance updates connected to your workload.",
+      emptyTitle: "No instructor notifications yet",
+      emptyBody: "You will see sign-off requests, reading distribution, and compliance alerts here.",
+    };
+  }
+  if (role === "compliance_manager" || role === "admin" || role === "editor") {
+    return {
+      subtitle: "Approvals, critical changes, and distribution actions for the organisation.",
+      emptyTitle: "No compliance notifications yet",
+      emptyBody: "You will see critical changes, approval requests, and update outcomes here.",
+    };
+  }
+  return {
+    subtitle: "Notifications relevant to your current organisation role.",
+    emptyTitle: "No notifications yet",
+    emptyBody: "You will see updates that matter to your role here.",
+  };
+}
+
+export default function NotificationsList({ role = "viewer" }: { role?: ViewerRole }) {
+  const copy = roleCopy(role);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -184,7 +216,7 @@ export default function NotificationsList() {
             )}
           </h1>
           <p className="mt-0.5 text-sm text-[var(--easa-color-text-muted)]">
-            {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
+            {copy.subtitle}
           </p>
         </div>
         {unreadCount > 0 && (
@@ -216,9 +248,9 @@ export default function NotificationsList() {
             strokeWidth={1.5}
             className="mx-auto mb-3 text-[var(--easa-color-text-muted)]"
           />
-          <p className="text-sm font-medium">No notifications yet</p>
+          <p className="text-sm font-medium">{copy.emptyTitle}</p>
           <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-            You will be notified when updates are approved, rejected, or require action.
+            {copy.emptyBody}
           </p>
         </div>
       ) : (

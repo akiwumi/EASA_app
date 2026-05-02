@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 import { createFlightbookExport } from "@/lib/flightbook-exports";
+import type { RegulationChangeSummary, UpdateQueueItem } from "@/lib/types/domain";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
@@ -65,7 +66,7 @@ type UntypedSupabaseClient = {
   };
 };
 
-function mapQueueRow(row: UpdateQueueViewRow) {
+function mapQueueRow(row: UpdateQueueViewRow): UpdateQueueItem {
   return {
     id: row.id,
     classification: row.classification ?? "watchlist",
@@ -91,7 +92,7 @@ function mapQueueRow(row: UpdateQueueViewRow) {
   };
 }
 
-function mapLegacyQueueRow(row: UpdateQueueLegacyRow) {
+function mapLegacyQueueRow(row: UpdateQueueLegacyRow): UpdateQueueItem {
   return {
     id: row.id,
     classification: row.classification ?? "watchlist",
@@ -216,15 +217,7 @@ export async function GET(request: Request) {
     ai_rationale: string | null;
     created_at: string;
     updated_at: string;
-    reg_changes: {
-      section_ref: string | null;
-      change_type: string | null;
-      diff_text: string | null;
-      reg_documents: {
-        reg_number: string | null;
-        part: string | null;
-      } | null;
-    } | null;
+    reg_changes: RegulationChangeSummary | null;
     flightbook_sections: {
       section_number: string | null;
       title: string | null;

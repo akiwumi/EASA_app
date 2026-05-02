@@ -9,7 +9,10 @@ type SetupTabId =
   | "sources"
   | "ai"
   | "setup"
-  | "automation";
+  | "automation"
+  | "branding"
+  | "onboarding"
+  | "exports";
 
 type SetupStatus = {
   currentUser: {

@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Users, BookOpen, Bot, Rss, Rocket, TimerReset } from "lucide-react";
+import { Users, BookOpen, Bot, Rss, Rocket, TimerReset, Palette, ClipboardList, Files } from "lucide-react";
 import UsersTab from "@/components/admin/UsersTab";
 import FlightbooksTab from "@/components/admin/FlightbooksTab";
 import AiSettingsTab from "@/components/admin/AiSettingsTab";
 import SourcesTab from "@/components/admin/SourcesTab";
 import SetupTab from "@/components/admin/SetupTab";
 import AutomationTab from "@/components/admin/AutomationTab";
+import BrandingTab from "@/components/admin/BrandingTab";
+import OnboardingTab from "@/components/admin/OnboardingTab";
+import ExportsTab from "@/components/admin/ExportsTab";
 
 const TABS = [
   { id: "setup", label: "Setup", icon: Rocket },
@@ -17,6 +20,9 @@ const TABS = [
   { id: "sources", label: "RSS feeds", icon: Rss },
   { id: "ai", label: "AI settings", icon: Bot },
   { id: "automation", label: "Automation", icon: TimerReset },
+  { id: "branding", label: "Branding", icon: Palette },
+  { id: "onboarding", label: "Onboarding", icon: ClipboardList },
+  { id: "exports", label: "Exports", icon: Files },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -38,7 +44,7 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-xl font-semibold">Admin panel</h1>
         <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-          Start with setup, then manage users, flight books, feeds, AI, and automation.
+          Start with setup, then manage users, feeds, branding, automation, exports, and school onboarding.
         </p>
       </div>
 
@@ -71,6 +77,9 @@ export default function SettingsPage() {
       {active === "sources" && <SourcesTab />}
       {active === "ai" && <AiSettingsTab />}
       {active === "automation" && <AutomationTab />}
+      {active === "branding" && <BrandingTab />}
+      {active === "onboarding" && <OnboardingTab onOpenTab={setActive} />}
+      {active === "exports" && <ExportsTab />}
     </div>
   );
 }

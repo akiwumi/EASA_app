@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   Bell,
+  GraduationCap,
   History,
   LayoutDashboard,
   LineChart,
@@ -13,6 +14,7 @@ import {
   LogOut,
   Menu,
   ScrollText,
+  Search,
   Settings,
   Upload,
   User,
@@ -26,6 +28,8 @@ const NAV = [
   { href: "/updates", label: "Update queue", icon: ListChecks },
   { href: "/changes", label: "Change list", icon: ScrollText },
   { href: "/flightbooks", label: "Flight books", icon: BookOpen },
+  { href: "/search", label: "Search", icon: Search },
+  { href: "/training/programmes", label: "Training", icon: GraduationCap },
   { href: "/flightbooks/upload", label: "Upload", icon: Upload },
   { href: "/history", label: "Time machine", icon: History },
   { href: "/results", label: "AI results", icon: LineChart },
@@ -78,10 +82,12 @@ function navItemActive(pathname: string, href: string) {
 
 export default function AppShell({
   organizationName,
+  brandPrimaryColor,
   role,
   children,
 }: {
   organizationName: string;
+  brandPrimaryColor?: string | null;
   role: string;
   children: React.ReactNode;
 }) {
@@ -200,7 +206,14 @@ export default function AppShell({
   };
 
   return (
-    <div className="min-h-screen">
+    <div
+      className="min-h-screen"
+      style={
+        brandPrimaryColor
+          ? ({ "--easa-color-brand-primary": brandPrimaryColor } as React.CSSProperties)
+          : undefined
+      }
+    >
       <header className="sticky top-0 z-40 border-b border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)]/95 shadow-[var(--easa-shadow-1)] backdrop-blur-md">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-4 py-3 lg:px-8">
           <Link

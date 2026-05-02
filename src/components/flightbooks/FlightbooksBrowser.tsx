@@ -3,19 +3,10 @@
 import Link from "next/link";
 import { BookOpen, Upload, CheckCircle, XCircle } from "lucide-react";
 import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
-
-interface Flightbook {
-  id: string;
-  name: string;
-  doc_type: string;
-  version_label: string | null;
-  active: boolean;
-  created_at: string;
-  sectionCount: number;
-}
+import type { FlightbookSummary } from "@/lib/types/domain";
 
 interface Props {
-  books: Flightbook[];
+  books: FlightbookSummary[];
 }
 
 export default function FlightbooksBrowser({ books }: Props) {
@@ -82,12 +73,41 @@ export default function FlightbooksBrowser({ books }: Props) {
                   {book.version_label && (
                     <span className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 text-[var(--easa-color-text-muted)]">{book.version_label}</span>
                   )}
+                  {book.manual_group && (
+                    <span className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 text-[var(--easa-color-text-muted)]">{book.manual_group}</span>
+                  )}
                 </div>
+
+                {(book.aircraft || book.tags.length > 0) && (
+                  <div className="mt-3 flex flex-wrap gap-1.5 text-xs">
+                    {book.aircraft && (
+                      <span className="rounded-full bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_12%,transparent)] px-2 py-0.5 text-[var(--easa-color-accent-blue)]">
+                        {book.aircraft}
+                      </span>
+                    )}
+                    {book.tags.slice(0, 3).map((tag) => (
+                      <span key={tag} className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 text-[var(--easa-color-text-muted)]">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
 
                 <div className="mt-4 flex items-center justify-between text-xs text-[var(--easa-color-text-muted)]">
                   <span>{book.sectionCount} section{book.sectionCount !== 1 ? "s" : ""}</span>
                   <span>{new Date(book.created_at).toLocaleDateString()}</span>
                 </div>
+
+                {(book.linkedLessonCount || book.pendingAssignmentCount) && (
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="easa-badge is-blue">
+                      {book.linkedLessonCount ?? 0} linked lesson{(book.linkedLessonCount ?? 0) !== 1 ? "s" : ""}
+                    </span>
+                    <span className={`easa-badge ${(book.pendingAssignmentCount ?? 0) > 0 ? "is-orange" : "is-muted"}`}>
+                      {book.pendingAssignmentCount ?? 0} pending assignment{(book.pendingAssignmentCount ?? 0) !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
 
                 {book.sectionCount === 0 && (
                   <p className="mt-2 text-xs text-[var(--easa-color-accent-orange)]">

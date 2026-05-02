@@ -2,22 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Trash2, UserPlus, ShieldCheck, Eye } from "lucide-react";
-
-interface OrgUser {
-  userId: string;
-  role: string;
-  joinedAt: string;
-  email: string | null;
-  lastSignIn: string | null;
-  displayName: string | null;
-}
+import type { CurrentOrgRole, UserDirectoryEntry } from "@/lib/types/domain";
 
 export default function UsersTab() {
-  const [users, setUsers] = useState<OrgUser[]>([]);
+  const [users, setUsers] = useState<UserDirectoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<"viewer" | "admin">("viewer");
+  const [inviteRole, setInviteRole] = useState<CurrentOrgRole>("viewer");
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
 
@@ -53,7 +45,7 @@ export default function UsersTab() {
     setInviting(false);
   }
 
-  async function changeRole(userId: string, role: "admin" | "viewer") {
+  async function changeRole(userId: string, role: CurrentOrgRole) {
     await fetch("/api/admin/users", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -89,7 +81,7 @@ export default function UsersTab() {
           <select
             className="easa-input w-32"
             value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value as "viewer" | "admin")}
+            onChange={(e) => setInviteRole(e.target.value as CurrentOrgRole)}
           >
             <option value="viewer">Viewer</option>
             <option value="admin">Admin</option>
@@ -144,7 +136,7 @@ export default function UsersTab() {
                     <select
                       className="easa-input w-28 py-1 text-xs"
                       value={u.role}
-                      onChange={(e) => changeRole(u.userId, e.target.value as "admin" | "viewer")}
+                      onChange={(e) => changeRole(u.userId, e.target.value as CurrentOrgRole)}
                     >
                       <option value="viewer">Viewer</option>
                       <option value="admin">Admin</option>

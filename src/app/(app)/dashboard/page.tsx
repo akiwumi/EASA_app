@@ -5,21 +5,28 @@ import {
   BookOpen,
   CheckCircle2,
   Clock3,
+  GraduationCap,
   Newspaper,
   Radio,
   ShieldCheck,
+  Siren,
 } from "lucide-react";
 import StatCard from "@/components/cards/StatCard";
 import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
 import NoFeedsWarning from "@/components/dashboard/NoFeedsWarning";
+import RoleFocusPanel from "@/components/dashboard/RoleFocusPanel";
 import ScheduleCard from "@/components/dashboard/ScheduleCard";
 import SetupAssistCard from "@/components/dashboard/SetupAssistCard";
 import {
   loadDashboardStats,
+  loadDashboardOperationalStats,
+  loadDashboardRoleFocus,
   loadDashboardSetupSummary,
+  loadAffectedLessonsPreview,
   loadFlightbookMappingRows,
   loadLastRssIngestAt,
   loadOrgContext,
+  pipelineHealthLabel,
   loadRecentPipelineRun,
   loadRecentSectionVersions,
   loadRiskMix,
@@ -37,7 +44,10 @@ export default async function DashboardPage() {
 
   const [
     stats,
+    operationalStats,
+    roleFocus,
     queuePreview,
+    affectedLessons,
     rssUrls,
     lastRssAt,
     mappingRows,
@@ -47,7 +57,10 @@ export default async function DashboardPage() {
     setupSummary,
   ] = await Promise.all([
     loadDashboardStats(org.organizationId),
+    loadDashboardOperationalStats(org.organizationId, org.userId),
+    loadDashboardRoleFocus(org.organizationId, org.userId),
     loadUpdateQueuePreview(org.organizationId, 5),
+    loadAffectedLessonsPreview(org.organizationId, 5),
     loadRssSourceUrls(org.organizationId),
     loadLastRssIngestAt(org.organizationId),
     loadFlightbookMappingRows(org.organizationId),
@@ -58,34 +71,47 @@ export default async function DashboardPage() {
   ]);
 
   const health = sourcesHealthLabel(stats.sourcesActive, stats.sourcesTotal);
+  const pipelineHealth = pipelineHealthLabel(pipeline?.status ?? null);
   const riskTotal = riskMix.high + riskMix.medium + riskMix.low;
   const pct = (n: number) =>
     riskTotal === 0 ? 0 : Math.round((n / riskTotal) * 100);
 
   const statCards = [
     {
-      label: "New changes",
-      value: String(stats.newChanges7d),
-      trend: "Last 7 days",
-      tone: "blue" as const,
+      label: "Unread critical updates",
+      value: String(operationalStats.unreadCriticalUpdates),
+      trend: "Needs review",
+      tone: operationalStats.unreadCriticalUpdates > 0 ? ("red" as const) : ("green" as const),
     },
     {
-      label: "Pending approvals",
-      value: String(stats.pendingApprovals),
-      trend: "In update queue",
+      label: "Students pending acknowledgement",
+      value: String(operationalStats.studentsPendingAcknowledgement),
+      trend: "Reading still open",
       tone: "orange" as const,
     },
     {
-      label: "Approved this week",
-      value: String(stats.approvedThisWeek),
-      trend: "UTC week",
-      tone: "green" as const,
+      label: "Instructors pending sign-off",
+      value: String(operationalStats.instructorsPendingSignoff),
+      trend: "Training items waiting",
+      tone: operationalStats.instructorsPendingSignoff > 0 ? ("orange" as const) : ("green" as const),
     },
     {
-      label: "Sources healthy",
-      value: health.value,
-      trend: health.trend,
-      tone: health.tone,
+      label: "Lessons affected by recent changes",
+      value: String(operationalStats.lessonsAffectedByRecentChanges),
+      trend: "Last 14 days",
+      tone: operationalStats.lessonsAffectedByRecentChanges > 0 ? ("blue" as const) : ("green" as const),
+    },
+    {
+      label: "Latest pipeline run health",
+      value: pipelineHealth.value,
+      trend: pipelineHealth.trend,
+      tone: pipelineHealth.tone,
+    },
+    {
+      label: "Newest proposed updates",
+      value: String(operationalStats.newestProposedUpdates),
+      trend: "Created this week",
+      tone: operationalStats.newestProposedUpdates > 0 ? ("blue" as const) : ("green" as const),
     },
   ];
 
@@ -198,11 +224,10 @@ export default async function DashboardPage() {
             Organisation · {org.organizationName}
           </p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-            Regulation update dashboard
+            Flight school operations dashboard
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--easa-color-text-muted)]">
-            Track EASA updates, compare them with your flight books, and keep a
-            clear approval history for every accepted manual change.
+            Track EASA updates, pending reading, sign-offs, training impact, and pipeline health from one place.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="easa-badge is-blue">
@@ -219,7 +244,7 @@ export default async function DashboardPage() {
         <DashboardHeaderActions />
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {statCards.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
@@ -231,6 +256,8 @@ export default async function DashboardPage() {
         hasAiConfig={setupSummary.hasAiConfig && setupSummary.hasAiKey}
         hasSchedule={setupSummary.hasSchedule}
       />
+
+      <RoleFocusPanel org={org} focus={roleFocus} />
 
       <section className="grid gap-6 xl:grid-cols-[1.25fr_1fr]">
         <div className="easa-card p-6">
@@ -318,13 +345,81 @@ export default async function DashboardPage() {
         </div>
       </section>
 
+      <section className="grid gap-6 lg:grid-cols-3">
+        <div className="easa-card p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_14%,transparent)] text-[var(--easa-color-accent-pink)]">
+              <Siren size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Critical update queue</h2>
+              <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
+                {operationalStats.unreadCriticalUpdates} unread notification{operationalStats.unreadCriticalUpdates !== 1 ? "s" : ""} still need attention.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="easa-btn secondary text-sm" href="/notifications">
+              Open notifications
+            </Link>
+            <Link className="easa-btn secondary text-sm" href="/updates">
+              Review updates
+            </Link>
+          </div>
+        </div>
+
+        <div className="easa-card p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_14%,transparent)] text-[var(--easa-color-accent-orange)]">
+              <GraduationCap size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Reading acknowledgements</h2>
+              <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
+                {operationalStats.studentsPendingAcknowledgement} student acknowledgement{operationalStats.studentsPendingAcknowledgement !== 1 ? "s are" : " is"} still pending.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="easa-btn secondary text-sm" href="/training/acknowledgements">
+              Open acknowledgements
+            </Link>
+            <Link className="easa-btn secondary text-sm" href="/training/assignments">
+              Manage assignments
+            </Link>
+          </div>
+        </div>
+
+        <div className="easa-card p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_14%,transparent)] text-[var(--easa-color-accent-blue)]">
+              <ShieldCheck size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Instructor sign-offs</h2>
+              <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
+                {operationalStats.instructorsPendingSignoff} sign-off{operationalStats.instructorsPendingSignoff !== 1 ? "s are" : " is"} waiting to be completed.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link className="easa-btn secondary text-sm" href="/training/signoffs">
+              Open sign-offs
+            </Link>
+            <Link className="easa-btn secondary text-sm" href="/training/programmes">
+              Training programmes
+            </Link>
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-6 xl:grid-cols-[2fr_1fr]">
         <div id="queue" className="easa-card p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Update review queue</h2>
+              <h2 className="text-lg font-semibold">Newest proposed updates</h2>
               <p className="text-sm text-[var(--easa-color-text-muted)]">
-                Top pending proposed updates from{" "}
+                Latest review items from{" "}
                 <code className="text-xs">v_update_queue</code>.
               </p>
             </div>
@@ -444,40 +539,39 @@ export default async function DashboardPage() {
         <div id="diff" className="easa-card p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Latest pending update</h2>
+              <h2 className="text-lg font-semibold">Lessons affected by recent changes</h2>
               <p className="text-sm text-[var(--easa-color-text-muted)]">
-                Most recent item in the review queue.
+                Lessons linked to manual sections touched by recent proposed updates.
               </p>
             </div>
-            {queuePreview.length > 0 && (
-              <Link className="easa-btn secondary text-sm" href={`/updates/${queuePreview[0].id}`}>
-                Open diff viewer
-              </Link>
-            )}
+            <Link className="easa-btn secondary text-sm" href="/training/programmes">
+              Open training
+            </Link>
           </div>
           <div className="mt-5">
-            {queuePreview.length === 0 ? (
+            {affectedLessons.length === 0 ? (
               <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-muted)]">
-                No pending updates yet. Once feeds are connected and analysis runs,
-                the latest proposal will appear here with risk, confidence, and diff context.
+                No linked lessons are affected right now, or the training and manual link tables have not been populated yet.
               </div>
             ) : (
-              <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 space-y-3">
-                <p className="text-sm font-semibold">{queuePreview[0].title}</p>
-                <p className="text-sm text-[var(--easa-color-text-secondary)] leading-relaxed">
-                  {queuePreview[0].summary}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <span className={`easa-badge ${queuePreview[0].risk === "High" ? "is-red" : queuePreview[0].risk === "Medium" ? "is-orange" : "is-green"}`}>
-                    {queuePreview[0].risk} risk
-                  </span>
-                  <span className="easa-badge is-blue">
-                    {queuePreview[0].confidence} confidence
-                  </span>
-                  <span className="easa-badge is-purple capitalize">
-                    {queuePreview[0].classification.replace(/_/g, " ")}
-                  </span>
-                </div>
+              <div className="space-y-3">
+                {affectedLessons.map((lesson) => (
+                  <Link
+                    key={lesson.lessonId}
+                    href={`/training/lessons/${lesson.lessonId}`}
+                    className="flex items-center justify-between rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 transition hover:bg-[var(--easa-color-surface-3)]"
+                  >
+                    <div className="min-w-0 pr-3">
+                      <p className="truncate text-sm font-medium">
+                        {(lesson.lessonCode ? `${lesson.lessonCode} · ` : "") + lesson.title}
+                      </p>
+                      <p className="text-xs text-[var(--easa-color-text-muted)]">
+                        {lesson.impactCount} linked section{lesson.impactCount !== 1 ? "s" : ""} impacted
+                      </p>
+                    </div>
+                    <span className="easa-badge is-blue shrink-0">Affected</span>
+                  </Link>
+                ))}
               </div>
             )}
           </div>

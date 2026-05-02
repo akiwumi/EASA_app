@@ -25,6 +25,11 @@ export default function FlightbookUpload({ existingBooks }: Props) {
   const [docName, setDocName] = useState("");
   const [docType, setDocType] = useState("OM-A");
   const [versionLabel, setVersionLabel] = useState("");
+  const [aircraft, setAircraft] = useState("");
+  const [manualGroup, setManualGroup] = useState("");
+  const [effectiveDate, setEffectiveDate] = useState("");
+  const [tags, setTags] = useState("");
+  const [importNotes, setImportNotes] = useState("");
 
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<UploadResult[] | null>(null);
@@ -52,6 +57,11 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       form.append("docName", docName || file.name);
       form.append("docType", docType);
       if (versionLabel) form.append("versionLabel", versionLabel);
+      if (aircraft) form.append("aircraft", aircraft);
+      if (manualGroup) form.append("manualGroup", manualGroup);
+      if (effectiveDate) form.append("effectiveDate", effectiveDate);
+      if (tags) form.append("tags", tags);
+      if (importNotes) form.append("importNotes", importNotes);
     }
 
     const res = await fetch("/api/flightbooks/upload", { method: "POST", body: form });
@@ -63,6 +73,11 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       setFile(null);
       setDocName("");
       setVersionLabel("");
+      setAircraft("");
+      setManualGroup("");
+      setEffectiveDate("");
+      setTags("");
+      setImportNotes("");
       if (inputRef.current) inputRef.current.value = "";
     }
     setUploading(false);
@@ -103,6 +118,13 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       )}
 
       <div className="easa-card space-y-4 p-5">
+        <div className="rounded-[18px] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-secondary)]">
+          <p className="font-medium">Import flow</p>
+          <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
+            1. Choose the manual file. 2. Decide whether this is a new manual or a replacement. 3. Add tags and operating context so the manual is easier to find in training workflows.
+          </p>
+        </div>
+
         {/* File picker */}
         <div>
           <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">File</label>
@@ -177,6 +199,55 @@ export default function FlightbookUpload({ existingBooks }: Props) {
                   placeholder="e.g. Rev 2.1"
                 />
               </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 mt-3 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Aircraft / fleet</label>
+                <input
+                  className="easa-input w-full"
+                  value={aircraft}
+                  onChange={(e) => setAircraft(e.target.value)}
+                  placeholder="e.g. C172 / PA-44"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 mt-3 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Manual group</label>
+                <input
+                  className="easa-input w-full"
+                  value={manualGroup}
+                  onChange={(e) => setManualGroup(e.target.value)}
+                  placeholder="e.g. Student ops / Instructor SOP"
+                />
+              </div>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 mt-3 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Effective date</label>
+                <input
+                  className="easa-input w-full"
+                  type="date"
+                  value={effectiveDate}
+                  onChange={(e) => setEffectiveDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 mt-3 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Tags</label>
+                <input
+                  className="easa-input w-full"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="sop, briefing, piston"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1.5 mt-3 block text-xs font-medium text-[var(--easa-color-text-secondary)]">Import notes</label>
+              <textarea
+                className="easa-input min-h-24 w-full resize-y"
+                value={importNotes}
+                onChange={(e) => setImportNotes(e.target.value)}
+                placeholder="Revision summary, reviewer notes, or context for instructors"
+              />
             </div>
           </>
         )}

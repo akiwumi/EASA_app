@@ -24,6 +24,10 @@ interface ParsedSection {
   sortOrder: number;
 }
 
+function isMissingColumnError(error: { code?: string | null; message?: string | null }) {
+  return error.code === "42703" || /column .* does not exist/i.test(error.message ?? "");
+}
+
 function chunkWholeDocument(text: string): ParsedSection[] {
   const paragraphs = text
     .split(/\n{2,}/)
@@ -167,6 +171,14 @@ export async function POST(request: Request) {
   const docName = formData.get("docName") as string | null;
   const docType = (formData.get("docType") as string | null) ?? "Other";
   const versionLabel = formData.get("versionLabel") as string | null;
+  const aircraft = formData.get("aircraft") as string | null;
+  const manualGroup = formData.get("manualGroup") as string | null;
+  const effectiveDate = formData.get("effectiveDate") as string | null;
+  const importNotes = formData.get("importNotes") as string | null;
+  const tags = ((formData.get("tags") as string | null) ?? "")
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
 
   if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
 
@@ -212,13 +224,68 @@ export async function POST(request: Request) {
     if (!bookId) {
       const { data: book, error: bookErr } = await admin
         .from("flightbooks")
-        .insert({ organization_id: orgId, name: doc.docName, doc_type: doc.docType, version_label: doc.versionLabel, active: true })
+        .insert({
+          organization_id: orgId,
+          name: doc.docName,
+          doc_type: doc.docType,
+          version_label: doc.versionLabel,
+          aircraft: aircraft?.trim() || null,
+          manual_group: manualGroup?.trim() || null,
+          effective_date: effectiveDate || null,
+          import_notes: importNotes?.trim() || null,
+          tags,
+          active: true,
+        })
         .select("id").single();
-      if (bookErr) return NextResponse.json({ error: bookErr.message }, { status: 400 });
-      bookId = book.id;
+      if (bookErr && isMissingColumnError(bookErr)) {
+        const fallbackBook = await admin
+          .from("flightbooks")
+          .insert({ organization_id: orgId, name: doc.docName, doc_type: doc.docType, version_label: doc.versionLabel, active: true })
+          .select("id")
+          .single();
+        if (fallbackBook.error) return NextResponse.json({ error: fallbackBook.error.message }, { status: 400 });
+        bookId = fallbackBook.data.id;
+      } else if (bookErr) {
+        return NextResponse.json({ error: bookErr.message }, { status: 400 });
+      } else {
+        bookId = book.id;
+      }
     } else {
       // Clear existing sections so re-import is clean
       await admin.from("flightbook_sections").delete().eq("flightbook_id", bookId);
+      const updateResult = await admin
+        .from("flightbooks")
+        .update({
+          name: doc.docName,
+          doc_type: doc.docType,
+          version_label: doc.versionLabel,
+          aircraft: aircraft?.trim() || null,
+          manual_group: manualGroup?.trim() || null,
+          effective_date: effectiveDate || null,
+          import_notes: importNotes?.trim() || null,
+          tags,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", bookId)
+        .eq("organization_id", orgId);
+
+      if (updateResult.error && isMissingColumnError(updateResult.error)) {
+        const fallbackUpdate = await admin
+          .from("flightbooks")
+          .update({
+            name: doc.docName,
+            doc_type: doc.docType,
+            version_label: doc.versionLabel,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", bookId)
+          .eq("organization_id", orgId);
+        if (fallbackUpdate.error) {
+          return NextResponse.json({ error: fallbackUpdate.error.message }, { status: 400 });
+        }
+      } else if (updateResult.error) {
+        return NextResponse.json({ error: updateResult.error.message }, { status: 400 });
+      }
     }
 
     if (doc.sections.length === 0) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import type { CurrentOrgRole } from "@/lib/types/domain";
 
 // GET /api/admin/users — list all users in the org
 export async function GET() {
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
   const { email, role } = (await request.json()) as { email?: string; role?: string };
   if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
 
-  const validRole = role === "admin" ? "admin" : "viewer";
+  const validRole: CurrentOrgRole = role === "admin" ? "admin" : "viewer";
   const admin = getSupabaseAdminClient();
 
   const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email);
@@ -74,7 +75,7 @@ export async function PATCH(request: Request) {
   const { userId, role } = (await request.json()) as { userId?: string; role?: string };
   if (!userId || !role) return NextResponse.json({ error: "userId and role required" }, { status: 400 });
 
-  const validRole = role === "admin" ? "admin" : "viewer";
+  const validRole: CurrentOrgRole = role === "admin" ? "admin" : "viewer";
   const admin = getSupabaseAdminClient();
 
   const { error } = await admin

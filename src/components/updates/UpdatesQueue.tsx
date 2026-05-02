@@ -3,30 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
-
-interface RegChange {
-  section_ref: string | null;
-  change_type: string | null;
-  diff_text: string | null;
-  reg_documents: { reg_number: string | null; part: string | null } | null;
-}
-
-interface FlightbookSection {
-  section_number: string | null;
-  title: string | null;
-}
-
-interface UpdateItem {
-  id: string;
-  classification: string;
-  risk_level: string;
-  confidence_score: number | null;
-  status: string;
-  ai_rationale: string | null;
-  created_at: string;
-  reg_changes: RegChange | null;
-  flightbook_sections: FlightbookSection | null;
-}
+import type { UpdateQueueItem } from "@/lib/types/domain";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -64,7 +41,7 @@ function statusColor(status: string) {
   return "text-[var(--easa-color-accent-orange)] bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_12%,transparent)]";
 }
 
-function exportCsv(items: UpdateItem[]) {
+function exportCsv(items: UpdateQueueItem[]) {
   const headers = ["ID", "Status", "Risk", "Classification", "Confidence", "Regulation", "Section Ref", "Change Type", "Flightbook Section", "Date"];
   const rows = items.map((item) => [
     item.id,
@@ -93,7 +70,7 @@ function exportCsv(items: UpdateItem[]) {
 }
 
 export default function UpdatesQueue() {
-  const [items, setItems] = useState<UpdateItem[]>([]);
+  const [items, setItems] = useState<UpdateQueueItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -9,6 +9,7 @@ export type OrgContext = {
   organizationId: string;
   organizationName: string;
   role: string;
+  userId: string;
 };
 
 export type DashboardStats = {
@@ -53,6 +54,28 @@ export type DashboardSetupSummary = {
   activeRssCount: number;
 };
 
+export type DashboardOperationalStats = {
+  unreadCriticalUpdates: number;
+  studentsPendingAcknowledgement: number;
+  instructorsPendingSignoff: number;
+  lessonsAffectedByRecentChanges: number;
+  newestProposedUpdates: number;
+};
+
+export type AffectedLessonPreview = {
+  lessonId: string;
+  lessonCode: string | null;
+  title: string;
+  impactCount: number;
+};
+
+export type DashboardRoleFocus = {
+  myAssignmentsOpen: number;
+  myPendingAcknowledgements: number;
+  myPendingInstructorSignoffs: number;
+  orgPendingApprovals: number;
+};
+
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
     error.code === "PGRST205" ||
@@ -92,6 +115,7 @@ export async function loadOrgContext(): Promise<OrgContext | null> {
     organizationId: ctx.orgId,
     organizationName: (row?.name as string | null) ?? DEFAULT_ORG_NAME,
     role: ctx.role,
+    userId: ctx.userId,
   };
 }
 
@@ -437,6 +461,183 @@ export async function loadDashboardSetupSummary(
     activeRssCount:
       !activeRssError && !isMissingSchemaError(activeRssError ?? {}) ? activeRssCount ?? 0 : 0,
   };
+}
+
+export async function loadDashboardOperationalStats(
+  organizationId: string,
+  userId: string,
+): Promise<DashboardOperationalStats> {
+  const admin = getSupabaseAdminClient();
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const [
+    { count: unreadCriticalUpdates, error: notificationsError },
+    { count: studentsPendingAcknowledgement, error: acknowledgementsError },
+    { count: instructorsPendingSignoff, error: signoffsError },
+    { count: newestProposedUpdates, error: updatesError },
+  ] = await Promise.all([
+    admin
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("read", false)
+      .in("type", ["new_change", "approval_needed"]),
+    admin
+      .from("acknowledgements")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("status", "pending"),
+    admin
+      .from("training_signoffs")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("status", "pending"),
+    admin
+      .from("proposed_updates")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .gte("created_at", sevenDaysAgo),
+  ]);
+
+  const lessonsAffectedByRecentChanges = await loadAffectedLessonCount(organizationId);
+
+  return {
+    unreadCriticalUpdates:
+      !notificationsError && !isMissingSchemaError(notificationsError ?? {}) ? Number(unreadCriticalUpdates ?? 0) : 0,
+    studentsPendingAcknowledgement:
+      !acknowledgementsError && !isMissingSchemaError(acknowledgementsError ?? {}) ? Number(studentsPendingAcknowledgement ?? 0) : 0,
+    instructorsPendingSignoff:
+      !signoffsError && !isMissingSchemaError(signoffsError ?? {}) ? Number(instructorsPendingSignoff ?? 0) : 0,
+    lessonsAffectedByRecentChanges,
+    newestProposedUpdates:
+      !updatesError && !isMissingSchemaError(updatesError ?? {}) ? Number(newestProposedUpdates ?? 0) : 0,
+  };
+}
+
+async function loadAffectedLessonCount(organizationId: string): Promise<number> {
+  const lessons = await loadAffectedLessonsPreview(organizationId, 200);
+  return lessons.length;
+}
+
+export async function loadAffectedLessonsPreview(
+  organizationId: string,
+  limit = 5,
+): Promise<AffectedLessonPreview[]> {
+  const admin = getSupabaseAdminClient();
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: updates, error: updatesError } = await admin
+    .from("proposed_updates")
+    .select("flightbook_section_id")
+    .eq("organization_id", organizationId)
+    .gte("created_at", fourteenDaysAgo)
+    .not("flightbook_section_id", "is", null);
+
+  if (updatesError && isMissingSchemaError(updatesError)) return [];
+  const sectionIds = Array.from(new Set((updates ?? []).map((row) => row.flightbook_section_id).filter(Boolean))) as string[];
+  if (sectionIds.length === 0) return [];
+
+  const { data: lessonDocuments, error: docsError } = await admin
+    .from("lesson_documents")
+    .select("lesson_id, flightbook_section_id")
+    .eq("organization_id", organizationId)
+    .in("flightbook_section_id", sectionIds);
+
+  if (docsError && isMissingSchemaError(docsError)) return [];
+
+  const lessonIds = Array.from(new Set((lessonDocuments ?? []).map((row) => row.lesson_id).filter(Boolean))) as string[];
+  if (lessonIds.length === 0) return [];
+
+  const { data: lessons, error: lessonsError } = await admin
+    .from("training_lessons")
+    .select("id, title, lesson_code")
+    .eq("organization_id", organizationId)
+    .in("id", lessonIds);
+
+  if (lessonsError && isMissingSchemaError(lessonsError)) return [];
+
+  const impactMap = new Map<string, number>();
+  for (const row of lessonDocuments ?? []) {
+    if (!row.lesson_id) continue;
+    impactMap.set(row.lesson_id, (impactMap.get(row.lesson_id) ?? 0) + 1);
+  }
+
+  return (lessons ?? [])
+    .map((lesson) => ({
+      lessonId: lesson.id as string,
+      lessonCode: (lesson.lesson_code as string | null) ?? null,
+      title: lesson.title as string,
+      impactCount: impactMap.get(lesson.id as string) ?? 0,
+    }))
+    .sort((a, b) => b.impactCount - a.impactCount || a.title.localeCompare(b.title))
+    .slice(0, limit);
+}
+
+export async function loadDashboardRoleFocus(
+  organizationId: string,
+  userId: string,
+): Promise<DashboardRoleFocus> {
+  const admin = getSupabaseAdminClient();
+
+  const [
+    { count: myAssignmentsOpen, error: assignmentsError },
+    { count: myPendingAcknowledgements, error: acknowledgementsError },
+    { count: myPendingInstructorSignoffs, error: signoffsError },
+    { count: orgPendingApprovals, error: approvalsError },
+  ] = await Promise.all([
+    admin
+      .from("document_assignments")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("user_id", userId)
+      .eq("status", "assigned"),
+    admin
+      .from("acknowledgements")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("user_id", userId)
+      .eq("status", "pending"),
+    admin
+      .from("training_signoffs")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("instructor_user_id", userId)
+      .eq("status", "pending"),
+    admin
+      .from("proposed_updates")
+      .select("id", { count: "exact", head: true })
+      .eq("organization_id", organizationId)
+      .eq("status", "pending"),
+  ]);
+
+  return {
+    myAssignmentsOpen:
+      !assignmentsError && !isMissingSchemaError(assignmentsError ?? {}) ? Number(myAssignmentsOpen ?? 0) : 0,
+    myPendingAcknowledgements:
+      !acknowledgementsError && !isMissingSchemaError(acknowledgementsError ?? {}) ? Number(myPendingAcknowledgements ?? 0) : 0,
+    myPendingInstructorSignoffs:
+      !signoffsError && !isMissingSchemaError(signoffsError ?? {}) ? Number(myPendingInstructorSignoffs ?? 0) : 0,
+    orgPendingApprovals:
+      !approvalsError && !isMissingSchemaError(approvalsError ?? {}) ? Number(orgPendingApprovals ?? 0) : 0,
+  };
+}
+
+export function pipelineHealthLabel(status: string | null | undefined): {
+  value: string;
+  trend: string;
+  tone: "blue" | "orange" | "red" | "green";
+} {
+  const normalized = (status ?? "").toLowerCase();
+  if (normalized === "completed" || normalized === "success") {
+    return { value: "Healthy", trend: "Latest run completed", tone: "green" };
+  }
+  if (normalized === "running") {
+    return { value: "Running", trend: "Pipeline in progress", tone: "blue" };
+  }
+  if (normalized === "failed" || normalized === "error") {
+    return { value: "Attention", trend: "Latest run failed", tone: "red" };
+  }
+  return { value: "Idle", trend: "No current run", tone: "orange" };
 }
 
 export function sourcesHealthLabel(active: number, total: number): {
