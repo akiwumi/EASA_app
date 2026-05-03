@@ -20,7 +20,7 @@ const TABS = [
   { id: "sources", label: "RSS feeds", icon: Rss },
   { id: "ai", label: "AI settings", icon: Bot },
   { id: "automation", label: "Automation", icon: TimerReset },
-  { id: "branding", label: "Branding", icon: Palette },
+  { id: "branding", label: "School profile", icon: Palette },
   { id: "onboarding", label: "Onboarding", icon: ClipboardList },
   { id: "exports", label: "Exports", icon: Files },
 ] as const;

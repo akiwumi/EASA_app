@@ -23,51 +23,27 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import NotificationDrawer from "@/components/notifications/NotificationDrawer";
 
-const NAV = [
+type NavItem = {
+  href: string;
+  label: string;
+  icon: (typeof LayoutDashboard);
+  adminOnly?: boolean;
+};
+
+const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/updates", label: "Update queue", icon: ListChecks },
   { href: "/changes", label: "Change list", icon: ScrollText },
-  { href: "/flightbooks", label: "Flight books", icon: BookOpen },
+  { href: "/flightbooks", label: "Flight Books", icon: BookOpen },
   { href: "/search", label: "Search", icon: Search },
   { href: "/training/programmes", label: "Training", icon: GraduationCap },
-  { href: "/flightbooks/upload", label: "Upload", icon: Upload },
+  { href: "/flightbooks/upload", label: "Update", icon: Upload },
   { href: "/history", label: "Time machine", icon: History },
   { href: "/results", label: "AI results", icon: LineChart },
   { href: "/profile", label: "Profile", icon: User },
+  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
 ] as const;
-
-function BellButton({
-  active,
-  unreadCount,
-  onClick,
-}: {
-  active: boolean;
-  unreadCount: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label="Open notifications"
-      className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
-        active
-          ? "bg-[var(--easa-color-brand-primary)] text-white"
-          : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
-      }`}
-      onClick={onClick}
-    >
-      <span className="relative shrink-0">
-        <Bell size={18} strokeWidth={1.75} />
-        {unreadCount > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--easa-color-accent-pink)] px-1 text-[10px] font-bold leading-none text-white">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        )}
-      </span>
-      <span>Notifications</span>
-    </button>
-  );
-}
 
 function navItemActive(pathname: string, href: string) {
   if (href === "/flightbooks") {
@@ -96,16 +72,12 @@ export default function AppShell({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Close mobile menu on route change
   useEffect(() => {
     if (!menuOpen) return;
-    const timer = window.setTimeout(() => {
-      setMenuOpen(false);
-    }, 0);
+    const timer = window.setTimeout(() => setMenuOpen(false), 0);
     return () => window.clearTimeout(timer);
   }, [menuOpen, pathname]);
 
-  // Initial unread count fetch
   useEffect(() => {
     fetch("/api/notifications")
       .then((r) => r.ok ? r.json() : null)
@@ -117,7 +89,6 @@ export default function AppShell({
       .catch(() => {});
   }, []);
 
-  // Supabase Realtime — keep bell badge live even when drawer is closed
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) return;
@@ -132,33 +103,17 @@ export default function AppShell({
         .channel(`appshell-notif:${user.id}`)
         .on(
           "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            // Increment badge; drawer will reconcile its own list
-            setUnreadCount((c) => c + 1);
-          },
+          { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+          () => setUnreadCount((c) => c + 1),
         )
         .on(
           "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${user.id}`,
-          },
+          { event: "UPDATE", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
           () => {
-            // Re-fetch true count after a mark-read update
             fetch("/api/notifications")
               .then((r) => r.ok ? r.json() : null)
               .then((json) => {
-                if (json && typeof json.unreadCount === "number") {
-                  setUnreadCount(json.unreadCount);
-                }
+                if (json && typeof json.unreadCount === "number") setUnreadCount(json.unreadCount);
               })
               .catch(() => {});
           },
@@ -185,21 +140,36 @@ export default function AppShell({
     window.location.assign("/login");
   };
 
-  const renderNavLink = (item: (typeof NAV)[number], onNavigate?: () => void) => {
+  const renderNavLink = (item: NavItem, onNavigate?: () => void) => {
+    if (item.adminOnly && role !== "admin") {
+      return null;
+    }
+
     const active = navItemActive(pathname, item.href);
     const Icon = item.icon;
     return (
       <Link
         key={item.href}
-        className={`relative flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition md:px-4 ${
+        className={`relative flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-all duration-150 md:px-3.5 ${
           active
-            ? "bg-[var(--easa-color-brand-primary)] text-white"
-            : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
+            ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
+            : "text-[var(--easa-color-text-muted)] hover:bg-[var(--easa-color-brand-muted)] hover:text-[var(--easa-color-brand-primary)]"
         }`}
         href={item.href}
         onClick={onNavigate}
       >
-        <Icon size={18} strokeWidth={1.75} className="shrink-0" />
+        <span className="relative shrink-0">
+          <Icon
+            size={16}
+            strokeWidth={active ? 2.25 : 1.85}
+            className="shrink-0"
+          />
+          {item.href === "/notifications" && unreadCount > 0 ? (
+            <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--easa-color-accent-pink)] px-1 text-[10px] font-bold leading-none text-white shadow-sm">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          ) : null}
+        </span>
         <span>{item.label}</span>
       </Link>
     );
@@ -207,126 +177,97 @@ export default function AppShell({
 
   return (
     <div
-      className="min-h-screen"
+      className="relative min-h-screen overflow-x-clip pb-8"
       style={
         brandPrimaryColor
           ? ({ "--easa-color-brand-primary": brandPrimaryColor } as React.CSSProperties)
           : undefined
       }
     >
-      <header className="sticky top-0 z-40 border-b border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)]/95 shadow-[var(--easa-shadow-1)] backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-3 px-4 py-3 lg:px-8">
-          <Link
-            href="/dashboard"
-            className="flex shrink-0 items-center gap-3 rounded-2xl pr-2 transition hover:opacity-90"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--easa-color-brand-primary)] text-sm font-semibold text-white">
-              EA
-            </div>
-            <div className="hidden min-w-0 sm:block">
-              <p className="text-sm font-semibold text-[var(--easa-color-text-primary)]">
-                EASA Console
-              </p>
-              <p className="text-xs text-[var(--easa-color-text-muted)]">
-                {organizationName || "Your organisation"}
-              </p>
-            </div>
-          </Link>
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top,rgba(31,52,52,0.12),transparent_58%)]" />
+      <div className="pointer-events-none absolute left-[-140px] top-[180px] h-[300px] w-[300px] rounded-full bg-[rgba(242,155,63,0.08)] blur-3xl" />
+      <div className="pointer-events-none absolute right-[-120px] top-[100px] h-[260px] w-[260px] rounded-full bg-[rgba(47,115,240,0.08)] blur-3xl" />
 
-          <nav className="order-last hidden w-full min-w-0 md:order-none md:flex md:flex-1 md:flex-wrap md:items-center md:justify-center md:gap-1 lg:gap-2">
-            {NAV.map((item) => renderNavLink(item))}
-            <BellButton
-              active={pathname === "/notifications" || drawerOpen}
-              unreadCount={unreadCount}
-              onClick={() => setDrawerOpen((o) => !o)}
-            />
-            {role === "admin" && (
-              <Link
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition ${
-                  pathname.startsWith("/settings")
-                    ? "bg-[var(--easa-color-brand-primary)] text-white"
-                    : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
-                }`}
-                href="/settings"
+      <header className="z-40 w-full px-0 py-0">
+        <div className="w-full overflow-hidden border-b border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.88)] shadow-[var(--easa-shadow-2)] backdrop-blur-xl">
+          <div className="easa-gradient-bar" />
+
+          <div className="flex min-h-[72px] w-full items-center gap-3 px-4 py-3 sm:px-5 lg:px-6">
+            <Link
+              href="/"
+              className="flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl pr-2 transition-opacity hover:opacity-85"
+            >
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-bold text-white"
+                style={{
+                  background: "linear-gradient(135deg, var(--easa-color-brand-primary) 0%, var(--easa-color-brand-secondary) 100%)",
+                  boxShadow: "0 10px 24px rgba(35,56,52,0.22)",
+                }}
               >
-                <Settings size={18} strokeWidth={1.75} />
-                <span>Settings</span>
-              </Link>
-            )}
-          </nav>
+                EA
+              </div>
+              <div className="min-w-0">
+                <p className="easa-display text-[1.05rem] leading-none text-[var(--easa-color-text-primary)]">
+                  EASA Console
+                </p>
+                <p className="mt-1 truncate text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
+                  {organizationName || "Your organisation"}
+                </p>
+              </div>
+            </Link>
 
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <div className="hidden max-w-[200px] text-right lg:block">
-              <p className="truncate text-xs text-[var(--easa-color-text-muted)]">Organisation</p>
-              <p className="truncate text-sm font-semibold">{organizationName}</p>
+            <nav className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5 lg:flex">
+              {NAV.map((item) => renderNavLink(item))}
+            </nav>
+
+            <div className="hidden rounded-full border border-[var(--easa-color-border)] bg-white/60 px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)] lg:block">
+              Role · {role}
             </div>
+
             <button
               aria-expanded={menuOpen}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
-              className="easa-btn secondary flex h-10 w-10 items-center justify-center p-0 md:hidden"
+              className="easa-btn secondary flex h-10 w-10 shrink-0 items-center justify-center p-0"
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
             >
-              {menuOpen ? <X size={20} strokeWidth={1.75} /> : <Menu size={20} strokeWidth={1.75} />}
-            </button>
-            <button
-              className="easa-btn secondary hidden text-sm sm:inline-flex"
-              type="button"
-              onClick={signOut}
-            >
-              <LogOut size={16} strokeWidth={1.75} className="inline" /> Sign out
+              {menuOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
             </button>
           </div>
-        </div>
 
-        {menuOpen && (
-          <div className="border-t border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)] px-4 py-4 md:hidden">
-            <div className="mx-auto flex max-w-[1400px] flex-col gap-1">
-              {NAV.map((item) => renderNavLink(item, () => setMenuOpen(false)))}
-              <BellButton
-                active={pathname === "/notifications" || drawerOpen}
-                unreadCount={unreadCount}
-                onClick={() => {
-                  setMenuOpen(false);
-                  setDrawerOpen((o) => !o);
-                }}
-              />
-              {role === "admin" && (
-                <Link
-                  className={`flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition ${
-                    pathname.startsWith("/settings")
-                      ? "bg-[var(--easa-color-brand-primary)] text-white"
-                      : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)]"
-                  }`}
-                  href="/settings"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <Settings size={18} strokeWidth={1.75} />
-                  <span>Settings</span>
-                </Link>
-              )}
-              <div className="mt-3 rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3">
-                <p className="text-xs text-[var(--easa-color-text-muted)]">Organisation</p>
-                <p className="mt-1 text-sm font-semibold">{organizationName}</p>
-                <p className="mt-1 text-xs capitalize text-[var(--easa-color-text-muted)]">
-                  Role · {role}
-                </p>
+          {menuOpen && (
+            <div
+              className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 sm:px-5 lg:px-6"
+              style={{ backdropFilter: "blur(16px)" }}
+            >
+              <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {NAV.map((item) => renderNavLink(item, () => setMenuOpen(false)))}
+                </div>
+                <div className="rounded-[24px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">Organisation</p>
+                  <p className="mt-0.5 text-sm font-semibold text-[var(--easa-color-text-primary)]">{organizationName}</p>
+                  <p className="mt-0.5 text-[11px] capitalize text-[var(--easa-color-text-muted)]">
+                    Role · {role}
+                  </p>
+                  <button
+                    className="easa-btn secondary mt-4 w-full justify-center"
+                    type="button"
+                    onClick={signOut}
+                  >
+                    <LogOut size={15} strokeWidth={2} /> Sign out
+                  </button>
+                </div>
               </div>
-              <button
-                className="easa-btn secondary mt-2 w-full justify-center sm:hidden"
-                type="button"
-                onClick={signOut}
-              >
-                <LogOut size={16} strokeWidth={1.75} className="inline" /> Sign out
-              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
-      <main className="mx-auto max-w-[1400px] p-4 lg:p-8">{children}</main>
+      <main className="easa-shell px-4 pb-8 pt-4 lg:px-6">
+        <div className="easa-page-enter">{children}</div>
+      </main>
 
-      {/* Notification drawer — rendered outside main so it overlays correctly */}
       <NotificationDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}

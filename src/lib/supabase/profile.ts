@@ -8,6 +8,13 @@ function isMissingTableError(error: { code?: string | null; message?: string | n
   );
 }
 
+function isRowLevelSecurityError(error: { code?: string | null; message?: string | null }) {
+  return (
+    error.code === "42501" ||
+    /row-level security policy/i.test(error.message ?? "")
+  );
+}
+
 export async function ensureUserProfile(
   supabase: SupabaseClient,
   user: User,
@@ -19,7 +26,7 @@ export async function ensureUserProfile(
     .maybeSingle();
 
   if (selectError) {
-    if (isMissingTableError(selectError)) {
+    if (isMissingTableError(selectError) || isRowLevelSecurityError(selectError)) {
       return;
     }
     console.error("ensureUserProfile:", selectError.message);
@@ -42,7 +49,12 @@ export async function ensureUserProfile(
     display_name: displayName,
   });
 
-  if (error && error.code !== "23505" && !isMissingTableError(error)) {
+  if (
+    error &&
+    error.code !== "23505" &&
+    !isMissingTableError(error) &&
+    !isRowLevelSecurityError(error)
+  ) {
     console.error("ensureUserProfile:", error.message);
   }
 }

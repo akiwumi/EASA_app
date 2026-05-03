@@ -1,16 +1,31 @@
 @import "tailwindcss";
 
+@theme inline {
+  --color-background: oklch(0.985 0.003 110);
+  --color-foreground: oklch(0.22 0.02 150);
+  --color-muted-foreground: oklch(0.48 0.02 140);
+  --color-card: oklch(1 0 0);
+  --color-border: oklch(0.9 0.012 120);
+  --color-secondary: oklch(0.94 0.015 130);
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --radius: 0.5rem;
+}
+
 :root {
-  --easa-color-bg: #f6f7fa;
-  --easa-color-surface-1: #ffffff;
-  --easa-color-surface-2: #eef1f6;
-  --easa-color-surface-3: #e3e7ee;
+  --easa-color-bg: #f4f1e8;
+  --easa-color-surface-1: rgba(255, 253, 248, 0.92);
+  --easa-color-surface-2: #f1ede3;
+  --easa-color-surface-3: #e2ddd1;
   --easa-color-text-primary: #1e1f24;
   --easa-color-text-secondary: #3c3f49;
   --easa-color-text-muted: #6c6f7b;
   --easa-color-text-disabled: #a9adb8;
-  --easa-color-border: #e3e7ee;
+  --easa-color-border: rgba(82, 74, 58, 0.12);
   --easa-color-brand-primary: #1f3434;
+  --easa-color-brand-secondary: #27494a;
+  --easa-color-brand-light: rgba(31, 52, 52, 0.12);
+  --easa-color-brand-muted: rgba(31, 52, 52, 0.08);
   --easa-color-accent-blue: #2f73f0;
   --easa-color-accent-orange: #f29b3f;
   --easa-color-accent-purple: #7d3ff2;
@@ -24,74 +39,82 @@
   --easa-radius-lg: 24px;
   --easa-radius-xl: 32px;
   --easa-radius-pill: 999px;
-  --easa-shadow-1: 0 2px 8px rgba(20, 20, 30, 0.06);
-  --easa-shadow-2: 0 6px 20px rgba(20, 20, 30, 0.08);
-  --easa-space-2: 2px;
-  --easa-space-4: 4px;
-  --easa-space-6: 6px;
-  --easa-space-8: 8px;
-  --easa-space-12: 12px;
-  --easa-space-16: 16px;
-  --easa-space-20: 20px;
-  --easa-space-24: 24px;
-  --easa-space-32: 32px;
-  --easa-space-40: 40px;
-  --easa-space-48: 48px;
-  --easa-space-64: 64px;
+  --easa-shadow-1: 0 16px 40px rgba(37, 34, 24, 0.06);
+  --easa-shadow-2: 0 24px 60px rgba(37, 34, 24, 0.1);
+  --easa-shadow-brand: 0 20px 44px rgba(24, 40, 40, 0.18);
 }
 
-@theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --easa-color-bg: #1a1a1c;
-    --easa-color-surface-1: #232427;
-    --easa-color-surface-2: #2b2d31;
-    --easa-color-surface-3: #3a3c41;
-    --easa-color-text-primary: #f2f2f4;
-    --easa-color-text-secondary: #c7c8cd;
-    --easa-color-text-muted: #8d9099;
-    --easa-color-text-disabled: #6d7079;
-    --easa-color-border: #3a3c41;
-    --easa-color-brand-primary: #f07a2b;
-    --easa-color-accent-blue: #5aa2ff;
-    --easa-color-accent-orange: #f4c752;
-    --easa-color-accent-purple: #7d3ff2;
-    --easa-color-accent-pink: #f05c62;
-    --easa-color-accent-green: #43d17b;
-    --easa-color-accent-cyan: #3cc8b4;
-    --easa-color-warning: #f4c752;
-    --easa-shadow-1: 0 2px 10px rgba(0, 0, 0, 0.35);
-    --easa-shadow-2: 0 8px 30px rgba(0, 0, 0, 0.45);
-  }
-}
-
-*,
-*::before,
-*::after {
+* {
   box-sizing: border-box;
 }
 
 body {
-  background: var(--easa-color-bg);
-  color: var(--easa-color-text-primary);
-  font-family: var(--font-sans), "Inter", "SF Pro", "Segoe UI", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(216, 170, 96, 0.16), transparent 28%),
+    radial-gradient(circle at top right, rgba(31, 52, 52, 0.1), transparent 26%),
+    linear-gradient(180deg, #f8f4ea 0%, #f4f1e8 42%, #f8f6f1 100%);
+  background-color: var(--easa-color-bg);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .easa-app {
   min-height: 100vh;
-  background: var(--easa-color-bg);
-  color: var(--easa-color-text-primary);
+}
+
+.easa-shell {
+  width: min(1440px, calc(100% - 2rem));
+  margin: 0 auto;
+}
+
+.easa-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+.easa-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--easa-color-text-muted);
+}
+
+.easa-gradient-bar {
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(242, 155, 63, 0.95) 0%, rgba(31, 52, 52, 0.95) 45%, rgba(47, 115, 240, 0.82) 100%);
+}
+
+.easa-page-enter {
+  animation: easa-page-enter 360ms ease-out both;
 }
 
 .easa-card {
-  background: var(--easa-color-surface-1);
+  background: linear-gradient(180deg, rgba(255, 254, 250, 0.96) 0%, rgba(253, 251, 246, 0.92) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--easa-color-border);
-  border-radius: var(--easa-radius-md);
+  border-radius: 28px;
   box-shadow: var(--easa-shadow-1);
+}
+
+.easa-card-glass {
+  background: rgba(255, 253, 248, 0.78);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(82, 74, 58, 0.12);
+  border-radius: 30px;
+  box-shadow: var(--easa-shadow-2);
 }
 
 .easa-chip {
@@ -108,9 +131,9 @@ body {
 }
 
 .easa-chip.is-active {
-  background: var(--easa-color-brand-primary);
+  background: var(--easa-color-brand-light);
   border-color: transparent;
-  color: #ffffff;
+  color: var(--easa-color-brand-primary);
 }
 
 .easa-badge {
@@ -162,29 +185,44 @@ body {
   border-radius: var(--easa-radius-pill);
   font-size: 13px;
   font-weight: 600;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
 
 .easa-btn.primary {
-  background: var(--easa-color-brand-primary);
+  background: linear-gradient(135deg, var(--easa-color-brand-primary) 0%, var(--easa-color-brand-secondary) 100%);
   color: #ffffff;
+  box-shadow: var(--easa-shadow-brand);
 }
 
 .easa-btn.secondary {
   border: 1px solid var(--easa-color-border);
-  background: var(--easa-color-surface-2);
+  background: rgba(255, 253, 248, 0.82);
   color: var(--easa-color-text-secondary);
+  box-shadow: 0 10px 24px rgba(24, 22, 15, 0.05);
+}
+
+.easa-btn:hover {
+  transform: translateY(-1px);
 }
 
 .easa-input {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: var(--easa-radius-sm);
   border: 1px solid var(--easa-color-border);
-  background: var(--easa-color-surface-2);
+  background: rgba(255, 253, 248, 0.9);
   color: var(--easa-color-text-secondary);
   font-size: 13px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.easa-input:focus,
+.easa-input:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--easa-color-brand-primary) 34%, white);
+  box-shadow: 0 0 0 4px rgba(31, 52, 52, 0.08);
 }
 
 .easa-divider {
@@ -204,4 +242,16 @@ body {
   display: block;
   height: 100%;
   border-radius: inherit;
+  background: linear-gradient(90deg, var(--easa-color-brand-primary), var(--easa-color-brand-secondary));
+}
+
+@keyframes easa-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -64,6 +64,29 @@ export const featureProof = [
   "Audit-ready reporting and history",
 ];
 
+export const featureCards = [
+  {
+    title: "Compliance overview",
+    body: "See pending EASA changes, manuals due for review, and acknowledgement rates from one quiet dashboard.",
+    image: "/images/dashboard-overview.jpg",
+  },
+  {
+    title: "AI impact assessment",
+    body: "When a regulation changes, the app flags affected manual sections and drafts plain-language updates for approval.",
+    image: "/images/change-impact-review.jpg",
+  },
+  {
+    title: "Read and acknowledge",
+    body: "Assign reading to instructors and students, then track exactly who has read, acknowledged, and completed action.",
+    image: "/images/acknowledgement-tracking.jpg",
+  },
+  {
+    title: "Mobile-first for students",
+    body: "Students can review and acknowledge updates from their phone before the next lesson or briefing.",
+    image: "/images/mobile-student-view.jpg",
+  },
+];
+
 export const pricingTiers = [
   {
     name: "Starter ATO",
@@ -127,4 +150,11 @@ export const addOns = [
     body: "Manual import, structure cleanup, and an initial mapping workshop.",
     price: "One-time setup fee",
   },
+];
+
+export const demoAgenda = [
+  "Review how your school handles manual updates today",
+  "Show the approval, rollback, and audit workflow",
+  "Map reading assignments to students and instructors",
+  "Discuss onboarding, migration, and pricing fit",
 ];

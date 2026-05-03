@@ -18,7 +18,6 @@ import RoleFocusPanel from "@/components/dashboard/RoleFocusPanel";
 import ScheduleCard from "@/components/dashboard/ScheduleCard";
 import SetupAssistCard from "@/components/dashboard/SetupAssistCard";
 import {
-  loadDashboardStats,
   loadDashboardOperationalStats,
   loadDashboardRoleFocus,
   loadDashboardSetupSummary,
@@ -32,7 +31,6 @@ import {
   loadRiskMix,
   loadRssSourceUrls,
   loadUpdateQueuePreview,
-  sourcesHealthLabel,
 } from "@/services/dashboard";
 
 export default async function DashboardPage() {
@@ -43,7 +41,6 @@ export default async function DashboardPage() {
   }
 
   const [
-    stats,
     operationalStats,
     roleFocus,
     queuePreview,
@@ -56,7 +53,6 @@ export default async function DashboardPage() {
     timeMachinePreview,
     setupSummary,
   ] = await Promise.all([
-    loadDashboardStats(org.organizationId),
     loadDashboardOperationalStats(org.organizationId, org.userId),
     loadDashboardRoleFocus(org.organizationId, org.userId),
     loadUpdateQueuePreview(org.organizationId, 5),
@@ -70,7 +66,6 @@ export default async function DashboardPage() {
     loadDashboardSetupSummary(org.organizationId),
   ]);
 
-  const health = sourcesHealthLabel(stats.sourcesActive, stats.sourcesTotal);
   const pipelineHealth = pipelineHealthLabel(pipeline?.status ?? null);
   const riskTotal = riskMix.high + riskMix.medium + riskMix.low;
   const pct = (n: number) =>
@@ -218,12 +213,12 @@ export default async function DashboardPage() {
   return (
     <div id="top" className="space-y-6">
       {!hasActiveFeeds && <NoFeedsWarning />}
-      <header className="flex flex-col gap-4 rounded-[28px] bg-[var(--easa-color-surface-1)] p-6 shadow-[var(--easa-shadow-1)] md:flex-row md:items-center md:justify-between">
+      <header className="easa-card-glass flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs text-[var(--easa-color-text-muted)]">
+          <p className="easa-eyebrow">
             Organisation · {org.organizationName}
           </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight">
+          <h1 className="easa-display mt-3 text-3xl leading-tight text-[var(--easa-color-text-primary)] md:text-4xl">
             Flight school operations dashboard
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--easa-color-text-muted)]">
@@ -639,9 +634,9 @@ export default async function DashboardPage() {
                 No version history until approvals or manual edits are recorded.
               </p>
             ) : (
-              timeMachinePreview.map((entry) => (
+              timeMachinePreview.map((entry, index) => (
                 <div
-                  key={entry.at + entry.note}
+                  key={`${entry.at}-${entry.note}-${index}`}
                   className="flex flex-col gap-2 rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 md:flex-row md:items-center md:justify-between"
                 >
                   <div>

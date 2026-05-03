@@ -132,8 +132,19 @@ begin
 end $$;
 
 alter table org_users
+  alter column role drop default;
+
+update org_users
+set role = 'viewer'
+where role is null
+   or role not in ('admin', 'editor', 'viewer');
+
+alter table org_users
   alter column role type app_role
   using role::app_role;
+
+alter table org_users
+  alter column role set default 'viewer'::app_role;
 
 create table if not exists permissions (
   id uuid primary key default gen_random_uuid(),

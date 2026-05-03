@@ -13,6 +13,13 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["supabase", "start"],
       "port": 54323
+    },
+    {
+      "name": "Skybound Clone",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "3001"],
+      "port": 3001,
+      "cwd": "/Users/eugene/WebDev Archive/skybound-clone"
     }
   ]
 }

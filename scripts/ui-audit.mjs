@@ -105,6 +105,20 @@ async function runAuthedAudit() {
   const page = await browser.newPage();
   const log = [];
   const errors = [];
+  const routes = [
+    "/dashboard",
+    "/updates",
+    "/changes",
+    "/flightbooks",
+    "/search",
+    "/training/programmes",
+    "/flightbooks/upload",
+    "/history",
+    "/results",
+    "/profile",
+    "/settings",
+    "/notifications",
+  ];
 
   page.on("console", (m) => {
     if (["error", "warning"].includes(m.type())) {
@@ -123,13 +137,15 @@ async function runAuthedAudit() {
   await page.locator('input[placeholder="admin or name@school.org"]').fill("admin");
   await page.locator('input[type="password"]').fill("EasaTest123");
   await page.getByRole("button", { name: /login/i }).click();
-  await page.waitForLoadState("networkidle", { timeout: 45000 });
+  await page.waitForTimeout(5000);
 
-  const loginMessage = await page
-    .locator("text=/invalid|error|configured|credentials|password|email/i")
-    .first()
-    .innerText()
-    .catch(() => "");
+  const loginMessage = page.url().includes("/login")
+    ? await page
+        .locator("text=/invalid|error|credentials|failed|incorrect/i")
+        .first()
+        .innerText()
+        .catch(() => "")
+    : "";
 
   log.push({
     step: "after-login",
@@ -138,42 +154,32 @@ async function runAuthedAudit() {
     loginMessage,
   });
 
-  const navLinks = [
-    "Dashboard",
-    "Update queue",
-    "Change list",
-    "Flight books",
-    "Upload",
-    "Time machine",
-    "AI results",
-    "Profile",
-  ];
+  if (page.url().includes("/login")) {
+    await browser.close();
+    console.log(JSON.stringify({ log, errors }, null, 2));
+    return;
+  }
 
-  for (const label of navLinks) {
-    const link = page.getByRole("link", { name: label }).first();
-    if (await link.count()) {
-      await link.click();
-      await page.waitForLoadState("networkidle", { timeout: 45000 });
+  for (const route of routes) {
+    try {
+      await page.goto(`${baseUrl}${route}`, {
+        waitUntil: "networkidle",
+        timeout: 45000,
+      });
       log.push({
-        step: `nav:${label}`,
+        step: `route:${route}`,
         url: page.url(),
         h1: await page.locator("h1").first().innerText().catch(() => ""),
       });
-    } else {
-      log.push({ step: `nav:${label}`, error: "missing-link" });
+    } catch (error) {
+      log.push({
+        step: `route:${route}`,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
-  const settingsLink = page.getByRole("link", { name: "Settings" }).first();
-  if (await settingsLink.count()) {
-    await settingsLink.click();
-    await page.waitForLoadState("networkidle", { timeout: 45000 });
-    log.push({
-      step: "nav:Settings",
-      url: page.url(),
-      h1: await page.locator("h1").first().innerText().catch(() => ""),
-    });
-
+  if (page.url().includes("/settings")) {
     const tabs = ["Users", "Flight books", "RSS feeds", "AI settings"];
     for (const tab of tabs) {
       const btn = page.getByRole("button", { name: tab }).first();
@@ -183,8 +189,6 @@ async function runAuthedAudit() {
         log.push({ step: `tab:${tab}`, url: page.url() });
       }
     }
-  } else {
-    log.push({ step: "nav:Settings", error: "missing-link" });
   }
 
   await browser.close();

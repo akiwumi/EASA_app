@@ -1,4 +1,4 @@
-export type CurrentOrgRole = "admin" | "viewer";
+export type CurrentOrgRole = "admin" | "instructor" | "student" | "viewer";
 
 export type ProductRole =
   | "super_admin"
@@ -27,7 +27,22 @@ export type UserDirectoryEntry = {
   joinedAt: string;
   email: string | null;
   lastSignIn: string | null;
+  emailConfirmedAt: string | null;
   displayName: string | null;
+  avatarUrl: string | null;
+  personalNotes: string | null;
+  phone: string | null;
+};
+
+export type UserProfileSummary = {
+  id: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  personal_notes: string | null;
+  phone: string | null;
+  notification_email: boolean;
+  notification_inapp: boolean;
+  notification_digest: string;
 };
 
 export type FlightbookSummary = {

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -12,9 +13,16 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "EASA Regulation Update Console",
-  description: "Monitor EASA updates, review diffs, and manage flight book changes.",
+  title: "EASA_app — Training & compliance for flight schools",
+  description:
+    "The compliance and training platform built for Approved Training Organisations. Monitor EASA changes, control your manuals, assign reading by lesson, and track every acknowledgement.",
 };
 
 export default function RootLayout({
@@ -23,10 +31,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased easa-app`}
-      >
+    <html
+      lang="en"
+      className={`${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col easa-app">
         {children}
       </body>
     </html>

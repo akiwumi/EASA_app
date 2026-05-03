@@ -1,48 +1,71 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { User, Bell, Lock, CheckCircle } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Bell, CheckCircle, Lock, Mail, ShieldCheck, User, UserRound } from "lucide-react";
+import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import type { UserProfileSummary } from "@/lib/types/domain";
 
-interface Profile {
-  id: string;
-  display_name: string | null;
-  notification_email: boolean;
-  notification_inapp: boolean;
-  notification_digest: string;
+type ProfileResponse = {
+  email: string | null;
+  emailConfirmedAt: string | null;
+  role: string | null;
+  organizationName: string | null;
+  profile: UserProfileSummary;
+};
+
+function roleLabel(role: string | null) {
+  if (role === "admin") return "Admin";
+  if (role === "instructor") return "Instructor";
+  if (role === "student") return "Student";
+  if (role === "viewer") return "Viewer";
+  return "Unassigned";
 }
 
 export default function ProfilePage() {
   const [email, setEmail] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfileSummary | null>(null);
+  const [role, setRole] = useState<string | null>(null);
+  const [organizationName, setOrganizationName] = useState<string | null>(null);
+  const [emailConfirmedAt, setEmailConfirmedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Display name
   const [displayName, setDisplayName] = useState("");
-  const [savingName, setSavingName] = useState(false);
-  const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [phone, setPhone] = useState("");
+  const [personalNotes, setPersonalNotes] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileMsg, setProfileMsg] = useState<string | null>(null);
 
-  // Notification prefs
   const [notifEmail, setNotifEmail] = useState(true);
   const [notifInapp, setNotifInapp] = useState(true);
   const [notifDigest, setNotifDigest] = useState("immediate");
   const [savingNotif, setSavingNotif] = useState(false);
   const [notifMsg, setNotifMsg] = useState<string | null>(null);
 
-  // Password change
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
+  const [emailActionMsg, setEmailActionMsg] = useState<string | null>(null);
+  const [sendingVerify, setSendingVerify] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
+
   useEffect(() => {
     fetch("/api/profile")
-      .then((r) => r.ok ? r.json() : Promise.reject(r))
-      .then((json) => {
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((json: ProfileResponse) => {
         setProfile(json.profile);
         setEmail(json.email ?? null);
+        setRole(json.role ?? null);
+        setOrganizationName(json.organizationName ?? null);
+        setEmailConfirmedAt(json.emailConfirmedAt ?? null);
         setDisplayName(json.profile.display_name ?? "");
+        setAvatarUrl(json.profile.avatar_url ?? "");
+        setPhone(json.profile.phone ?? "");
+        setPersonalNotes(json.profile.personal_notes ?? "");
         setNotifEmail(json.profile.notification_email ?? true);
         setNotifInapp(json.profile.notification_inapp ?? true);
         setNotifDigest(json.profile.notification_digest ?? "immediate");
@@ -51,22 +74,28 @@ export default function ProfilePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function saveDisplayName() {
-    setSavingName(true);
-    setNameMsg(null);
+  const avatarPreview = useMemo(() => avatarUrl.trim(), [avatarUrl]);
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    setProfileMsg(null);
     const res = await fetch("/api/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ display_name: displayName }),
+      body: JSON.stringify({
+        display_name: displayName,
+        avatar_url: avatarUrl,
+        phone: phone,
+        personal_notes: personalNotes,
+      }),
     });
     const json = await res.json();
     if (!res.ok) {
-      setNameMsg(json.error ?? "Failed to save");
+      setProfileMsg(json.error ?? "Failed to save");
     } else {
-      setNameMsg("Saved.");
-      setTimeout(() => setNameMsg(null), 2000);
+      setProfileMsg("Profile saved.");
     }
-    setSavingName(false);
+    setSavingProfile(false);
   }
 
   async function saveNotifPrefs() {
@@ -86,7 +115,6 @@ export default function ProfilePage() {
       setNotifMsg(json.error ?? "Failed to save");
     } else {
       setNotifMsg("Preferences saved.");
-      setTimeout(() => setNotifMsg(null), 2000);
     }
     setSavingNotif(false);
   }
@@ -119,6 +147,53 @@ export default function ProfilePage() {
     setSavingPassword(false);
   }
 
+  async function sendVerificationEmail() {
+    if (!email) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setEmailActionMsg("Supabase is not configured.");
+      return;
+    }
+
+    setSendingVerify(true);
+    setEmailActionMsg(null);
+    const { error: resendError } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/profile`,
+      },
+    });
+
+    setSendingVerify(false);
+    if (resendError) {
+      setEmailActionMsg(resendError.message);
+      return;
+    }
+    setEmailActionMsg("Verification email sent.");
+  }
+
+  async function sendPasswordResetEmail() {
+    if (!email) return;
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setEmailActionMsg("Supabase is not configured.");
+      return;
+    }
+
+    setSendingReset(true);
+    setEmailActionMsg(null);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/profile`,
+    });
+    setSendingReset(false);
+    if (resetError) {
+      setEmailActionMsg(resetError.message);
+      return;
+    }
+    setEmailActionMsg("Password reset email sent.");
+  }
+
   if (loading) {
     return (
       <div className="easa-card p-8">
@@ -127,215 +202,179 @@ export default function ProfilePage() {
     );
   }
 
-  if (error) {
+  if (error || !profile) {
     return (
       <div className="easa-card p-8">
-        <p className="text-sm text-[var(--easa-color-accent-pink)]">{error}</p>
+        <p className="text-sm text-[var(--easa-color-accent-pink)]">{error ?? "Failed to load profile."}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="easa-card p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--easa-color-surface-2)]">
-            <User size={20} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-[var(--easa-color-surface-2)]">
+            {avatarPreview ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img alt={displayName || email || "Profile"} className="h-full w-full object-cover" src={avatarPreview} />
+            ) : (
+              <UserRound size={28} className="text-[var(--easa-color-text-muted)]" />
+            )}
           </div>
           <div>
             <h1 className="text-xl font-semibold">Your profile</h1>
             <p className="mt-0.5 text-sm text-[var(--easa-color-text-muted)]">{email}</p>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+              <span className="easa-badge is-blue">{roleLabel(role)}</span>
+              <span className={emailConfirmedAt ? "easa-badge is-green" : "easa-badge"}>
+                {emailConfirmedAt ? "Email verified" : "Email verification pending"}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Display name */}
       <div className="easa-card space-y-4 p-6">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <User size={16} strokeWidth={1.75} />
-          Display name
+          Personal profile
         </h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">
-              Name shown to other org members
-            </label>
-            <input
-              className="easa-input w-full"
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Your name"
-            />
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="space-y-2 text-sm">
+            <span className="text-xs text-[var(--easa-color-text-muted)]">Display name</span>
+            <input className="easa-input w-full" type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="Your name" />
+          </label>
+          <label className="space-y-2 text-sm">
+            <span className="text-xs text-[var(--easa-color-text-muted)]">Profile picture URL</span>
+            <input className="easa-input w-full" type="url" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://…" />
+          </label>
+          <label className="space-y-2 text-sm">
+            <span className="text-xs text-[var(--easa-color-text-muted)]">Phone</span>
+            <input className="easa-input w-full" type="text" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+46 …" />
+          </label>
+          <div className="rounded-[18px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-muted)]">
+            <p className="font-medium text-[var(--easa-color-text-primary)]">Organisation</p>
+            <p className="mt-1">{organizationName ?? "No organisation assigned"}</p>
+            <p className="mt-1">Role: {roleLabel(role)}</p>
           </div>
-          <button
-            type="button"
-            className="easa-btn primary text-sm"
-            disabled={savingName}
-            onClick={saveDisplayName}
-          >
-            {savingName ? "Saving…" : "Save"}
-          </button>
+          <label className="space-y-2 text-sm md:col-span-2">
+            <span className="text-xs text-[var(--easa-color-text-muted)]">Personal notes</span>
+            <textarea className="easa-input min-h-28 w-full" value={personalNotes} onChange={(e) => setPersonalNotes(e.target.value)} placeholder="Training notes, role context, internal reminders…" />
+          </label>
         </div>
-        {nameMsg && (
-          <p className="flex items-center gap-1.5 text-xs text-[var(--easa-color-accent-green)]">
-            <CheckCircle size={13} strokeWidth={2} />
-            {nameMsg}
-          </p>
-        )}
+        <div className="flex items-center gap-3">
+          <button type="button" className="easa-btn primary text-sm" disabled={savingProfile} onClick={saveProfile}>
+            {savingProfile ? "Saving…" : "Save profile"}
+          </button>
+          {profileMsg ? (
+            <p className="flex items-center gap-1.5 text-xs text-[var(--easa-color-accent-green)]">
+              <CheckCircle size={13} strokeWidth={2} />
+              {profileMsg}
+            </p>
+          ) : null}
+        </div>
       </div>
 
-      {/* Notification preferences */}
       <div className="easa-card space-y-4 p-6">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <Bell size={16} strokeWidth={1.75} />
           Notification preferences
         </h2>
-
         <div className="space-y-3">
-          {/* Email toggle */}
           <label className="flex cursor-pointer items-center gap-3">
-            <div className="relative">
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={notifEmail}
-                onChange={(e) => setNotifEmail(e.target.checked)}
-              />
-              <div
-                className={`h-5 w-9 rounded-full transition ${notifEmail ? "bg-[var(--easa-color-brand-primary)]" : "bg-[var(--easa-color-surface-3)]"}`}
-              />
-              <div
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${notifEmail ? "left-[calc(100%-1.125rem)]" : "left-0.5"}`}
-              />
-            </div>
+            <input type="checkbox" checked={notifEmail} onChange={(e) => setNotifEmail(e.target.checked)} />
             <div>
               <p className="text-sm font-medium">Email notifications</p>
-              <p className="text-xs text-[var(--easa-color-text-muted)]">Receive email when changes need review or are approved</p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">Receive email when changes need review or are approved.</p>
             </div>
           </label>
-
-          {/* In-app toggle */}
           <label className="flex cursor-pointer items-center gap-3">
-            <div className="relative">
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={notifInapp}
-                onChange={(e) => setNotifInapp(e.target.checked)}
-              />
-              <div
-                className={`h-5 w-9 rounded-full transition ${notifInapp ? "bg-[var(--easa-color-brand-primary)]" : "bg-[var(--easa-color-surface-3)]"}`}
-              />
-              <div
-                className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition ${notifInapp ? "left-[calc(100%-1.125rem)]" : "left-0.5"}`}
-              />
-            </div>
+            <input type="checkbox" checked={notifInapp} onChange={(e) => setNotifInapp(e.target.checked)} />
             <div>
               <p className="text-sm font-medium">In-app notifications</p>
-              <p className="text-xs text-[var(--easa-color-text-muted)]">Show the bell badge in the navigation</p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">Show notifications in the workspace bell menu.</p>
             </div>
           </label>
-
-          {/* Digest frequency */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">
-              Email frequency
-            </label>
-            <select
-              className="easa-input text-sm"
-              value={notifDigest}
-              onChange={(e) => setNotifDigest(e.target.value)}
-            >
+            <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">Email frequency</label>
+            <select className="easa-input text-sm" value={notifDigest} onChange={(e) => setNotifDigest(e.target.value)}>
               <option value="immediate">Immediate</option>
               <option value="daily">Daily digest (07:00 UTC)</option>
             </select>
           </div>
         </div>
-
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            className="easa-btn primary text-sm"
-            disabled={savingNotif}
-            onClick={saveNotifPrefs}
-          >
+          <button type="button" className="easa-btn primary text-sm" disabled={savingNotif} onClick={saveNotifPrefs}>
             {savingNotif ? "Saving…" : "Save preferences"}
           </button>
-          {notifMsg && (
+          {notifMsg ? (
             <span className="flex items-center gap-1.5 text-xs text-[var(--easa-color-accent-green)]">
               <CheckCircle size={13} strokeWidth={2} />
               {notifMsg}
             </span>
-          )}
+          ) : null}
         </div>
       </div>
 
-      {/* Password change */}
+      <div className="easa-card space-y-4 p-6">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <Mail size={16} strokeWidth={1.75} />
+          Email security
+        </h2>
+        <p className="text-sm text-[var(--easa-color-text-muted)]">
+          Resend account verification or send yourself a password reset email.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className="easa-btn secondary text-sm" disabled={sendingVerify || Boolean(emailConfirmedAt)} onClick={sendVerificationEmail}>
+            {sendingVerify ? "Sending…" : emailConfirmedAt ? "Email already verified" : "Send verification email"}
+          </button>
+          <button type="button" className="easa-btn secondary text-sm" disabled={sendingReset} onClick={sendPasswordResetEmail}>
+            {sendingReset ? "Sending…" : "Send password reset email"}
+          </button>
+        </div>
+        {emailActionMsg ? (
+          <p className="text-xs text-[var(--easa-color-text-muted)]">{emailActionMsg}</p>
+        ) : null}
+      </div>
+
       <div className="easa-card space-y-4 p-6">
         <h2 className="flex items-center gap-2 text-base font-semibold">
           <Lock size={16} strokeWidth={1.75} />
           Change password
         </h2>
-
         <div className="max-w-sm space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">
-              New password
-            </label>
-            <input
-              className="easa-input w-full"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Min. 8 characters"
-              autoComplete="new-password"
-            />
+            <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">New password</label>
+            <input className="easa-input w-full" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 8 characters" autoComplete="new-password" />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">
-              Confirm new password
-            </label>
-            <input
-              className="easa-input w-full"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Repeat password"
-              autoComplete="new-password"
-            />
+            <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">Confirm new password</label>
+            <input className="easa-input w-full" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat password" autoComplete="new-password" />
           </div>
         </div>
-
-        {passwordError && (
-          <p className="text-xs text-[var(--easa-color-accent-pink)]">{passwordError}</p>
-        )}
-        {passwordMsg && (
+        {passwordError ? <p className="text-xs text-[var(--easa-color-accent-pink)]">{passwordError}</p> : null}
+        {passwordMsg ? (
           <p className="flex items-center gap-1.5 text-xs text-[var(--easa-color-accent-green)]">
             <CheckCircle size={13} strokeWidth={2} />
             {passwordMsg}
           </p>
-        )}
-
-        <button
-          type="button"
-          className="easa-btn secondary text-sm"
-          disabled={savingPassword || !newPassword}
-          onClick={changePassword}
-        >
+        ) : null}
+        <button type="button" className="easa-btn secondary text-sm" disabled={savingPassword || !newPassword} onClick={changePassword}>
           {savingPassword ? "Changing…" : "Change password"}
         </button>
       </div>
 
-      {/* Organisation membership */}
       <div className="easa-card p-6">
-        <h2 className="mb-3 text-base font-semibold">Organisation</h2>
+        <h2 className="mb-3 flex items-center gap-2 text-base font-semibold">
+          <ShieldCheck size={16} strokeWidth={1.75} />
+          Access
+        </h2>
         <p className="text-sm text-[var(--easa-color-text-secondary)]">
-          {profile?.id ? "South Sweden Aviation" : "—"}
+          Your current role is <strong>{roleLabel(role)}</strong> at {organizationName ?? "your school"}.
         </p>
         <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-          Contact your administrator to change your role or organisation membership.
+          Contact an administrator to change your organisation membership, billing access, or role.
         </p>
       </div>
     </div>

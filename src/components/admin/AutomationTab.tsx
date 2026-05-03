@@ -121,7 +121,7 @@ export default function AutomationTab() {
         <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
           This is the missing settings workflow from the build plan: how often the
           regulation pipeline runs, whether low-risk items can auto-approve later,
-          and whether users should be notified when updates are detected.
+          and whether admins should receive a summary after each scheduled scan.
         </p>
 
         <div className="mt-6 grid gap-5 md:grid-cols-2">
@@ -260,7 +260,7 @@ export default function AutomationTab() {
 
           <label className="space-y-2 text-sm md:col-span-2">
             <span className="text-xs text-[var(--easa-color-text-muted)]">
-              Notify users when new updates are detected
+              Notify admins after each scheduled scan
             </span>
             <button
               type="button"
@@ -274,7 +274,7 @@ export default function AutomationTab() {
                 }))
               }
             >
-              {settings.notifyOnDetect ? "Notifications on" : "Notifications off"}
+              {settings.notifyOnDetect ? "Summary notifications on" : "Summary notifications off"}
             </button>
           </label>
         </div>
