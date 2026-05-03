@@ -150,7 +150,7 @@ export default function AppShell({
     return (
       <Link
         key={item.href}
-        className={`relative flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-all duration-150 md:px-3.5 ${
+        className={`relative flex min-w-0 items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-all duration-150 md:px-3.5 ${
           active
             ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
             : "text-[var(--easa-color-text-muted)] hover:bg-[var(--easa-color-brand-muted)] hover:text-[var(--easa-color-brand-primary)]"
@@ -170,7 +170,7 @@ export default function AppShell({
             </span>
           ) : null}
         </span>
-        <span>{item.label}</span>
+        <span className="min-w-0 break-words">{item.label}</span>
       </Link>
     );
   };
@@ -224,13 +224,13 @@ export default function AppShell({
               Role · {role}
             </div>
 
-            <button
-              aria-expanded={menuOpen}
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
-              className="easa-btn secondary flex h-10 w-10 shrink-0 items-center justify-center p-0"
-              type="button"
-              onClick={() => setMenuOpen((o) => !o)}
-            >
+                <button
+                  aria-expanded={menuOpen}
+                  aria-label={menuOpen ? "Close menu" : "Open menu"}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)]"
+                  type="button"
+                  onClick={() => setMenuOpen((o) => !o)}
+                >
               {menuOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
             </button>
           </div>
@@ -264,8 +264,8 @@ export default function AppShell({
         </div>
       </header>
 
-      <main className="easa-shell px-4 pb-8 pt-4 lg:px-6">
-        <div className="easa-page-enter">{children}</div>
+      <main className="easa-shell min-w-0 px-4 pb-8 pt-4 lg:px-6">
+        <div className="easa-page-enter min-w-0">{children}</div>
       </main>
 
       <NotificationDrawer

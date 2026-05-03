@@ -12,16 +12,16 @@ export default function HeroSection() {
     <section className="relative pb-[20px] pt-[20px]">
       <div className="mx-auto max-w-7xl px-6 text-center">
         <h1
-          className="text-7xl font-normal text-foreground"
+          className="text-5xl font-normal text-foreground sm:text-6xl md:text-7xl"
           style={{
             fontFamily: "var(--font-display)",
             lineHeight: 1.05,
             letterSpacing: "-1.8px",
           }}
         >
-          Keep your flight school
-          <br className="hidden md:block" />
-          aligned and audit-ready.
+          <span className="block md:inline">Keep your flight</span>{" "}
+          <span className="block md:inline">school aligned</span>{" "}
+          <span className="block md:inline">and audit ready.</span>
         </h1>
 
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-7 text-muted-foreground">

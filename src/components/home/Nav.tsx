@@ -68,7 +68,7 @@ export default function Nav() {
           <button
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
-            className="easa-btn secondary flex h-10 w-10 shrink-0 items-center justify-center p-0 lg:hidden"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)] lg:hidden"
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
           >

@@ -4,7 +4,7 @@ import Link from "next/link";
 const proofPoints = [
   "Keep instructors and students on the latest approved procedures, automatically.",
   "Turn every EASA change into a training action with a full approval trail.",
-  "Stay audit-ready without chasing PDFs, emails, or spreadsheets.",
+  "Stay audit ready without chasing PDFs, emails, or spreadsheets.",
 ];
 
 export default function LandingHero() {

@@ -48,6 +48,11 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgba(216, 170, 96, 0.16), transparent 28%),
