@@ -69,7 +69,7 @@ function exportCsv(items: UpdateQueueItem[]) {
   URL.revokeObjectURL(url);
 }
 
-export default function UpdatesQueue() {
+export default function UpdatesQueue({ canManage = false }: { canManage?: boolean }) {
   const [items, setItems] = useState<UpdateQueueItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -210,7 +210,7 @@ export default function UpdatesQueue() {
       </div>
 
       {/* Bulk action bar */}
-      {selected.size > 0 && (
+      {canManage && selected.size > 0 && (
         <div className="easa-card flex flex-wrap items-center gap-3 p-3">
           <span className="text-sm font-medium">{selected.size} selected</span>
           <div className="ml-auto flex flex-wrap gap-2">
@@ -256,6 +256,11 @@ export default function UpdatesQueue() {
 
       {/* Table */}
       <div className="easa-card overflow-hidden p-0">
+        {!canManage && (
+          <div className="border-b border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-xs text-[var(--easa-color-text-muted)]">
+            Read-only view. Approval and rollback controls are limited to admin, editor, and compliance manager roles.
+          </div>
+        )}
         {loading ? (
           <p className="p-6 text-sm text-[var(--easa-color-text-muted)]">Loading…</p>
         ) : error ? (
@@ -272,11 +277,13 @@ export default function UpdatesQueue() {
             <thead>
               <tr className="border-b border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)]">
                 <th className="w-10 px-4 py-3">
-                  <button onClick={toggleAll}>
-                    {allSelected
-                      ? <CheckSquare size={16} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
-                      : <Square size={16} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />}
-                  </button>
+                  {canManage ? (
+                    <button onClick={toggleAll}>
+                      {allSelected
+                        ? <CheckSquare size={16} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
+                        : <Square size={16} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />}
+                    </button>
+                  ) : null}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)]">Regulation</th>
                 <th className="px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)]">Change</th>
@@ -295,11 +302,13 @@ export default function UpdatesQueue() {
                   className={`border-b border-[var(--easa-color-border)] last:border-0 transition hover:bg-[var(--easa-color-surface-2)] ${selected.has(item.id) ? "bg-[color-mix(in_srgb,var(--easa-color-brand-primary)_5%,transparent)]" : ""}`}
                 >
                   <td className="px-4 py-3">
-                    <button onClick={() => toggleOne(item.id)}>
-                      {selected.has(item.id)
-                        ? <CheckSquare size={16} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
-                        : <Square size={16} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />}
-                    </button>
+                    {canManage ? (
+                      <button onClick={() => toggleOne(item.id)}>
+                        {selected.has(item.id)
+                          ? <CheckSquare size={16} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
+                          : <Square size={16} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />}
+                      </button>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <p className="font-medium">{item.reg_changes?.reg_documents?.reg_number ?? "—"}</p>

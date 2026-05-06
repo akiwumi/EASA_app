@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { getOrgAccessContext, getOrgScopedContext, getSupabaseAdminClient, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
 import { createFlightbookExport } from "@/lib/flightbook-exports";
 import type { RegulationChangeSummary, UpdateQueueItem } from "@/lib/types/domain";
 
@@ -118,6 +118,10 @@ function mapLegacyQueueRow(row: UpdateQueueLegacyRow): UpdateQueueItem {
   };
 }
 
+function hasRows<T>(result: QueryResult<T>) {
+  return (result.data?.length ?? 0) > 0 || (result.count ?? 0) > 0;
+}
+
 // GET /api/updates?status=&risk=&classification=&page=1&limit=50
 export async function GET(request: Request) {
   const ctx = await getOrgContext();
@@ -168,7 +172,7 @@ export async function GET(request: Request) {
   );
 
   const viewResult = (await viewQuery) as unknown as QueryResult<UpdateQueueViewRow>;
-  if (!viewResult.error) {
+  if (!viewResult.error && hasRows(viewResult)) {
     return NextResponse.json({
       items: ((viewResult.data ?? []) as UpdateQueueViewRow[]).map(mapQueueRow),
       total: viewResult.count ?? 0,
@@ -176,9 +180,7 @@ export async function GET(request: Request) {
       limit,
     });
   }
-
-  const shouldTryFallback = isMissingSchemaError(viewResult.error);
-  if (!shouldTryFallback) {
+  if (viewResult.error && !isMissingSchemaError(viewResult.error)) {
     return NextResponse.json({ error: viewResult.error.message }, { status: 400 });
   }
 
@@ -269,8 +271,8 @@ export async function GET(request: Request) {
 
 // PATCH /api/updates — bulk action
 export async function PATCH(request: Request) {
-  const ctx = await getOrgContext();
-  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgScopedContext(ORG_APPROVER_ROLES);
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { ids, action, comment, flightbookSectionId, aiSuggestedText } = (await request.json()) as {
     ids?: string[];

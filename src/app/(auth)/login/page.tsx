@@ -4,16 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-const DUMMY_ADMIN_EMAIL = "admin@easa.local";
-
-function toSignInEmail(input: string) {
-  const t = input.trim();
-  if (!t) return t;
-  if (t.includes("@")) return t;
-  if (t.toLowerCase() === "admin") return DUMMY_ADMIN_EMAIL;
-  return t;
-}
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,7 +23,7 @@ export default function LoginPage() {
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email: toSignInEmail(email),
+      email: email.trim(),
       password,
     });
 
@@ -56,17 +46,17 @@ export default function LoginPage() {
             Access your organisation workspace
           </h2>
           <p className="mt-3 text-sm leading-7 text-[var(--easa-color-text-muted)]">
-            Use your email or configured username. The dummy local admin login still works as `admin`.
+            Sign in with your organisation email address and password.
           </p>
 
           <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
             <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
-              Email or username
+              Email
               <input
                 className="easa-input mt-2 w-full"
                 autoComplete="username"
-                placeholder="admin or name@school.org"
-                type="text"
+                placeholder="name@school.org"
+                type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required
@@ -94,13 +84,13 @@ export default function LoginPage() {
 
           <div className="mt-6 flex items-center justify-between gap-3 text-sm text-[var(--easa-color-text-muted)]">
             <span>Forgot password?</span>
-            <Link className="font-medium text-[var(--easa-color-brand-primary)]" href="/">
-              Back to landing
+            <Link className="font-medium text-[var(--easa-color-brand-primary)]" href="/register">
+              Register school
             </Link>
           </div>
 
           <div className="mt-8 rounded-[22px] bg-[var(--easa-color-surface-2)] p-4 text-sm leading-7 text-[var(--easa-color-text-secondary)]">
-            New here? Ask your admin for an invite and organisation access.
+            New here? Register a new flight school workspace or ask your admin for an invite.
           </div>
         </section>
     </div>

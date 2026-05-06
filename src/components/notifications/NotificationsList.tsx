@@ -11,18 +11,9 @@ import {
   AlertCircle,
   CheckCheck,
 } from "lucide-react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-
-interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  body: string | null;
-  related_entity_type: string | null;
-  related_entity_id: string | null;
-  read: boolean;
-  created_at: string;
-}
+import { parseNotificationRecord, type NotificationRecord as Notification } from "@/components/notifications/notification-record";
 
 type ViewerRole = "admin" | "editor" | "viewer" | "instructor" | "student" | "compliance_manager";
 
@@ -93,8 +84,7 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const realtimeRef = useRef<any>(null);
+  const realtimeRef = useRef<RealtimeChannel | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,7 +129,8 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const n = payload.new as Notification;
+            const n = parseNotificationRecord(payload.new);
+            if (!n) return;
             setNotifications((prev) => [n, ...prev]);
             setUnreadCount((c) => c + 1);
           },
@@ -153,7 +144,8 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const updated = payload.new as Notification;
+            const updated = parseNotificationRecord(payload.new);
+            if (!updated) return;
             setNotifications((prev) =>
               prev.map((n) => (n.id === updated.id ? updated : n)),
             );
@@ -170,8 +162,7 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
     return () => {
       cancelled = true;
       if (realtimeRef.current) {
-        const sb = getSupabaseBrowserClient();
-        sb?.removeChannel(realtimeRef.current);
+        supabase.removeChannel(realtimeRef.current);
         realtimeRef.current = null;
       }
     };

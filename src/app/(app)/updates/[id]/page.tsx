@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import DiffViewer from "@/components/updates/DiffViewer";
+import { ORG_APPROVER_ROLES } from "@/lib/supabase/access";
 
 type JoinedUpdateRow = {
   id: string;
@@ -63,13 +64,32 @@ async function getOrgId(): Promise<string | null> {
   return (data?.organization_id as string | null) ?? null;
 }
 
+async function getRole(): Promise<string | null> {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) return null;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const admin = getAdminClient();
+  const { data } = await admin
+    .from("org_users")
+    .select("role")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return (data?.role as string | null) ?? null;
+}
+
 export default async function UpdateDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const orgId = await getOrgId();
+  const [orgId, role] = await Promise.all([getOrgId(), getRole()]);
+  const canManage = role ? ORG_APPROVER_ROLES.includes(role as (typeof ORG_APPROVER_ROLES)[number]) : false;
 
   const admin = getAdminClient();
 
@@ -210,6 +230,7 @@ export default async function UpdateDetailPage({
         sectionTitle={((fbSection as Record<string, unknown> | null)?.title as string | null) ?? null}
         sectionBody={((fbSection as Record<string, unknown> | null)?.body as string | null) ?? null}
         flightbookName={((flightbook as Record<string, unknown> | null)?.name as string | null) ?? null}
+        canManage={canManage}
       />
     </div>
   );

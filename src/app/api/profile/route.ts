@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/supabase/profile";
 
-const NOTIFICATION_DIGESTS = new Set(["immediate", "daily", "partial"]);
+const NOTIFICATION_DIGESTS = new Set(["immediate", "daily", "partial", "weekly"]);
 
 function getAdminClient() {
   return createClient(

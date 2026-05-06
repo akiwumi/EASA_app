@@ -101,14 +101,13 @@ export default function ExportsTab() {
                   className="easa-btn secondary text-sm"
                   onClick={() => download(item.kind)}
                   type="button"
-                  disabled={item.kind === "form-submissions" && !summary?.formsReady}
                 >
                   Download CSV
                 </button>
               </div>
               {item.kind === "form-submissions" && !summary?.formsReady ? (
                 <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
-                  Available after the training forms tables are enabled.
+                  Forms tables are not enabled yet. Export still downloads an empty CSV so admin workflows stay unblocked.
                 </p>
               ) : null}
             </div>

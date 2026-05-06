@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { getOrgScopedContext, getSupabaseAdminClient, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
 import { createFlightbookExport } from "@/lib/flightbook-exports";
 
 export async function POST(request: Request) {
-  const ctx = await getOrgAdminContext();
+  const ctx = await getOrgScopedContext(ORG_APPROVER_ROLES);
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { findingId, sectionId, approvedText } = (await request.json()) as {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   // 2. Fetch the current section (to snapshot old body)
   const { data: section } = await admin
     .from("flightbook_sections")
-    .select("id, body, organization_id, flightbook_id")
+    .select("id, body, organization_id, flightbook_id, title, section_number")
     .eq("id", sectionId)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
@@ -87,6 +87,36 @@ export async function POST(request: Request) {
     })
     .eq("ai_rationale", (finding.summary as string | null) ?? "")
     .eq("organization_id", orgId);
+
+  try {
+    const { data: orgUsers } = await admin
+      .from("org_users")
+      .select("user_id")
+      .eq("organization_id", orgId);
+
+    if (orgUsers?.length) {
+      const sectionLabel = [
+        (section.section_number as string | null) ? `§${section.section_number as string}` : null,
+        (section.title as string | null) ?? null,
+      ].filter(Boolean).join(" ");
+
+      await admin.from("notifications").insert(
+        orgUsers.map((member) => ({
+          organization_id: orgId,
+          user_id: member.user_id as string,
+          type: "approved",
+          title: "Finding approved",
+          body: sectionLabel
+            ? `Approved update for ${sectionLabel}.`
+            : "An AI finding was approved and applied to a flight book section.",
+          related_entity_type: "ai_finding",
+          related_entity_id: findingId,
+        })),
+      );
+    }
+  } catch {
+    // best-effort — notifications must never block the main response
+  }
 
   if (section.flightbook_id) {
     await createFlightbookExport(admin, {

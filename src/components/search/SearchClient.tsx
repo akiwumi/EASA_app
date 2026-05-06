@@ -55,6 +55,31 @@ function LessonLinks({ lessons }: { lessons: { id: string; title: string; lesson
   );
 }
 
+function RelevanceBar({ score, max = 1 }: { score: number; max?: number }) {
+  const pct = Math.round(Math.min((score / max) * 100, 100));
+  const color =
+    pct >= 70
+      ? "bg-[var(--easa-color-accent-green)]"
+      : pct >= 40
+        ? "bg-[var(--easa-color-accent-teal)]"
+        : "bg-[var(--easa-color-accent-blue)]";
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <span className="text-[10px] uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+        Relevance
+      </span>
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 w-14 overflow-hidden rounded-full bg-[var(--easa-color-border)]">
+          <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
+        </div>
+        <span className="text-xs font-medium tabular-nums text-[var(--easa-color-text-secondary)]">
+          {pct}%
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function ManualResultCard({ result }: { result: ManualSearchResult }) {
   return (
     <article className="easa-card p-5">
@@ -69,7 +94,7 @@ function ManualResultCard({ result }: { result: ManualSearchResult }) {
             {result.sectionNumber ? ` · ${result.sectionNumber}` : ""}
           </p>
         </div>
-        <span className="easa-badge is-blue">Score {result.score.toFixed(2)}</span>
+        <RelevanceBar score={result.score} max={1} />
       </div>
 
       <p className="mt-3 text-sm text-[var(--easa-color-text-secondary)]">{result.excerpt}</p>
@@ -103,11 +128,14 @@ function ApprovedUpdateCard({ result }: { result: ApprovedUpdateSearchResult }) 
             {result.sectionNumber ? ` · ${result.sectionNumber}` : ""}
           </p>
         </div>
-        {result.createdAt && (
-          <span className="text-xs text-[var(--easa-color-text-muted)]">
-            {new Date(result.createdAt).toLocaleDateString()}
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-1.5">
+          <RelevanceBar score={result.score} max={5} />
+          {result.createdAt && (
+            <span className="text-xs text-[var(--easa-color-text-muted)]">
+              {new Date(result.createdAt).toLocaleDateString()}
+            </span>
+          )}
+        </div>
       </div>
 
       <p className="mt-3 text-sm text-[var(--easa-color-text-secondary)]">{result.excerpt}</p>

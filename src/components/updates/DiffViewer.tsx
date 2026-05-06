@@ -55,6 +55,7 @@ interface Props {
   sectionTitle: string | null;
   sectionBody: string | null;
   flightbookName: string | null;
+  canManage?: boolean;
 }
 
 function riskBadgeClass(risk: string) {
@@ -114,6 +115,7 @@ export default function DiffViewer({
   sectionTitle,
   sectionBody,
   flightbookName,
+  canManage = false,
 }: Props) {
   const [status, setStatus] = useState(initialStatus);
   const [suggestedText, setSuggestedText] = useState(initialSuggestedText);
@@ -563,6 +565,11 @@ export default function DiffViewer({
 
       {/* Action bar */}
       <div className="easa-card p-5">
+        {!canManage && (
+          <p className="mb-3 text-sm text-[var(--easa-color-text-muted)]">
+            Read-only view. Approval actions are limited to admin, editor, and compliance manager roles.
+          </p>
+        )}
         {actionMsg && (
           <p className="mb-3 text-sm text-[var(--easa-color-accent-green)]">{actionMsg}</p>
         )}
@@ -575,7 +582,7 @@ export default function DiffViewer({
           <button
             type="button"
             className="easa-btn primary flex items-center gap-2 text-sm"
-            disabled={actionLoading || actionsDone}
+            disabled={!canManage || actionLoading || actionsDone}
             onClick={() => performAction("approved")}
             style={
               actionsDone
@@ -592,7 +599,7 @@ export default function DiffViewer({
             <button
               type="button"
               className="easa-btn secondary flex items-center gap-2 text-sm"
-              disabled={actionLoading || actionsDone}
+              disabled={!canManage || actionLoading || actionsDone}
               onClick={() => { setRejectOpen(true); setRevisionOpen(false); }}
               style={actionsDone ? undefined : { color: "var(--easa-color-accent-pink)", borderColor: "var(--easa-color-accent-pink)" }}
             >
@@ -611,7 +618,7 @@ export default function DiffViewer({
                 type="button"
                 className="easa-btn secondary text-sm"
                 style={{ color: "var(--easa-color-accent-pink)", borderColor: "var(--easa-color-accent-pink)" }}
-                disabled={actionLoading}
+                disabled={!canManage || actionLoading}
                 onClick={() => performAction("rejected", rejectReason || undefined)}
               >
                 Confirm reject
@@ -632,7 +639,7 @@ export default function DiffViewer({
             <button
               type="button"
               className="easa-btn secondary flex items-center gap-2 text-sm"
-              disabled={actionLoading || actionsDone}
+              disabled={!canManage || actionLoading || actionsDone}
               onClick={() => { setRevisionOpen(true); setRejectOpen(false); }}
             >
               <RotateCcw size={16} strokeWidth={1.75} />
@@ -649,7 +656,7 @@ export default function DiffViewer({
               <button
                 type="button"
                 className="easa-btn secondary text-sm"
-                disabled={actionLoading}
+                disabled={!canManage || actionLoading}
                 onClick={() => performAction("revision_requested", revisionNote || undefined)}
               >
                 Confirm

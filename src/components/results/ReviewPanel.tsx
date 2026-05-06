@@ -61,6 +61,24 @@ interface SectionDraft {
   }[];
 }
 
+interface ReviewContext {
+  sectionId: string;
+  sectionTitle: string | null;
+  sectionNumber: string | null;
+  flightbookName: string;
+  currentBody: string;
+  whyThisSection?: string;
+  citations?: {
+    kind: string;
+    id: string;
+    score?: number;
+    section_number?: string | null;
+    title?: string | null;
+    flightbook_name?: string | null;
+    quote?: string | null;
+  }[];
+}
+
 type Step = "review" | "generating" | "draft" | "approving" | "approved";
 
 async function readJsonSafely(res: Response) {
@@ -125,6 +143,50 @@ function parseSectionDraft(json: Record<string, unknown> | null): SectionDraft |
   };
 }
 
+function parseReviewContext(json: Record<string, unknown> | null): ReviewContext | null {
+  if (!json) return null;
+
+  const {
+    sectionId,
+    sectionTitle,
+    sectionNumber,
+    flightbookName,
+    currentBody,
+    whyThisSection,
+    citations,
+  } = json;
+
+  if (
+    typeof sectionId !== "string" ||
+    typeof flightbookName !== "string" ||
+    typeof currentBody !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    sectionId,
+    sectionTitle: typeof sectionTitle === "string" ? sectionTitle : null,
+    sectionNumber: typeof sectionNumber === "string" ? sectionNumber : null,
+    flightbookName,
+    currentBody,
+    whyThisSection: typeof whyThisSection === "string" ? whyThisSection : undefined,
+    citations: Array.isArray(citations)
+      ? citations
+          .filter((citation): citation is Record<string, unknown> => typeof citation === "object" && citation !== null)
+          .map((citation) => ({
+            kind: typeof citation.kind === "string" ? citation.kind : "unknown",
+            id: typeof citation.id === "string" ? citation.id : "",
+            score: typeof citation.score === "number" ? citation.score : undefined,
+            section_number: typeof citation.section_number === "string" ? citation.section_number : null,
+            title: typeof citation.title === "string" ? citation.title : null,
+            flightbook_name: typeof citation.flightbook_name === "string" ? citation.flightbook_name : null,
+            quote: typeof citation.quote === "string" ? citation.quote : null,
+          }))
+      : undefined,
+  };
+}
+
 type Flightbook = { id: string; name: string };
 
 export default function ReviewPanel({
@@ -141,6 +203,9 @@ export default function ReviewPanel({
   const [error, setError] = useState<string | null>(null);
   const [flightbooks, setFlightbooks] = useState<Flightbook[]>([]);
   const [selectedFlightbookId, setSelectedFlightbookId] = useState<string>("");
+  const [reviewContext, setReviewContext] = useState<ReviewContext | null>(null);
+  const [reviewContextError, setReviewContextError] = useState<string | null>(null);
+  const [reviewContextLoading, setReviewContextLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/flightbooks")
@@ -151,6 +216,62 @@ export default function ReviewPanel({
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadReviewContext() {
+      setReviewContextLoading(true);
+      setReviewContextError(null);
+
+      try {
+        const res = await fetch("/api/findings/review-context", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            findingId,
+            ...(selectedFlightbookId ? { flightbookId: selectedFlightbookId } : {}),
+          }),
+        });
+        const json = await readJsonSafely(res);
+
+        if (cancelled) return;
+
+        if (!res.ok) {
+          setReviewContext(null);
+          setReviewContextError(String(json?.error ?? "Failed to load mapped section preview."));
+          setReviewContextLoading(false);
+          return;
+        }
+
+        const nextContext = parseReviewContext(json);
+        if (!nextContext) {
+          setReviewContext(null);
+          setReviewContextError("Mapped section preview response was incomplete.");
+          setReviewContextLoading(false);
+          return;
+        }
+
+        setReviewContext(nextContext);
+        setReviewContextLoading(false);
+      } catch (previewError) {
+        if (cancelled) return;
+        setReviewContext(null);
+        setReviewContextError(
+          previewError instanceof Error
+            ? previewError.message
+            : "Failed to load mapped section preview.",
+        );
+        setReviewContextLoading(false);
+      }
+    }
+
+    void loadReviewContext();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [findingId, selectedFlightbookId]);
 
   async function generateDraft() {
     setStep("generating");
@@ -269,12 +390,63 @@ export default function ReviewPanel({
                 <p className="text-xs text-[var(--easa-color-text-muted)]">Mapped label</p>
                 <p className="mt-0.5 text-sm">{mappedSection.displayLabel}</p>
               </div>
-              <p className="text-sm text-[var(--easa-color-text-muted)]">
-                {update.aiSummary || "The system will retrieve the closest current section text before drafting."}
-              </p>
-              <p className="text-sm text-[var(--easa-color-text-muted)] flex-1">
-                Generate the draft to load the current wording, compare evidence, and approve the revision manually.
-              </p>
+              <div className="rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-3">
+                <p className="text-xs text-[var(--easa-color-text-muted)]">Retrieved section</p>
+                <p className="mt-0.5 text-sm font-medium">
+                  {reviewContext
+                    ? [reviewContext.flightbookName, reviewContext.sectionNumber ?? reviewContext.sectionTitle]
+                        .filter(Boolean)
+                        .join(" · ")
+                    : "Loading current wording…"}
+                </p>
+                {reviewContext?.sectionTitle ? (
+                  <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                    {reviewContext.sectionTitle}
+                  </p>
+                ) : null}
+              </div>
+              <div className="rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-3">
+                <p className="text-xs text-[var(--easa-color-text-muted)]">Current section text</p>
+                {reviewContextLoading ? (
+                  <p className="mt-2 text-sm text-[var(--easa-color-text-muted)]">Loading mapped section text…</p>
+                ) : reviewContext?.currentBody ? (
+                  <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-[var(--easa-color-text-secondary)]">
+                    {reviewContext.currentBody}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-[var(--easa-color-text-muted)]">
+                    {reviewContextError ?? "No mapped section text found yet."}
+                  </p>
+                )}
+              </div>
+              {reviewContext?.whyThisSection ? (
+                <p className="text-sm text-[var(--easa-color-text-muted)]">{reviewContext.whyThisSection}</p>
+              ) : null}
+              {reviewContext?.citations && reviewContext.citations.length > 0 ? (
+                <div className="flex-1 rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-3">
+                  <p className="text-xs text-[var(--easa-color-text-muted)]">Supporting evidence</p>
+                  <div className="mt-2 space-y-2">
+                    {reviewContext.citations.slice(0, 3).map((citation) => (
+                      <div key={`${citation.kind}:${citation.id}`} className="rounded-[8px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)] px-2.5 py-2">
+                        <p className="text-xs font-medium">
+                          {[citation.section_number, citation.title ?? citation.flightbook_name, citation.score != null ? `${Math.round(citation.score * 100)}% match` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                        {citation.quote ? (
+                          <p className="mt-1 text-xs leading-relaxed text-[var(--easa-color-text-muted)]">
+                            {citation.quote}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-[var(--easa-color-text-muted)] flex-1">
+                  Generate the draft to compare the proposed rewrite against the retrieved source evidence.
+                </p>
+              )}
             </div>
           </div>
 

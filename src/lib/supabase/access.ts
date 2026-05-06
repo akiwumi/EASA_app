@@ -7,6 +7,10 @@ export type OrgAccessContext = {
   role: string;
 };
 
+export const ORG_ADMIN_ROLES = ["admin"] as const;
+export const ORG_APPROVER_ROLES = ["admin", "editor", "compliance_manager"] as const;
+export const ORG_ROLLBACK_ROLES = ["admin", "compliance_manager"] as const;
+
 export const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
 export const DEFAULT_ORG_NAME = "Demo Flight School";
 
@@ -96,7 +100,13 @@ export async function getOrgAccessContext(): Promise<OrgAccessContext | null> {
 }
 
 export async function getOrgAdminContext(): Promise<OrgAccessContext | null> {
+  return getOrgScopedContext(ORG_ADMIN_ROLES);
+}
+
+export async function getOrgScopedContext(
+  allowedRoles: readonly string[],
+): Promise<OrgAccessContext | null> {
   const ctx = await getOrgAccessContext();
-  if (!ctx || ctx.role !== "admin") return null;
+  if (!ctx || !allowedRoles.includes(ctx.role)) return null;
   return ctx;
 }

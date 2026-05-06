@@ -15,6 +15,8 @@ type ProfileResponse = {
 
 function roleLabel(role: string | null) {
   if (role === "admin") return "Admin";
+  if (role === "compliance_manager") return "Compliance manager";
+  if (role === "editor") return "Editor";
   if (role === "instructor") return "Instructor";
   if (role === "student") return "Student";
   if (role === "viewer") return "Viewer";
@@ -302,9 +304,10 @@ export default function ProfilePage() {
               <option value="immediate">Immediate</option>
               <option value="partial">Priority digest only</option>
               <option value="daily">Daily digest (07:00 UTC)</option>
+              <option value="weekly">Weekly digest (Mondays, 07:00 UTC)</option>
             </select>
             <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
-              Priority digest sends only approval, rejection, revision, and rollback activity in the daily batch.
+              Priority digest sends only approval, rejection, revision, and rollback activity. Weekly digest batches the last 7 days each Monday.
             </p>
           </div>
         </div>

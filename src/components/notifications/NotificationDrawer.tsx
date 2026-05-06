@@ -13,18 +13,9 @@ import {
   CheckCheck,
   X,
 } from "lucide-react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-
-export interface Notification {
-  id: string;
-  type: string;
-  title: string;
-  body: string | null;
-  related_entity_type: string | null;
-  related_entity_id: string | null;
-  read: boolean;
-  created_at: string;
-}
+import { parseNotificationRecord, type NotificationRecord as Notification } from "@/components/notifications/notification-record";
 
 interface Props {
   open: boolean;
@@ -65,8 +56,7 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const realtimeRef = useRef<any>(null);
+  const realtimeRef = useRef<RealtimeChannel | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,7 +100,8 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const newNotif = payload.new as Notification;
+            const newNotif = parseNotificationRecord(payload.new);
+            if (!newNotif) return;
             setNotifications((prev) => {
               const updated = [newNotif, ...prev];
               onUnreadChange(updated.filter((n) => !n.read).length);
@@ -127,7 +118,8 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const updated = payload.new as Notification;
+            const updated = parseNotificationRecord(payload.new);
+            if (!updated) return;
             setNotifications((prev) => {
               const next = prev.map((n) => (n.id === updated.id ? updated : n));
               onUnreadChange(next.filter((n) => !n.read).length);
@@ -143,8 +135,7 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
     return () => {
       cancelled = true;
       if (realtimeRef.current) {
-        const supabase2 = getSupabaseBrowserClient();
-        supabase2?.removeChannel(realtimeRef.current);
+        supabase.removeChannel(realtimeRef.current);
         realtimeRef.current = null;
       }
     };

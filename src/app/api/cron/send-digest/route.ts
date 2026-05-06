@@ -12,7 +12,7 @@ type DigestUser = {
   id: string;
   email: string | null;
   display_name: string | null;
-  notification_digest: "daily" | "partial";
+  notification_digest: "daily" | "partial" | "weekly";
 };
 
 type NotificationRow = {
@@ -44,13 +44,14 @@ async function sendDigestEmail(
     return { ok: true };
   }
 
+  const digestLabel = user.notification_digest === "weekly" ? "weekly" : "daily";
   const lines = notifications
     .map((n) => `• ${n.title}${n.body ? `: ${n.body}` : ""}`)
     .join("\n");
 
   const html = `
     <p>Hello${user.display_name ? ` ${user.display_name}` : ""},</p>
-    <p>Here is your daily notification digest from your EASA compliance workspace:</p>
+    <p>Here is your ${digestLabel} notification digest from your EASA compliance workspace:</p>
     <ul>
       ${notifications.map((n) => `<li><strong>${n.title}</strong>${n.body ? `<br/>${n.body}` : ""}</li>`).join("")}
     </ul>
@@ -66,9 +67,9 @@ async function sendDigestEmail(
     body: JSON.stringify({
       from: process.env.RESEND_FROM_EMAIL ?? "noreply@notifications.easaapp.com",
       to: user.email,
-      subject: `Your daily digest — ${notifications.length} update${notifications.length !== 1 ? "s" : ""}`,
+      subject: `Your ${digestLabel} digest — ${notifications.length} update${notifications.length !== 1 ? "s" : ""}`,
       html,
-      text: `Hello,\n\nYour daily digest:\n\n${lines}\n\nLog in to your workspace to review these items.`,
+      text: `Hello,\n\nYour ${digestLabel} digest:\n\n${lines}\n\nLog in to your workspace to review these items.`,
     }),
   });
 
@@ -80,19 +81,30 @@ async function sendDigestEmail(
   return { ok: true };
 }
 
+function startOfUtcDay(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function shouldSendWeeklyDigest(date: Date) {
+  return date.getUTCDay() === 1;
+}
+
 export async function POST(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
   const admin = getSupabaseAdminClient();
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date();
+  const dailySince = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const weeklySince = startOfUtcDay(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)).toISOString();
+  const weeklyRun = shouldSendWeeklyDigest(now);
 
   // Find users opted into batched email digests
   const { data: profiles, error: profilesError } = await admin
     .from("user_profiles")
     .select("id, display_name, notification_digest")
-    .in("notification_digest", ["daily", "partial"])
+    .in("notification_digest", ["daily", "partial", "weekly"])
     .eq("notification_email", true);
 
   if (profilesError) {
@@ -119,19 +131,25 @@ export async function POST(request: Request) {
     const userId = profile.id as string;
     const email = emailMap[userId];
     if (!email) continue;
+    const digestPreference = profile.notification_digest === "weekly"
+      ? "weekly"
+      : profile.notification_digest === "partial"
+        ? "partial"
+        : "daily";
+    if (digestPreference === "weekly" && !weeklyRun) continue;
 
-    // Fetch unread notifications from the past 24 hours
+    // Fetch unread notifications from the active digest window.
     const { data: notifications } = await admin
       .from("notifications")
       .select("id, title, body, type, created_at")
       .eq("user_id", userId)
       .eq("read", false)
-      .gte("created_at", since)
+      .gte("created_at", digestPreference === "weekly" ? weeklySince : dailySince)
       .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(digestPreference === "weekly" ? 50 : 20);
 
     const filteredNotifications = (notifications as NotificationRow[] | null)?.filter((notification) => (
-      profile.notification_digest === "partial"
+      digestPreference === "partial"
         ? PARTIAL_DIGEST_TYPES.has(notification.type)
         : true
     )) ?? [];
@@ -142,7 +160,7 @@ export async function POST(request: Request) {
       id: userId,
       email,
       display_name: (profile.display_name as string | null) ?? null,
-      notification_digest: profile.notification_digest === "partial" ? "partial" : "daily",
+      notification_digest: digestPreference,
     };
 
     const result = await sendDigestEmail(user, filteredNotifications);

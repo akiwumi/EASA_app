@@ -1,39 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getOrgScopedContext, getSupabaseAdminClient, ORG_ROLLBACK_ROLES } from "@/lib/supabase/access";
 import { createFlightbookExport } from "@/lib/flightbook-exports";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
-
-async function getAuthUser() {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  return user ?? null;
-}
-
-async function getOrgId(userId: string): Promise<string | null> {
-  const admin = getAdminClient();
-  const { data } = await admin
-    .from("org_users")
-    .select("organization_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  return (data?.organization_id as string | null) ?? null;
-}
 
 // POST /api/rollback  body: { sectionId, targetVersionNumber, reason? }
 export async function POST(request: Request) {
-  const user = await getAuthUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgScopedContext(ORG_ROLLBACK_ROLES);
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { sectionId, targetVersionNumber, reason } = (await request.json()) as {
     sectionId?: string;
@@ -48,12 +20,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const orgId = await getOrgId(user.id);
-  if (!orgId) {
-    return NextResponse.json({ error: "No organisation found for user" }, { status: 403 });
-  }
-
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   // 1. Get the target version body
   const { data: targetVersion, error: tvErr } = await admin
@@ -72,6 +39,7 @@ export async function POST(request: Request) {
     .from("flightbook_sections")
     .select("body, organization_id, flightbook_id")
     .eq("id", sectionId)
+    .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (secErr || !section) {
@@ -92,12 +60,12 @@ export async function POST(request: Request) {
 
   // 4. INSERT snapshot of the current body before rollback
   const { error: snapErr } = await admin.from("flightbook_section_versions").insert({
-    organization_id: orgId,
+    organization_id: ctx.orgId,
     flightbook_section_id: sectionId,
     body: section.body,
     version_number: newVersionNumber,
     change_source: "rollback",
-    created_by: user.id,
+    created_by: ctx.userId,
   });
 
   if (snapErr) {
@@ -116,8 +84,8 @@ export async function POST(request: Request) {
 
   // 6. INSERT audit_log record
   await admin.from("audit_log").insert({
-    organization_id: orgId,
-    actor_id: user.id,
+    organization_id: ctx.orgId,
+    actor_id: ctx.userId,
     action: "rollback",
     entity_type: "flightbook_section",
     entity_id: sectionId,
@@ -128,12 +96,37 @@ export async function POST(request: Request) {
     },
   });
 
+  try {
+    const { data: orgUsers } = await admin
+      .from("org_users")
+      .select("user_id")
+      .eq("organization_id", ctx.orgId);
+
+    if (orgUsers?.length) {
+      await admin.from("notifications").insert(
+        orgUsers.map((member) => ({
+          organization_id: ctx.orgId,
+          user_id: member.user_id as string,
+          type: "rollback",
+          title: "Section rolled back",
+          body: reason
+            ? `Rolled back to version ${targetVersionNumber}. Reason: ${reason}`
+            : `Section rolled back to version ${targetVersionNumber}.`,
+          related_entity_type: "flightbook_section",
+          related_entity_id: sectionId,
+        })),
+      );
+    }
+  } catch {
+    // best-effort — notification delivery must never block rollback
+  }
+
   if (section.flightbook_id) {
     await createFlightbookExport(admin, {
-      organizationId: orgId,
+      organizationId: ctx.orgId,
       flightbookId: section.flightbook_id as string,
       changeSource: "rollback",
-      createdBy: user.id,
+      createdBy: ctx.userId,
       note: reason ? `Generated automatically after rollback. Reason: ${reason}` : "Generated automatically after rollback.",
     });
   }
