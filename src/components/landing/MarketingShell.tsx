@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 
 const NAV_LINKS = [
@@ -19,9 +20,14 @@ export default function MarketingShell({
           <div className="easa-gradient-bar" />
           <nav className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-5">
             <Link href="/" className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[var(--easa-color-brand-primary)] text-sm font-semibold text-[#f7f2e8] shadow-[var(--easa-shadow-brand)]">
-                EA
-              </div>
+              <Image
+                alt="Flight Lyceum logo"
+                className="h-11 w-auto object-contain"
+                height={44}
+                priority
+                src="/images/flight-lyceum-logo.png"
+                width={80}
+              />
               <div>
                 <p className="easa-display text-lg leading-none">EASA_app</p>
                 <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[var(--easa-color-text-muted)]">

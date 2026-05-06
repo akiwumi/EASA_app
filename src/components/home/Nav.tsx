@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
@@ -25,9 +26,14 @@ export default function Nav() {
             href="/"
             className="flex min-w-0 flex-1 items-center gap-3 transition-opacity hover:opacity-85"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[var(--easa-color-brand-primary)] text-sm font-semibold text-[#f7f2e8] shadow-[var(--easa-shadow-brand)]">
-              EA
-            </div>
+            <Image
+              alt="Flight Lyceum logo"
+              className="h-10 w-auto object-contain"
+              height={40}
+              priority
+              src="/images/flight-lyceum-logo.png"
+              width={72}
+            />
             <div className="min-w-0">
               <p className="easa-display text-lg leading-none text-[var(--easa-color-text-primary)]">
                 EASA_app

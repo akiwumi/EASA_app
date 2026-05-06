@@ -221,15 +221,14 @@ export default function AppShell({
                   width={40}
                 />
               ) : (
-                <div
-                  className="flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-bold text-white"
-                  style={{
-                    background: "linear-gradient(135deg, var(--easa-color-brand-primary) 0%, var(--easa-color-brand-secondary) 100%)",
-                    boxShadow: "0 10px 24px rgba(35,56,52,0.22)",
-                  }}
-                >
-                  EA
-                </div>
+                <Image
+                  alt="Flight Lyceum logo"
+                  className="h-10 w-auto object-contain"
+                  height={40}
+                  priority
+                  src="/images/flight-lyceum-logo.png"
+                  width={72}
+                />
               )}
               <div className="min-w-0">
                 <p className="easa-display text-[1.05rem] leading-none text-[var(--easa-color-text-primary)]">
