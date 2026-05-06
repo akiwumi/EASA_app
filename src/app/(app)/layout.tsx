@@ -4,6 +4,11 @@ import { ensureUserProfile } from "@/lib/supabase/profile";
 import AppShell from "@/components/navigation/AppShell";
 import type { OrganizationBranding } from "@/lib/types/domain";
 
+type OrganizationBrandingShellData = Pick<
+  OrganizationBranding,
+  "public_name" | "logo_url" | "website_url" | "contact_email" | "contact_phone" | "primary_color" | "secondary_color"
+>;
+
 export default async function AppGroupLayout({
   children,
 }: {
@@ -36,10 +41,7 @@ export default async function AppGroupLayout({
     .maybeSingle();
 
   const org = (orgRow?.organizations ?? null) as { name?: string } | null;
-  let branding: Pick<
-    OrganizationBranding,
-    "public_name" | "logo_url" | "website_url" | "contact_email" | "contact_phone" | "primary_color" | "secondary_color"
-  > | null = null;
+  let branding: OrganizationBrandingShellData | null = null;
 
   if (orgRow?.organization_id) {
     const brandingResult = await supabase
@@ -49,7 +51,7 @@ export default async function AppGroupLayout({
       .maybeSingle();
 
     if (!brandingResult.error) {
-      branding = (brandingResult.data as typeof branding) ?? null;
+      branding = (brandingResult.data as OrganizationBrandingShellData | null) ?? null;
     }
   }
 

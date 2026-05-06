@@ -252,7 +252,7 @@ export default function AppShell({
                 <button
                   aria-expanded={menuOpen}
                   aria-label={menuOpen ? "Close menu" : "Open menu"}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)]"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)] lg:hidden"
                   type="button"
                   onClick={() => setMenuOpen((o) => !o)}
                 >
@@ -262,7 +262,7 @@ export default function AppShell({
 
           {menuOpen && (
             <div
-              className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 sm:px-5 lg:px-6"
+              className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 sm:px-5 lg:hidden"
               style={{ backdropFilter: "blur(16px)" }}
             >
               <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">

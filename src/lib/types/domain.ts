@@ -1,4 +1,10 @@
-export type CurrentOrgRole = "admin" | "instructor" | "student" | "viewer";
+export type CurrentOrgRole =
+  | "admin"
+  | "editor"
+  | "compliance_manager"
+  | "instructor"
+  | "student"
+  | "viewer";
 
 export type ProductRole =
   | "super_admin"
