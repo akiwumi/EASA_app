@@ -1,5 +1,9 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
 
 const NAV_LINKS = [
   { href: "/", label: "Overview" },
@@ -13,12 +17,14 @@ export default function MarketingShell({
 }: {
   children: React.ReactNode;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen">
       <div className="easa-shell flex min-h-screen flex-col gap-8 py-5 lg:py-6">
         <header className="z-40 overflow-hidden rounded-[30px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.76)] shadow-[var(--easa-shadow-1)] backdrop-blur-xl">
           <div className="easa-gradient-bar" />
-          <nav className="flex flex-col gap-4 px-4 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-5">
+          <nav className="flex items-center justify-between px-4 py-4 lg:px-5">
             <Link href="/" className="flex items-center gap-3">
               <Image
                 alt="Flight Lyceum logo"
@@ -36,7 +42,7 @@ export default function MarketingShell({
               </div>
             </Link>
 
-            <div className="flex flex-wrap items-center gap-1.5 text-sm">
+            <div className="hidden items-center gap-1.5 text-sm lg:flex">
               {NAV_LINKS.map((item) => (
                 <Link
                   key={item.href}
@@ -53,7 +59,42 @@ export default function MarketingShell({
                 Register school
               </Link>
             </div>
+
+            <button
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)] lg:hidden"
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              {menuOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
+            </button>
           </nav>
+
+          {menuOpen && (
+            <div className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 lg:hidden">
+              <div className="flex flex-col gap-2">
+                {NAV_LINKS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="rounded-full px-3.5 py-2 text-sm font-medium text-[var(--easa-color-text-muted)] transition-all duration-150 hover:bg-[var(--easa-color-brand-muted)] hover:text-[var(--easa-color-brand-primary)]"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="mt-2 flex flex-col gap-2">
+                  <Link className="easa-btn secondary w-full" href="/login" onClick={() => setMenuOpen(false)}>
+                    Login
+                  </Link>
+                  <Link className="easa-btn primary w-full" href="/register" onClick={() => setMenuOpen(false)}>
+                    Register school
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </header>
 
         <main className="easa-page-enter flex-1">{children}</main>

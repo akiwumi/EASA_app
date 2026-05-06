@@ -12,7 +12,7 @@ export default function HeroSection() {
     <section className="relative pb-[20px] pt-[20px]">
       <div className="mx-auto max-w-7xl px-6 text-center">
         <h1
-          className="text-5xl font-normal text-foreground sm:text-6xl md:text-7xl"
+          className="text-4xl font-normal text-foreground sm:text-6xl md:text-7xl"
           style={{
             fontFamily: "var(--font-display)",
             lineHeight: 1.05,
@@ -34,7 +34,8 @@ export default function HeroSection() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/register"
-            className="inline-flex items-center justify-center rounded-full bg-foreground px-7 py-3 text-base font-medium text-background shadow transition-colors hover:bg-foreground/90 sm:px-8"
+            className="inline-flex items-center justify-center rounded-full bg-foreground px-7 py-3 text-base font-medium shadow transition-colors hover:bg-foreground/90 sm:px-8"
+            style={{ color: 'var(--color-background)' }}
           >
             Register now
           </Link>
