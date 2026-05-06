@@ -11,13 +11,13 @@ export default function LandingCompetitive() {
     <section className="py-8 md:py-14">
       <div className="grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
         <div>
-          <span className="easa-eyebrow">Why EASA_app</span>
+          <span className="easa-eyebrow">Why Flight Lyceum</span>
           <h2 className="easa-display mt-4 text-4xl leading-tight md:text-6xl">
             Built for flight schools, not adapted from airline manual software.
           </h2>
           <p className="mt-5 text-base leading-8 text-[var(--easa-color-text-muted)]">
             Most document control tools in aviation were designed for airlines and
-            scaled down. EASA_app was built from the ground up for ATOs, where the
+            scaled down. Flight Lyceum was built from the ground up for ATOs, where the
             same person is often compliance manager, head of training, and line
             instructor at the same time.
           </p>

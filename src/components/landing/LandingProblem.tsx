@@ -11,7 +11,7 @@ export default function LandingProblem() {
           That makes training inconsistent, acknowledgements hard to verify, and audits
           more stressful than they need to be. When an EASA change lands, there is
           usually no single system that connects the regulation, the manual, the
-          instructor, and the student. EASA_app is that system.
+          instructor, and the student. Flight Lyceum is that system.
         </p>
       </div>
     </section>

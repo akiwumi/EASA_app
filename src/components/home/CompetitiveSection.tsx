@@ -12,7 +12,7 @@ export default function CompetitiveSection() {
       <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 md:grid-cols-2">
         <div>
           <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">
-            Why EASA_app
+            Why Flight Lyceum
           </p>
           <h2
             className="text-4xl font-normal tracking-tight text-foreground md:text-5xl"
@@ -22,7 +22,7 @@ export default function CompetitiveSection() {
           </h2>
           <p className="mt-4 text-base leading-7 text-muted-foreground">
             Most document control tools in aviation were designed for airlines
-            and scaled down. EASA_app was built from the ground up for ATOs —
+            and scaled down. Flight Lyceum was built from the ground up for ATOs —
             where the same person is often compliance manager, head of training,
             and doing line instruction.
           </p>

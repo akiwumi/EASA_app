@@ -29,7 +29,7 @@ export default function MarketingShell({
                 width={80}
               />
               <div>
-                <p className="easa-display text-lg leading-none">EASA_app</p>
+                <p className="easa-display text-lg leading-none">Flight Lyceum</p>
                 <p className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[var(--easa-color-text-muted)]">
                   Training and compliance platform
                 </p>
@@ -62,7 +62,7 @@ export default function MarketingShell({
           <div className="easa-gradient-bar" />
           <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="easa-display text-lg">EASA_app</p>
+              <p className="easa-display text-lg">Flight Lyceum</p>
               <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
                 Controlled manuals, training reading, and EASA awareness in one workflow.
               </p>

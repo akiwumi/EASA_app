@@ -15,7 +15,7 @@ export default function HowItWorksPage() {
               From regulation change to lesson action in one controlled workflow.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-8 text-[var(--easa-color-text-muted)]">
-              EASA_app ties together update monitoring, manual control, reading assignments,
+              Flight Lyceum ties together update monitoring, manual control, reading assignments,
               and completion evidence so approved information actually reaches the people who need it.
             </p>
           </div>

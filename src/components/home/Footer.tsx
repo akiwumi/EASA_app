@@ -6,11 +6,11 @@ export default function Footer() {
           className="font-semibold text-foreground"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          EASA_app
+          Flight Lyceum
         </span>
 
         <p className="text-sm text-muted-foreground">
-          © 2026 EASA_app. Compliance and training for ATOs.
+          © 2026 Flight Lyceum. Compliance and training for ATOs.
         </p>
       </div>
     </footer>

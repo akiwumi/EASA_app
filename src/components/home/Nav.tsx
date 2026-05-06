@@ -36,7 +36,7 @@ export default function Nav() {
             />
             <div className="min-w-0">
               <p className="easa-display text-lg leading-none text-[var(--easa-color-text-primary)]">
-                EASA_app
+                Flight Lyceum
               </p>
               <p className="mt-1 truncate text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
                 Training and compliance platform

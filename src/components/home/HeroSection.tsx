@@ -4,7 +4,7 @@ import Link from "next/link";
 const proofPoints = [
   "Keep instructors and students on the latest approved procedures, automatically.",
   "Turn every EASA change into a training action with a full approval trail.",
-  "Stay audit-ready without chasing PDFs, emails, or spreadsheets.",
+  "Stay audit ready without chasing PDFs, emails, or spreadsheets.",
 ];
 
 export default function HeroSection() {
@@ -27,7 +27,7 @@ export default function HeroSection() {
         <p className="mx-auto mt-6 max-w-2xl text-lg leading-7 text-muted-foreground">
           The compliance and training platform built for Approved Training
           Organisations. Monitor EASA changes, control your manuals, assign
-          reading by lesson, and track every acknowledgement — in one system
+          reading by lesson, and track every acknowledgement in one system
           your whole school actually uses.
         </p>
 
@@ -47,7 +47,7 @@ export default function HeroSection() {
       >
         <Image
           src="/images/hero-cessna.jpg"
-          alt="Cessna 172 in flight surrounded by EASA_app dashboard analytics"
+          alt="Cessna 172 in flight surrounded by Flight Lyceum dashboard analytics"
           fill
           className="object-cover object-center"
           priority

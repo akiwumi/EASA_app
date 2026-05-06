@@ -20,7 +20,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "EASA_app — Training & compliance for flight schools",
+  title: "Flight Lyceum — Training & compliance for flight schools",
   description:
     "The compliance and training platform built for Approved Training Organisations. Monitor EASA changes, control your manuals, assign reading by lesson, and track every acknowledgement.",
 };

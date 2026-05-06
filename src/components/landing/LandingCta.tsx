@@ -11,7 +11,7 @@ export default function LandingCta() {
             Keep your school aligned, informed, and audit-ready.
           </h2>
           <p className="mx-auto mt-5 max-w-3xl text-base leading-8 text-white/70 md:text-lg">
-            See how EASA_app helps your team manage manuals, training reading, and
+            See how Flight Lyceum helps your team manage manuals, training reading, and
             compliance in one workflow.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
