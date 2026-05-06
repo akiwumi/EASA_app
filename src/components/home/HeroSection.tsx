@@ -33,10 +33,10 @@ export default function HeroSection() {
 
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link
-            href="/#contact"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background shadow transition-colors hover:bg-foreground/90"
+            href="/register"
+            className="inline-flex items-center justify-center rounded-full border border-[var(--easa-color-border)] bg-white/80 px-5 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-white"
           >
-            Book a demo
+            Register now
           </Link>
           <Link
             href="/#how-it-works"

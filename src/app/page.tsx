@@ -1,5 +1,4 @@
 import CompetitiveSection from "@/components/home/CompetitiveSection";
-import CtaSection from "@/components/home/CtaSection";
 import FeaturesSection from "@/components/home/FeaturesSection";
 import Footer from "@/components/home/Footer";
 import HeroSection from "@/components/home/HeroSection";
@@ -19,7 +18,6 @@ export default function Home() {
         <WorkflowSection />
         <PersonasSection />
         <CompetitiveSection />
-        <CtaSection />
       </main>
       <Footer />
     </>
