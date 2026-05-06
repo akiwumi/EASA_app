@@ -72,7 +72,6 @@ export default function BrandingTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [billingLoading, setBillingLoading] = useState(true);
-  const [billingWorking, setBillingWorking] = useState(false);
   const [billing, setBilling] = useState<BillingPayload | null>(null);
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null);
 
@@ -145,27 +144,6 @@ export default function BrandingTab() {
     setSaving(false);
   }
 
-  async function runBillingAction(action: "checkout" | "portal" | "cancel" | "resume") {
-    setBillingWorking(true);
-    setMessage(null);
-    const response = await fetch("/api/admin/billing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      setMessage({ text: payload.error ?? "Billing action failed.", ok: false });
-      setBillingWorking(false);
-      return;
-    }
-    if (payload.url) {
-      window.location.assign(payload.url);
-      return;
-    }
-    window.location.reload();
-  }
-
   if (loading) {
     return (
       <div className="easa-card p-6">
@@ -201,58 +179,41 @@ export default function BrandingTab() {
           <div className="space-y-6">
             <section className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold">Stripe subscription</h3>
+                <h3 className="text-sm font-semibold">Workspace access</h3>
                 <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-                  Each organization starts with a 3-day free trial, then converts into a paid Stripe subscription.
+                  Each registered school receives active workspace access immediately. Stripe checkout is not required.
                 </p>
               </div>
               <div className="rounded-[22px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
                 {billingLoading ? (
                   <p className="text-sm text-[var(--easa-color-text-muted)]">Loading billing status…</p>
-                ) : !billing?.stripeConfigured ? (
-                  <p className="text-sm text-[var(--easa-color-text-muted)]">
-                    Stripe is not configured yet. Add the Stripe keys, price ID, and webhook secret first.
-                  </p>
                 ) : (
                   <div className="space-y-4">
+                    {(() => {
+                      const billingState = billing?.subscription?.billing_state ?? "inactive";
+                      return (
+                        <>
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                       <span className="easa-badge is-blue">
-                        {billing.subscription?.billing_state ?? "inactive"}
+                        {billingState}
                       </span>
                       <span className="text-[var(--easa-color-text-muted)]">
-                        Trial: {billing.trialDays} days
+                        {billingState === "active"
+                          ? "Lifetime access enabled"
+                          : "Access state recorded for this school"}
                       </span>
                     </div>
-                    {billing.subscription?.trial_end ? (
-                      <p className="text-xs text-[var(--easa-color-text-muted)]">
-                        Trial ends: {new Date(billing.subscription.trial_end).toLocaleString()}
-                      </p>
-                    ) : null}
-                    {billing.subscription?.current_period_end ? (
+                    {billing?.subscription?.current_period_end ? (
                       <p className="text-xs text-[var(--easa-color-text-muted)]">
                         Current period ends: {new Date(billing.subscription.current_period_end).toLocaleString()}
                       </p>
                     ) : null}
-                    <div className="flex flex-wrap gap-3">
-                      <button className="easa-btn primary" disabled={billingWorking} onClick={() => runBillingAction("checkout")}>
-                        {billingWorking ? "Working…" : billing?.subscription ? "Start new checkout" : "Start 3-day trial"}
-                      </button>
-                      {billing.subscription?.stripe_customer_id ? (
-                        <button className="easa-btn secondary" disabled={billingWorking} onClick={() => runBillingAction("portal")}>
-                          Open Stripe portal
-                        </button>
-                      ) : null}
-                      {billing.subscription?.subscription_status === "active" || billing.subscription?.subscription_status === "trialing" ? (
-                        <button className="easa-btn secondary" disabled={billingWorking || billing.subscription?.cancel_at_period_end} onClick={() => runBillingAction("cancel")}>
-                          Cancel at period end
-                        </button>
-                      ) : null}
-                      {billing.subscription?.cancel_at_period_end ? (
-                        <button className="easa-btn secondary" disabled={billingWorking} onClick={() => runBillingAction("resume")}>
-                          Resume subscription
-                        </button>
-                      ) : null}
-                    </div>
+                    <p className="text-xs text-[var(--easa-color-text-muted)]">
+                      New school registration writes an active organization subscription row with no expiry and no Stripe dependency.
+                    </p>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

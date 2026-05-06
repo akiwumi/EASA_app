@@ -61,6 +61,26 @@ async function ensureDefaultFeeds() {
   }
 }
 
+async function ensureLifetimeAccess(organizationId: string) {
+  const admin = getSupabaseAdminClient();
+  const { error } = await admin.from("organization_subscriptions").upsert(
+    {
+      organization_id: organizationId,
+      subscription_status: "active",
+      billing_state: "active",
+      cancel_at_period_end: false,
+      access_expires_at: null,
+      locked_at: null,
+      suspension_reason: null,
+    },
+    { onConflict: "organization_id" },
+  );
+
+  if (error && !["PGRST205", "42P01"].includes(error.code ?? "")) {
+    throw new Error(error.message);
+  }
+}
+
 export async function POST(request: Request) {
   const body = (await request.json()) as RegisterBody;
   const schoolName = normalizeSchoolName(body.schoolName ?? "");
@@ -127,6 +147,8 @@ export async function POST(request: Request) {
     if (membershipError) {
       throw new Error(membershipError.message);
     }
+
+    await ensureLifetimeAccess(organizationId);
 
     const { error: profileError } = await admin.from("user_profiles").upsert({
       id: userId,

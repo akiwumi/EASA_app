@@ -5,7 +5,7 @@ import { useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export default function RegisterSchoolForm({
-  selectedPlan,
+  selectedPlan: _selectedPlan,
 }: {
   selectedPlan?: string;
 }) {
@@ -64,11 +64,11 @@ export default function RegisterSchoolForm({
       return;
     }
 
-    const pricingUrl = new URL("/pricing", window.location.origin);
-    pricingUrl.searchParams.set("registered", "1");
-    pricingUrl.searchParams.set("school", registerPayload.schoolName ?? schoolName.trim());
-    if (selectedPlan) pricingUrl.searchParams.set("plan", selectedPlan);
-    window.location.assign(pricingUrl.toString());
+    const settingsUrl = new URL("/settings", window.location.origin);
+    settingsUrl.searchParams.set("tab", "branding");
+    settingsUrl.searchParams.set("registered", "1");
+    settingsUrl.searchParams.set("school", registerPayload.schoolName ?? schoolName.trim());
+    window.location.assign(settingsUrl.toString());
   }
 
   return (
@@ -79,7 +79,7 @@ export default function RegisterSchoolForm({
           Register your school workspace
         </h2>
         <p className="mt-3 text-sm leading-7 text-[var(--easa-color-text-muted)]">
-          Create the first admin account for your flight school, then choose your pricing plan.
+          Create the first admin account for your flight school and open the workspace immediately.
         </p>
 
         <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
@@ -143,7 +143,7 @@ export default function RegisterSchoolForm({
           </label>
           <div className="md:col-span-2">
             <button className="easa-btn primary w-full justify-center" type="submit" disabled={status === "loading"}>
-              {status === "loading" ? "Creating workspace..." : "Continue to pricing"}
+              {status === "loading" ? "Creating workspace..." : "Create school workspace"}
             </button>
           </div>
         </form>

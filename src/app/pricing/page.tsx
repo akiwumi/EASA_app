@@ -6,7 +6,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 export default async function PricingPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ registered?: string; school?: string; plan?: string }>;
+  searchParams?: Promise<{ registered?: string; school?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const supabase = await getSupabaseServerClient();
@@ -23,12 +23,12 @@ export default async function PricingPage({
             <div>
               <span className="easa-eyebrow">Pricing</span>
               <h1 className="easa-display mt-4 max-w-4xl text-5xl leading-tight md:text-6xl">
-                Start with a 3-day trial, stay flexible monthly, or save two months with annual billing.
+                Register the school once and move straight into a permanent workspace.
               </h1>
             </div>
             <p className="max-w-xl text-base leading-8 text-[var(--easa-color-text-muted)]">
-              Register the school, choose how you want to pay, and move straight into setup,
-              manuals, training workflows, and EASA monitoring.
+              Create the admin account, open the workspace immediately, and continue with setup,
+              manuals, training workflows, and EASA monitoring without Stripe.
             </p>
           </div>
         </section>
@@ -36,41 +36,40 @@ export default async function PricingPage({
         <PricingPlans
           signedIn={Boolean(user)}
           schoolName={resolvedSearchParams.registered === "1" ? resolvedSearchParams.school : undefined}
-          preselectedPlan={resolvedSearchParams.plan}
         />
 
         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <article className="easa-panel p-8">
             <span className="easa-eyebrow">How it works</span>
             <h2 className="easa-display mt-4 text-4xl leading-tight md:text-5xl">
-              Registration first. Pricing second. School setup right after checkout or trial start.
+              Registration first. School setup immediately after account creation.
             </h2>
             <p className="mt-5 text-base leading-8 text-[var(--easa-color-text-muted)]">
-              The new school flow is simple: create the admin account, choose trial, monthly,
-              or annual, then move into branding, manuals, users, and onboarding inside the app.
+              The new school flow is simple: create the admin account, generate the school workspace,
+              and move into branding, manuals, users, and onboarding inside the app.
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
-              <span className="easa-chip is-active">3-day trial</span>
-              <span className="easa-chip">Monthly billing</span>
-              <span className="easa-chip">Annual = 2 months free</span>
+              <span className="easa-chip is-active">Instant workspace</span>
+              <span className="easa-chip">No Stripe checkout</span>
+              <span className="easa-chip">Lifetime access</span>
             </div>
           </article>
 
           <article className="easa-panel p-8">
-            <span className="easa-eyebrow">Plan guidance</span>
+            <span className="easa-eyebrow">What opens next</span>
             <div className="mt-5 space-y-4">
               {[
                 {
-                  title: "Trial",
-                  body: "Best when you want to validate the workflow with real manuals before making a billing commitment.",
+                  title: "Branding",
+                  body: "Set the school name, public profile, contacts, and billing contact details from the workspace settings.",
                 },
                 {
-                  title: "Monthly",
-                  body: "Best when your school wants flexibility while documents, users, and training structure are still changing.",
+                  title: "Manuals and sources",
+                  body: "Add manuals, RSS sources, and document mappings so the compliance flow starts with real school data.",
                 },
                 {
-                  title: "Annual",
-                  body: "Best when the school already knows this will become part of its core operating workflow and wants the discount.",
+                  title: "Users and onboarding",
+                  body: "Invite instructors or compliance staff and work through the setup checklist inside the app.",
                 },
               ].map((item) => (
                 <div key={item.title} className="rounded-[22px] bg-[var(--easa-color-surface-2)] p-4">
@@ -87,7 +86,7 @@ export default async function PricingPage({
             Ready to open the workspace for your school?
           </h2>
           <p className="mt-4 max-w-2xl text-base leading-8 text-white/72">
-            Register now to move straight into setup, pricing selection, and the school onboarding flow.
+            Register now to move straight into setup and the school onboarding flow.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link className="easa-btn bg-[#f7f2e8] text-[var(--easa-color-brand-primary)]" href="/register">

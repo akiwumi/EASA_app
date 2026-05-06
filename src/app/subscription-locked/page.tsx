@@ -20,18 +20,18 @@ export default async function SubscriptionLockedPage() {
   return (
     <main className="easa-shell flex min-h-screen items-center justify-center py-12">
       <section className="easa-card-glass w-full max-w-2xl p-8">
-        <span className="easa-eyebrow">Subscription required</span>
+        <span className="easa-eyebrow">Workspace locked</span>
         <h1 className="mt-4 text-3xl font-semibold text-[var(--easa-color-text-primary)]">
-          This workspace is locked until billing resumes.
+          This workspace is temporarily locked.
         </h1>
         <p className="mt-4 text-sm leading-7 text-[var(--easa-color-text-muted)]">
-          The Stripe subscription is suspended or has ended. Access will resume automatically after successful payment is recorded.
+          Access for this organization is currently marked as suspended in the workspace settings. An admin can review the school access record and reopen access if needed.
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
           {role === "admin" ? (
             <Link className="easa-btn primary" href="/settings?tab=branding">
-              Open billing settings
+              Open school settings
             </Link>
           ) : null}
           <Link className="easa-btn secondary" href="/login">
@@ -40,7 +40,7 @@ export default async function SubscriptionLockedPage() {
         </div>
 
         <p className="mt-6 text-xs text-[var(--easa-color-text-muted)]">
-          Admins can resume service from the billing section in settings. Non-admin users should contact their school administrator.
+          Admins can review access state in settings. Non-admin users should contact their school administrator.
         </p>
       </section>
     </main>
