@@ -199,6 +199,10 @@ a {
   box-shadow: var(--easa-shadow-brand);
 }
 
+.easa-btn.on-brand {
+  color: #ffffff;
+}
+
 .easa-btn.secondary {
   border: 1px solid var(--easa-color-border);
   background: rgba(255, 253, 248, 0.82);

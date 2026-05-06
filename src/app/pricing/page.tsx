@@ -89,7 +89,7 @@ export default async function PricingPage({
             Register now to move straight into setup and the school onboarding flow.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link className="easa-btn bg-[#f7f2e8] text-[var(--easa-color-brand-primary)]" href="/register">
+            <Link className="easa-btn bg-[#f7f2e8]" style={{ color: '#ffffff' }} href="/register">
               Register school
             </Link>
             <Link className="easa-btn border border-white/16 bg-white/8 text-white" href="/register">

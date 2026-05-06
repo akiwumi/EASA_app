@@ -56,7 +56,7 @@ export default function Nav() {
             ))}
           </nav>
 
-          <div className="hidden items-center gap-2 sm:flex">
+          <div className="hidden items-center gap-2 lg:flex">
             <Link
               href="/login"
               className="easa-btn secondary text-sm"
@@ -95,7 +95,7 @@ export default function Nav() {
                   {link.label}
                 </Link>
               ))}
-              <div className="mt-2 flex flex-col gap-2 sm:hidden">
+              <div className="mt-2 flex flex-col gap-2 lg:hidden">
                 <Link className="easa-btn secondary w-full" href="/login" onClick={() => setMenuOpen(false)}>
                   Login
                 </Link>
