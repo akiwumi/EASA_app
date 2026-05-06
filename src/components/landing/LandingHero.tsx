@@ -24,8 +24,8 @@ export default function LandingHero() {
           every acknowledgement in one system your whole school actually uses.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3 pb-10">
-          <Link className="easa-btn primary" href="/book-demo">
-            Book a demo
+          <Link className="easa-btn primary" href="/register">
+            Register
           </Link>
           <Link className="easa-btn secondary" href="/how-it-works">
             See how it works

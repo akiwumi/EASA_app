@@ -1,21 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2, UserPlus, ShieldCheck, GraduationCap, UserRound } from "lucide-react";
+import { Trash2, UserPlus, ShieldCheck, GraduationCap, PencilLine, UserRound, Eye } from "lucide-react";
 import type { CurrentOrgRole, UserDirectoryEntry } from "@/lib/types/domain";
 
 const ROLE_OPTIONS: Array<{ value: CurrentOrgRole; label: string }> = [
   { value: "student", label: "Student" },
+  { value: "viewer", label: "Viewer" },
   { value: "instructor", label: "Instructor" },
+  { value: "editor", label: "Editor" },
+  { value: "compliance_manager", label: "Compliance manager" },
   { value: "admin", label: "Admin" },
 ];
 
+type UserSeatLimits = {
+  extraUserLimit: number;
+  extraUsersUsed: number;
+  extraUsersRemaining: number;
+  isOverLimit: boolean;
+  canAddExtraUsers: boolean;
+  billingState: string;
+};
+
+type UsersPayload = {
+  users?: UserDirectoryEntry[];
+  limits?: UserSeatLimits;
+};
+
 export default function UsersTab() {
   const [users, setUsers] = useState<UserDirectoryEntry[]>([]);
+  const [limits, setLimits] = useState<UserSeatLimits | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<CurrentOrgRole>("student");
+  const [accountMode, setAccountMode] = useState<"invite" | "create">("create");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [inviting, setInviting] = useState(false);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
 
@@ -28,8 +50,9 @@ export default function UsersTab() {
       setLoading(false);
       return;
     }
-    const json = await res.json();
+    const json = (await res.json()) as UsersPayload;
     setUsers(json.users ?? []);
+    setLimits(json.limits ?? null);
     setLoading(false);
   }
 
@@ -42,19 +65,42 @@ export default function UsersTab() {
 
   async function invite() {
     if (!inviteEmail.trim()) return;
+    if (accountMode === "create" && inviteRole === "student") {
+      if (password.length < 8) {
+        setInviteMsg("Error: Student password must be at least 8 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setInviteMsg("Error: Student passwords do not match.");
+        return;
+      }
+    }
     setInviting(true);
     setInviteMsg(null);
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+      body: JSON.stringify({
+        displayName: displayName.trim(),
+        email: inviteEmail.trim(),
+        mode: inviteRole === "student" ? accountMode : "invite",
+        password: inviteRole === "student" && accountMode === "create" ? password : undefined,
+        role: inviteRole,
+      }),
     });
     const json = await res.json();
     if (!res.ok) {
       setInviteMsg(`Error: ${json.error}`);
     } else {
-      setInviteMsg("Invitation sent. The user will verify their email before first sign-in.");
+      setInviteMsg(
+        json.mode === "create"
+          ? "Student account created. Share the login email and temporary password with the student."
+          : "Invitation sent. The user will verify their email before first sign-in.",
+      );
+      setDisplayName("");
       setInviteEmail("");
+      setPassword("");
+      setConfirmPassword("");
       await load();
     }
     setInviting(false);
@@ -87,13 +133,37 @@ export default function UsersTab() {
   return (
     <div className="space-y-6">
       <div className="easa-card p-5">
-        <h2 className="mb-2 text-sm font-semibold">Invite user</h2>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="mb-2 text-sm font-semibold">Create or invite users</h2>
+            <p className="mb-4 text-xs text-[var(--easa-color-text-muted)]">
+              School admins can create student logins directly or send invites for staff accounts.
+            </p>
+          </div>
+          {limits ? (
+            <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-xs">
+              <p className="font-medium text-[var(--easa-color-text-primary)]">
+                Extra accounts: {limits.extraUsersUsed} / {limits.extraUserLimit}
+              </p>
+              <p className="mt-1 text-[var(--easa-color-text-muted)]">
+                {limits.extraUsersRemaining} remaining · Billing {limits.billingState}
+              </p>
+            </div>
+          ) : null}
+        </div>
         <p className="mb-4 text-xs text-[var(--easa-color-text-muted)]">
-          Admins send invitations, set the starting role, and keep billing access restricted to admins only.
+          Non-admin users count against the subscription allowance. Admin accounts stay unrestricted for billing control.
         </p>
-        <div className="flex flex-wrap gap-3">
+        <div className="grid gap-3 md:grid-cols-2">
           <input
-            className="easa-input min-w-[220px] flex-1"
+            className="easa-input w-full"
+            placeholder="Display name"
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
+          <input
+            className="easa-input w-full"
             placeholder="user@example.com"
             type="email"
             value={inviteEmail}
@@ -101,9 +171,15 @@ export default function UsersTab() {
             onKeyDown={(e) => e.key === "Enter" && invite()}
           />
           <select
-            className="easa-input w-36"
+            className="easa-input w-full"
             value={inviteRole}
-            onChange={(e) => setInviteRole(e.target.value as CurrentOrgRole)}
+            onChange={(e) => {
+              const nextRole = e.target.value as CurrentOrgRole;
+              setInviteRole(nextRole);
+              if (nextRole !== "student") {
+                setAccountMode("invite");
+              }
+            }}
           >
             {ROLE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -111,13 +187,58 @@ export default function UsersTab() {
               </option>
             ))}
           </select>
+        </div>
+        {inviteRole === "student" ? (
+          <div className="mt-3 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <button
+                className={`easa-btn ${accountMode === "create" ? "primary" : "secondary"} text-sm`}
+                type="button"
+                onClick={() => setAccountMode("create")}
+              >
+                Create login now
+              </button>
+              <button
+                className={`easa-btn ${accountMode === "invite" ? "primary" : "secondary"} text-sm`}
+                type="button"
+                onClick={() => setAccountMode("invite")}
+              >
+                Send invite instead
+              </button>
+            </div>
+
+            {accountMode === "create" ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  className="easa-input w-full"
+                  placeholder="Temporary password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <input
+                  className="easa-input w-full"
+                  placeholder="Confirm password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="mt-4 flex flex-wrap gap-3">
           <button
             className="easa-btn primary flex items-center gap-2"
-            disabled={inviting || !inviteEmail.trim()}
+            disabled={inviting || !inviteEmail.trim() || (inviteRole !== "admin" && limits !== null && !limits.canAddExtraUsers)}
             onClick={invite}
           >
             <UserPlus size={16} strokeWidth={1.75} />
-            {inviting ? "Sending…" : "Send invite"}
+            {inviting
+              ? "Working…"
+              : inviteRole === "student" && accountMode === "create"
+                ? "Create student account"
+                : "Send invite"}
           </button>
         </div>
         {inviteMsg && (
@@ -189,7 +310,6 @@ export default function UsersTab() {
                           {option.label}
                         </option>
                       ))}
-                      {u.role === "viewer" ? <option value="viewer">Viewer (legacy)</option> : null}
                     </select>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -210,15 +330,12 @@ export default function UsersTab() {
 
       <div className="flex flex-wrap gap-4 text-xs text-[var(--easa-color-text-muted)]">
         <span className="flex items-center gap-1"><ShieldCheck size={13} /> Admin — invites users, manages billing, and can delete other users</span>
+        <span className="flex items-center gap-1"><GraduationCap size={13} /> Student — learner access for assigned reading, acknowledgements, and training workflows</span>
         <span className="flex items-center gap-1"><GraduationCap size={13} /> Instructor — staff access without billing control</span>
-        <span className="flex items-center gap-1"><UserRound size={13} /> Student — standard learner access</span>
+        <span className="flex items-center gap-1"><PencilLine size={13} /> Editor — can review and prepare updates</span>
+        <span className="flex items-center gap-1"><ShieldCheck size={13} /> Compliance manager — can approve and roll back updates</span>
+        <span className="flex items-center gap-1"><Eye size={13} /> Viewer — read-only access</span>
       </div>
-
-      {users.some((user) => user.role === "viewer") ? (
-        <p className="text-xs text-[var(--easa-color-text-muted)]">
-          Legacy `viewer` users are still supported. You can move them to `student` whenever you are ready.
-        </p>
-      ) : null}
     </div>
   );
 }

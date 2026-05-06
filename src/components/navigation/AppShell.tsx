@@ -249,6 +249,14 @@ export default function AppShell({
               Role · {role}
             </div>
 
+            <button
+              className="easa-btn secondary hidden shrink-0 lg:inline-flex"
+              type="button"
+              onClick={signOut}
+            >
+              <LogOut size={15} strokeWidth={2} /> Sign out
+            </button>
+
                 <button
                   aria-expanded={menuOpen}
                   aria-label={menuOpen ? "Close menu" : "Open menu"}

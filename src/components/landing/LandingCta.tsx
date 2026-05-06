@@ -15,8 +15,8 @@ export default function LandingCta() {
             compliance in one workflow.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link className="easa-btn bg-[#f7f2e8] text-[var(--easa-color-brand-primary)]" href="/book-demo">
-              Book a demo
+            <Link className="easa-btn bg-[#f7f2e8] text-[var(--easa-color-brand-primary)]" href="/register">
+              Register
             </Link>
             <Link className="easa-btn border border-white/18 bg-white/8 text-white" href="/pricing">
               Review pricing

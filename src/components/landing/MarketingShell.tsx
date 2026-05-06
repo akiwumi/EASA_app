@@ -4,7 +4,7 @@ const NAV_LINKS = [
   { href: "/", label: "Overview" },
   { href: "/pricing", label: "Pricing" },
   { href: "/how-it-works", label: "How it works" },
-  { href: "/book-demo", label: "Book demo" },
+  { href: "/register", label: "Register" },
 ] as const;
 
 export default function MarketingShell({
@@ -43,8 +43,8 @@ export default function MarketingShell({
               <Link className="easa-btn secondary ml-1" href="/login">
                 Login
               </Link>
-              <Link className="easa-btn primary" href="/book-demo">
-                Book a demo
+              <Link className="easa-btn primary" href="/register">
+                Register school
               </Link>
             </div>
           </nav>
@@ -65,8 +65,8 @@ export default function MarketingShell({
               <Link className="easa-btn secondary" href="/pricing">
                 View pricing
               </Link>
-              <Link className="easa-btn primary" href="/book-demo">
-                Start with a demo
+              <Link className="easa-btn primary" href="/register">
+                Register school
               </Link>
             </div>
           </div>

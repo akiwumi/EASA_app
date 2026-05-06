@@ -59,8 +59,8 @@ export default function HowItWorksPage() {
             looks like once updates, reading assignments, and acknowledgements are in one system.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link className="easa-btn primary" href="/book-demo">
-              Book a demo
+            <Link className="easa-btn primary" href="/register">
+              Register
             </Link>
             <Link className="easa-btn secondary" href="/pricing">
               View pricing

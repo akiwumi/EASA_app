@@ -8,8 +8,8 @@ const navLinks = [
   { label: "Features", href: "/#features" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "Who it's for", href: "/#who-it-s-for" },
-  { label: "Pricing", href: "/#pricing" },
-  { label: "Book demo", href: "/book-demo" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "Register", href: "/register" },
 ] as const;
 
 export default function Nav() {
@@ -58,10 +58,10 @@ export default function Nav() {
               Login
             </Link>
             <Link
-              href="/book-demo"
+              href="/register"
               className="easa-btn primary text-sm"
             >
-              Book a demo
+              Register school
             </Link>
           </div>
 
@@ -93,8 +93,8 @@ export default function Nav() {
                 <Link className="easa-btn secondary w-full" href="/login" onClick={() => setMenuOpen(false)}>
                   Login
                 </Link>
-                <Link className="easa-btn primary w-full" href="/book-demo" onClick={() => setMenuOpen(false)}>
-                  Book a demo
+                <Link className="easa-btn primary w-full" href="/register" onClick={() => setMenuOpen(false)}>
+                  Register school
                 </Link>
               </div>
             </div>
