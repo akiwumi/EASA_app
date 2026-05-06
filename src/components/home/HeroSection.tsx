@@ -34,15 +34,9 @@ export default function HeroSection() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link
             href="/register"
-            className="inline-flex items-center justify-center rounded-full border border-[var(--easa-color-border)] bg-white/80 px-5 py-2 text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-white"
+            className="inline-flex items-center justify-center rounded-full bg-foreground px-7 py-3 text-base font-medium text-background shadow transition-colors hover:bg-foreground/90 sm:px-8"
           >
             Register now
-          </Link>
-          <Link
-            href="/#how-it-works"
-            className="text-sm font-medium text-foreground/70 underline-offset-4 hover:text-foreground hover:underline"
-          >
-            See how it works →
           </Link>
         </div>
       </div>
