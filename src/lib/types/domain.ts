@@ -180,10 +180,27 @@ export type TrainingFormSummary = {
 export type OrganizationBranding = {
   id: string;
   organization_id: string;
+  public_name: string | null;
+  legal_name: string | null;
   primary_color: string | null;
   secondary_color: string | null;
   logo_url: string | null;
-  support_email: string | null;
+  website_url: string | null;
+  school_code: string | null;
+  contact_email: string | null;
+  contact_phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  region: string | null;
+  postal_code: string | null;
+  country: string | null;
+  billing_contact_name: string | null;
+  billing_email: string | null;
+  billing_phone: string | null;
+  billing_address: string | null;
+  vat_number: string | null;
+  billing_notes: string | null;
   created_at?: string;
   updated_at?: string;
 };

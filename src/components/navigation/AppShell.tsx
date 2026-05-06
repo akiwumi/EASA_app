@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -58,12 +59,22 @@ function navItemActive(pathname: string, href: string) {
 
 export default function AppShell({
   organizationName,
+  logoUrl,
+  websiteUrl,
+  contactEmail,
+  contactPhone,
   brandPrimaryColor,
+  brandSecondaryColor,
   role,
   children,
 }: {
   organizationName: string;
+  logoUrl?: string | null;
+  websiteUrl?: string | null;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
   brandPrimaryColor?: string | null;
+  brandSecondaryColor?: string | null;
   role: string;
   children: React.ReactNode;
 }) {
@@ -179,8 +190,11 @@ export default function AppShell({
     <div
       className="relative min-h-screen overflow-x-clip pb-8"
       style={
-        brandPrimaryColor
-          ? ({ "--easa-color-brand-primary": brandPrimaryColor } as React.CSSProperties)
+        brandPrimaryColor || brandSecondaryColor
+          ? ({
+              ...(brandPrimaryColor ? { "--easa-color-brand-primary": brandPrimaryColor } : {}),
+              ...(brandSecondaryColor ? { "--easa-color-brand-secondary": brandSecondaryColor } : {}),
+            } as React.CSSProperties)
           : undefined
       }
     >
@@ -197,15 +211,26 @@ export default function AppShell({
               href="/"
               className="flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl pr-2 transition-opacity hover:opacity-85"
             >
-              <div
-                className="flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-bold text-white"
-                style={{
-                  background: "linear-gradient(135deg, var(--easa-color-brand-primary) 0%, var(--easa-color-brand-secondary) 100%)",
-                  boxShadow: "0 10px 24px rgba(35,56,52,0.22)",
-                }}
-              >
-                EA
-              </div>
+              {logoUrl ? (
+                <Image
+                  alt={`${organizationName || "Organisation"} logo`}
+                  className="h-10 w-10 rounded-[14px] border border-[var(--easa-color-border)] bg-white object-cover"
+                  height={40}
+                  src={logoUrl}
+                  unoptimized
+                  width={40}
+                />
+              ) : (
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-[14px] text-sm font-bold text-white"
+                  style={{
+                    background: "linear-gradient(135deg, var(--easa-color-brand-primary) 0%, var(--easa-color-brand-secondary) 100%)",
+                    boxShadow: "0 10px 24px rgba(35,56,52,0.22)",
+                  }}
+                >
+                  EA
+                </div>
+              )}
               <div className="min-w-0">
                 <p className="easa-display text-[1.05rem] leading-none text-[var(--easa-color-text-primary)]">
                   EASA Console
@@ -250,6 +275,32 @@ export default function AppShell({
                   <p className="mt-0.5 text-[11px] capitalize text-[var(--easa-color-text-muted)]">
                     Role · {role}
                   </p>
+                  {websiteUrl ? (
+                    <a
+                      className="mt-3 block truncate text-xs text-[var(--easa-color-brand-primary)] hover:underline"
+                      href={websiteUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      {websiteUrl}
+                    </a>
+                  ) : null}
+                  {contactEmail ? (
+                    <a
+                      className="mt-2 block truncate text-xs text-[var(--easa-color-text-secondary)] hover:text-[var(--easa-color-brand-primary)]"
+                      href={`mailto:${contactEmail}`}
+                    >
+                      {contactEmail}
+                    </a>
+                  ) : null}
+                  {contactPhone ? (
+                    <a
+                      className="mt-1 block text-xs text-[var(--easa-color-text-secondary)] hover:text-[var(--easa-color-brand-primary)]"
+                      href={`tel:${contactPhone}`}
+                    >
+                      {contactPhone}
+                    </a>
+                  ) : null}
                   <button
                     className="easa-btn secondary mt-4 w-full justify-center"
                     type="button"

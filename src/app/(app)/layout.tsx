@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/supabase/profile";
 import AppShell from "@/components/navigation/AppShell";
+import type { OrganizationBranding } from "@/lib/types/domain";
 
 export default async function AppGroupLayout({
   children,
@@ -35,26 +36,32 @@ export default async function AppGroupLayout({
     .maybeSingle();
 
   const org = (orgRow?.organizations ?? null) as { name?: string } | null;
-  let brandName: string | null = null;
-  let brandPrimaryColor: string | null = null;
+  let branding: Pick<
+    OrganizationBranding,
+    "public_name" | "logo_url" | "website_url" | "contact_email" | "contact_phone" | "primary_color" | "secondary_color"
+  > | null = null;
 
   if (orgRow?.organization_id) {
     const brandingResult = await supabase
       .from("organization_branding")
-      .select("public_name, primary_color")
+      .select("public_name, logo_url, website_url, contact_email, contact_phone, primary_color, secondary_color")
       .eq("organization_id", String(orgRow.organization_id))
       .maybeSingle();
 
     if (!brandingResult.error) {
-      brandName = (brandingResult.data?.public_name as string | null) ?? null;
-      brandPrimaryColor = (brandingResult.data?.primary_color as string | null) ?? null;
+      branding = (brandingResult.data as typeof branding) ?? null;
     }
   }
 
   return (
     <AppShell
-      organizationName={brandName ?? org?.name ?? ""}
-      brandPrimaryColor={brandPrimaryColor}
+      organizationName={branding?.public_name ?? org?.name ?? ""}
+      logoUrl={branding?.logo_url ?? null}
+      websiteUrl={branding?.website_url ?? null}
+      contactEmail={branding?.contact_email ?? null}
+      contactPhone={branding?.contact_phone ?? null}
+      brandPrimaryColor={branding?.primary_color ?? null}
+      brandSecondaryColor={branding?.secondary_color ?? null}
       role={orgRow?.role ? String(orgRow.role) : "admin"}
     >
       {children}
