@@ -35,7 +35,7 @@ export async function POST() {
     await admin.from("sources").delete().in("url", DEAD_FEEDS);
   }
 
-  // Insert default EASA feeds if missing
+  // Insert shared default EASA feeds if missing
   const inserted: string[] = [];
   const skipped: string[] = [];
 
@@ -47,12 +47,12 @@ export async function POST() {
       .maybeSingle();
 
     if (existing) {
-      // Make sure it's active
-      await admin.from("sources").update({ active: true }).eq("url", url);
+      // Keep shared feeds active and global for every org
+      await admin.from("sources").update({ active: true, organization_id: null }).eq("url", url);
       skipped.push(url);
     } else {
       const { error } = await admin.from("sources").insert({
-        organization_id: ctx.orgId,
+        organization_id: null,
         url,
         type: "rss",
         active: true,

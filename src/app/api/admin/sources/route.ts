@@ -9,12 +9,17 @@ export async function GET() {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("sources")
-    .select("id, url, type, active, created_at")
-    .eq("organization_id", ctx.orgId)
+    .select("id, url, type, active, created_at, organization_id")
+    .or(`organization_id.eq.${ctx.orgId},organization_id.is.null`)
     .order("created_at", { ascending: true });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ sources: data ?? [] });
+  return NextResponse.json({
+    sources: (data ?? []).map((source) => ({
+      ...source,
+      shared: source.organization_id === null,
+    })),
+  });
 }
 
 // POST /api/admin/sources — add a new feed URL

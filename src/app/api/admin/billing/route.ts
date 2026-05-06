@@ -25,7 +25,7 @@ export async function GET() {
     stripeConfigured: Boolean(
       process.env.STRIPE_SECRET_KEY &&
       process.env.STRIPE_WEBHOOK_SECRET &&
-      process.env.STRIPE_PRICE_ID,
+      (process.env.STRIPE_PRICE_ID_MONTHLY || process.env.STRIPE_PRICE_ID),
     ),
     trialDays: 3,
     subscription: data ?? null,
@@ -41,8 +41,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Stripe is not configured." }, { status: 400 });
   }
 
-  const body = (await request.json()) as { action?: string };
+  const body = (await request.json()) as { action?: string; plan?: string };
   const action = body.action;
+  const plan = body.plan;
   const admin = getSupabaseAdminClient();
   const appUrl = getAppUrl();
   const { data: subscriptionRow } = await admin
@@ -51,27 +52,36 @@ export async function POST(request: Request) {
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
-  if (action === "checkout") {
-    const priceId = process.env.STRIPE_PRICE_ID;
+  const monthlyPriceId = process.env.STRIPE_PRICE_ID_MONTHLY ?? process.env.STRIPE_PRICE_ID;
+  const annualPriceId = process.env.STRIPE_PRICE_ID_ANNUAL;
+
+  if (action === "checkout" || action === "trial") {
+    const isAnnual = plan === "annual";
+    const priceId = isAnnual ? annualPriceId : monthlyPriceId;
     if (!priceId) {
-      return NextResponse.json({ error: "STRIPE_PRICE_ID is missing." }, { status: 400 });
+      return NextResponse.json(
+        { error: isAnnual ? "STRIPE_PRICE_ID_ANNUAL is missing." : "Monthly Stripe price is missing." },
+        { status: 400 },
+      );
     }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
-      success_url: `${appUrl}/settings?tab=branding&billing=success`,
-      cancel_url: `${appUrl}/settings?tab=branding&billing=cancelled`,
+      success_url: `${appUrl}/settings?tab=branding&billing=success&plan=${plan ?? "monthly"}`,
+      cancel_url: `${appUrl}/pricing?billing=cancelled&plan=${plan ?? "monthly"}`,
       line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
-        trial_period_days: 3,
+        ...(action === "trial" ? { trial_period_days: 3 } : {}),
         metadata: {
           organization_id: ctx.orgId,
+          plan: plan ?? "monthly",
         },
       },
       customer: subscriptionRow?.stripe_customer_id ?? undefined,
       customer_email: undefined,
       metadata: {
         organization_id: ctx.orgId,
+        plan: plan ?? "monthly",
       },
     });
 
