@@ -17,6 +17,11 @@ export default async function ResultsPage() {
           <p className="mt-2 text-sm text-[var(--easa-color-text-muted)]">
             Updates parsed from EASA RSS feeds and mapped to your flight books.
           </p>
+          {results.fallbackReason ? (
+            <p className="mt-3 rounded-[12px] border border-[var(--easa-color-accent-orange)]/25 bg-[var(--easa-color-accent-orange)]/8 px-3 py-2 text-sm text-[var(--easa-color-text-secondary)]">
+              {results.fallbackReason}
+            </p>
+          ) : null}
           {results.updatedAt === "Login required" ? (
             <p className="mt-3 text-sm text-[var(--easa-color-text-muted)]">
               Please sign in to view organisation-specific results.
@@ -36,7 +41,7 @@ export default async function ResultsPage() {
           <p className="text-xs text-[var(--easa-color-text-muted)]">Total updates</p>
           <p className="mt-2 text-2xl font-semibold">{results.items.length}</p>
           <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
-            From RSS feeds, ready for review
+            {results.source === "mock" ? "Seeded mock updates" : "From RSS feeds, ready for review"}
           </p>
         </div>
         <div className="easa-card p-5">

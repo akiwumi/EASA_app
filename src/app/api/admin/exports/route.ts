@@ -128,6 +128,11 @@ async function loadSummary(orgId: string) {
   };
 }
 
+async function ensureFormsReady(orgId: string) {
+  const summary = await loadSummary(orgId);
+  return summary.formsReady;
+}
+
 async function exportAssignments(orgId: string) {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
@@ -379,7 +384,15 @@ export async function GET(request: Request) {
   if (kind === "assignments") return exportAssignments(ctx.orgId);
   if (kind === "acknowledgements") return exportAcknowledgements(ctx.orgId);
   if (kind === "signoffs") return exportSignoffs(ctx.orgId);
-  if (kind === "form-submissions") return exportFormSubmissions(ctx.orgId);
+  if (kind === "form-submissions") {
+    if (!(await ensureFormsReady(ctx.orgId))) {
+      return NextResponse.json(
+        { error: "Training form submissions are unavailable until the forms tables are set up." },
+        { status: 409 },
+      );
+    }
+    return exportFormSubmissions(ctx.orgId);
+  }
   if (kind === "manual-versions") return exportManualVersions(ctx.orgId);
 
   return NextResponse.json({ error: "Unsupported export kind." }, { status: 400 });

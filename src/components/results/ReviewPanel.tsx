@@ -14,6 +14,32 @@ interface EasaUpdate {
   mappedSection: string;
 }
 
+function parseMappedSectionLabel(label: string) {
+  const trimmed = label.trim();
+  if (!trimmed) {
+    return {
+      manualName: null,
+      sectionRef: null,
+      displayLabel: "Best match will be resolved when the draft is generated.",
+    };
+  }
+
+  const match = trimmed.match(/^(.*?)(\d+(?:\.\d+)+)$/);
+  if (!match) {
+    return {
+      manualName: trimmed,
+      sectionRef: null,
+      displayLabel: trimmed,
+    };
+  }
+
+  return {
+    manualName: match[1]?.trim() || null,
+    sectionRef: match[2] ?? null,
+    displayLabel: trimmed,
+  };
+}
+
 interface SectionDraft {
   sectionId: string;
   sectionTitle: string | null;
@@ -108,6 +134,7 @@ export default function ReviewPanel({
   findingId: string;
   update: EasaUpdate;
 }) {
+  const mappedSection = parseMappedSectionLabel(update.mappedSection);
   const [step, setStep] = useState<Step>("review");
   const [draft, setDraft] = useState<SectionDraft | null>(null);
   const [editedText, setEditedText] = useState("");
@@ -219,17 +246,34 @@ export default function ReviewPanel({
               )}
             </div>
 
-            {/* Right – mapped section placeholder */}
+            {/* Right – mapped section context */}
             <div className="easa-card flex flex-col p-6 space-y-3">
               <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
                 Relevant flight book section
               </p>
-              <div className="rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2">
-                <p className="text-xs text-[var(--easa-color-text-muted)]">Mapped to</p>
-                <p className="mt-0.5 text-sm font-medium">{update.mappedSection || "—"}</p>
+              <div className="grid gap-3 rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-3 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-[var(--easa-color-text-muted)]">Flight book hint</p>
+                  <p className="mt-0.5 text-sm font-medium">
+                    {mappedSection.manualName ?? "Best-match lookup pending"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--easa-color-text-muted)]">Section hint</p>
+                  <p className="mt-0.5 text-sm font-medium">
+                    {mappedSection.sectionRef ?? "Resolved during draft generation"}
+                  </p>
+                </div>
               </div>
+              <div className="rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-3">
+                <p className="text-xs text-[var(--easa-color-text-muted)]">Mapped label</p>
+                <p className="mt-0.5 text-sm">{mappedSection.displayLabel}</p>
+              </div>
+              <p className="text-sm text-[var(--easa-color-text-muted)]">
+                {update.aiSummary || "The system will retrieve the closest current section text before drafting."}
+              </p>
               <p className="text-sm text-[var(--easa-color-text-muted)] flex-1">
-                Click <strong>Generate AI draft</strong> to load the matching section text and produce a suggested revision.
+                Generate the draft to load the current wording, compare evidence, and approve the revision manually.
               </p>
             </div>
           </div>

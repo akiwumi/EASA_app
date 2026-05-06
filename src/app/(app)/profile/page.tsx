@@ -300,8 +300,12 @@ export default function ProfilePage() {
             <label className="mb-1 block text-xs font-medium text-[var(--easa-color-text-muted)]">Email frequency</label>
             <select className="easa-input text-sm" value={notifDigest} onChange={(e) => setNotifDigest(e.target.value)}>
               <option value="immediate">Immediate</option>
+              <option value="partial">Priority digest only</option>
               <option value="daily">Daily digest (07:00 UTC)</option>
             </select>
+            <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
+              Priority digest sends only approval, rejection, revision, and rollback activity in the daily batch.
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">

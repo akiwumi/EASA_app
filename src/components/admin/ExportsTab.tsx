@@ -106,6 +106,11 @@ export default function ExportsTab() {
                   Download CSV
                 </button>
               </div>
+              {item.kind === "form-submissions" && !summary?.formsReady ? (
+                <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
+                  Available after the training forms tables are enabled.
+                </p>
+              ) : null}
             </div>
           ))}
         </div>

@@ -265,7 +265,20 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       <div className="easa-card p-4 text-xs text-[var(--easa-color-text-muted)] space-y-1">
         <p><strong className="text-[var(--easa-color-text-secondary)]">PDF</strong> — text extracted, then stored by detected sections or full-document chunks if headings are unreliable</p>
         <p><strong className="text-[var(--easa-color-text-secondary)]">TXT / MD</strong> — plain text or Markdown, stored by headings when useful and by full-document chunks when needed</p>
-        <p><strong className="text-[var(--easa-color-text-secondary)]">JSON</strong> — use the <code>sample-import.json</code> format from <code>data/fixtures/flightbooks/</code></p>
+        <p>
+          <strong className="text-[var(--easa-color-text-secondary)]">JSON</strong>
+          {" — "}
+          use the{" "}
+          <a
+            className="text-[var(--easa-color-accent-blue)] underline"
+            href="/fixtures/flightbooks/sample-import.json"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            sample-import.json
+          </a>
+          {" "}fixture format
+        </p>
       </div>
     </div>
   );

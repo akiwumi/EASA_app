@@ -85,9 +85,15 @@ export type CollatedUpdates = {
   items: EasaUpdate[];
   byCategory: Record<string, number>;
   byImpact: Record<string, number>;
+  source: "supabase" | "mock";
+  fallbackReason: string | null;
 };
 
-function buildCollation(items: EasaUpdate[], updatedAt: string): CollatedUpdates {
+function buildCollation(
+  items: EasaUpdate[],
+  updatedAt: string,
+  options?: { source?: "supabase" | "mock"; fallbackReason?: string | null },
+): CollatedUpdates {
   const byCategory: Record<string, number> = {};
   const byImpact: Record<string, number> = {};
 
@@ -101,12 +107,27 @@ function buildCollation(items: EasaUpdate[], updatedAt: string): CollatedUpdates
     items,
     byCategory,
     byImpact,
+    source: options?.source ?? "supabase",
+    fallbackReason: options?.fallbackReason ?? null,
   };
 }
 
 export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
+  const allowMockFallback = process.env.EASA_ENABLE_MOCK_UPDATES === "true";
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return buildCollation(MOCK_UPDATES, "2026-01-24 06:26 UTC");
+    if (allowMockFallback) {
+      return buildCollation(MOCK_UPDATES, "2026-01-24 06:26 UTC", {
+        source: "mock",
+        fallbackReason: "Mock updates shown because Supabase credentials are missing.",
+      });
+    }
+
+    return buildCollation([], "Supabase not configured", {
+      source: "supabase",
+      fallbackReason:
+        "Supabase credentials are missing. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY, or enable EASA_ENABLE_MOCK_UPDATES=true for seeded demo data.",
+    });
   }
 
   const supabase = getAdminClient();
@@ -136,7 +157,17 @@ export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
     .limit(50);
 
   if (error || !data) {
-    return buildCollation([], error?.message ?? "No results available");
+    if (allowMockFallback) {
+      return buildCollation(MOCK_UPDATES, "2026-01-24 06:26 UTC", {
+        source: "mock",
+        fallbackReason: `Mock updates shown because live findings could not be loaded${error?.message ? `: ${error.message}` : "."}`,
+      });
+    }
+
+    return buildCollation([], error?.message ?? "No results available", {
+      source: "supabase",
+      fallbackReason: error?.message ?? "Live findings could not be loaded.",
+    });
   }
 
   const items: EasaUpdate[] = data.map((finding) => {
@@ -163,5 +194,5 @@ export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
     ? new Date(data[0].created_at).toISOString()
     : new Date().toISOString();
 
-  return buildCollation(items, latest);
+  return buildCollation(items, latest, { source: "supabase", fallbackReason: null });
 }

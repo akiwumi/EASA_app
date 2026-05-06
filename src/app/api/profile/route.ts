@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/supabase/profile";
 
+const NOTIFICATION_DIGESTS = new Set(["immediate", "daily", "partial"]);
+
 function getAdminClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,6 +105,13 @@ export async function PATCH(request: Request) {
   for (const key of allowed) {
     if (!(key in body)) continue;
     const value = body[key];
+    if (key === "notification_digest") {
+      updates[key] =
+        typeof value === "string" && NOTIFICATION_DIGESTS.has(value)
+          ? value
+          : "immediate";
+      continue;
+    }
     updates[key] =
       typeof value === "string"
         ? value.trim() || null

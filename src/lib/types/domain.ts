@@ -42,7 +42,7 @@ export type UserProfileSummary = {
   phone: string | null;
   notification_email: boolean;
   notification_inapp: boolean;
-  notification_digest: string;
+  notification_digest: "immediate" | "daily" | "partial";
 };
 
 export type FlightbookSummary = {
