@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import ReviewPanel from "@/components/results/ReviewPanel";
+import { getOrgAccessContext, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
 
 function getAdminClient() {
   return createClient(
@@ -14,6 +15,7 @@ function getAdminClient() {
 export default async function FindingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = getAdminClient();
+  const ctx = await getOrgAccessContext();
 
   const { data: finding } = await admin
     .from("ai_findings")
@@ -63,6 +65,7 @@ export default async function FindingDetailPage({ params }: { params: Promise<{ 
       {/* ── Review panel ─────────────────────────────────────────────────────── */}
       <ReviewPanel
         findingId={finding.id as string}
+        canApprove={Boolean(ctx && ORG_APPROVER_ROLES.includes(ctx.role as (typeof ORG_APPROVER_ROLES)[number]))}
         update={{
           title: (rss?.title as string | null) ?? "EASA Update",
           summary: (rss?.summary as string | null) ?? null,

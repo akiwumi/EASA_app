@@ -191,9 +191,11 @@ type Flightbook = { id: string; name: string };
 
 export default function ReviewPanel({
   findingId,
+  canApprove,
   update,
 }: {
   findingId: string;
+  canApprove: boolean;
   update: EasaUpdate;
 }) {
   const mappedSection = parseMappedSectionLabel(update.mappedSection);
@@ -314,14 +316,24 @@ export default function ReviewPanel({
     if (!draft) return;
     setStep("approving");
     setError(null);
-    const res = await fetch("/api/findings/approve-update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ findingId, sectionId: draft.sectionId, approvedText: editedText }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error ?? "Failed to apply update");
+    try {
+      const res = await fetch("/api/findings/approve-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ findingId, sectionId: draft.sectionId, approvedText: editedText }),
+      });
+      const json = await readJsonSafely(res);
+      if (!res.ok) {
+        setError(
+          res.status === 403
+            ? "Approval actions are limited to admin, editor, and compliance manager roles."
+            : String(json?.error ?? "Failed to apply update"),
+        );
+        setStep("draft");
+        return;
+      }
+    } catch (approveError) {
+      setError(approveError instanceof Error ? approveError.message : "Failed to apply update");
       setStep("draft");
       return;
     }
@@ -478,6 +490,13 @@ export default function ReviewPanel({
             </div>
           )}
 
+          {!canApprove && (
+            <div className="flex items-center gap-2 rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-sm text-[var(--easa-color-text-muted)]">
+              <AlertCircle size={15} strokeWidth={1.75} />
+              Read-only review. Approval actions are limited to admin, editor, and compliance manager roles.
+            </div>
+          )}
+
           <button
             className="easa-btn primary flex items-center gap-2"
             disabled={step === "generating"}
@@ -600,23 +619,29 @@ export default function ReviewPanel({
           )}
 
           <div className="flex flex-wrap gap-3">
-            <button
-              className="easa-btn primary flex items-center gap-2"
-              disabled={step === "approving" || !editedText.trim()}
-              onClick={approveUpdate}
-            >
-              {step === "approving" ? (
-                <>
-                  <Loader2 size={15} strokeWidth={1.75} className="animate-spin" />
-                  Applying…
-                </>
-              ) : (
-                <>
-                  <CheckCircle size={15} strokeWidth={1.75} />
-                  Approve &amp; apply to flight book
-                </>
-              )}
-            </button>
+            {canApprove ? (
+              <button
+                className="easa-btn primary flex items-center gap-2"
+                disabled={step === "approving" || !editedText.trim()}
+                onClick={approveUpdate}
+              >
+                {step === "approving" ? (
+                  <>
+                    <Loader2 size={15} strokeWidth={1.75} className="animate-spin" />
+                    Applying…
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={15} strokeWidth={1.75} />
+                    Approve &amp; apply to flight book
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-sm text-[var(--easa-color-text-muted)]">
+                Approval actions are limited to admin, editor, and compliance manager roles.
+              </div>
+            )}
             <button
               className="easa-btn secondary"
               disabled={step === "approving"}
