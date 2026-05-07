@@ -27,26 +27,25 @@ export async function POST(request: Request) {
 
   if (!finding) return NextResponse.json({ error: "Finding not found" }, { status: 404 });
 
-  const orgId = finding.organization_id as string | null;
-  if (!orgId) {
-    return NextResponse.json({ error: "Finding has no organisation" }, { status: 403 });
-  }
+  // Findings from global EASA RSS feeds have organization_id = null.
+  // Fall back to the acting user's org so they can still approve and apply the text.
+  const findingOrgId = (finding.organization_id as string | null) ?? ctx.orgId;
 
-  // Verify the user has approver-level membership in the finding's org.
-  // We check directly rather than comparing ctx.orgId, because a user in multiple
-  // orgs may have ctx resolved to a different org than the one owning the finding.
-  if (orgId !== ctx.orgId) {
+  // When the finding belongs to a specific org, make sure the user is a member of it.
+  if (finding.organization_id && finding.organization_id !== ctx.orgId) {
     const { data: membership } = await admin
       .from("org_users")
       .select("role")
       .eq("user_id", ctx.userId)
-      .eq("organization_id", orgId)
+      .eq("organization_id", finding.organization_id as string)
       .maybeSingle();
 
     if (!membership || !(ORG_APPROVER_ROLES as readonly string[]).includes(membership.role as string)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
+
+  const orgId = findingOrgId;
 
   // 2. Fetch the current section (to snapshot old body)
   const { data: section } = await admin
