@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrgScopedContext, getSupabaseAdminClient, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
+import { getOrgScopedContext, getSupabaseAdminClient, ORG_APPROVER_ROLES, DEFAULT_ORG_ID } from "@/lib/supabase/access";
 import { createFlightbookExport } from "@/lib/flightbook-exports";
 
 export async function POST(request: Request) {
@@ -32,11 +32,16 @@ export async function POST(request: Request) {
     .from("flightbook_sections")
     .select("id, body, organization_id, flightbook_id, title, section_number")
     .eq("id", sectionId)
-    .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (!section) return NextResponse.json({ error: "Section not found" }, { status: 404 });
-  const orgId = (section.organization_id as string | null) ?? ctx.orgId;
+
+  const sectionOrgId = (section.organization_id as string | null) ?? ctx.orgId;
+  // Allow access if the section belongs to the user's org or to the shared default org
+  if (sectionOrgId !== ctx.orgId && sectionOrgId !== DEFAULT_ORG_ID) {
+    return NextResponse.json({ error: "Section not found" }, { status: 404 });
+  }
+  const orgId = sectionOrgId;
 
   // 3. Determine next version number
   const { data: latestVersion } = await admin
