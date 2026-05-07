@@ -7,7 +7,6 @@ type SetupTabId =
   | "users"
   | "flightbooks"
   | "sources"
-  | "ai"
   | "setup"
   | "automation"
   | "branding"
@@ -225,9 +224,6 @@ export default function SetupTab({
           <div className="grid gap-3 sm:grid-cols-2">
             <button className="easa-btn secondary" onClick={() => onOpenTab("sources")}>
               Open RSS feeds
-            </button>
-            <button className="easa-btn secondary" onClick={() => onOpenTab("ai")}>
-              Open AI settings
             </button>
             <button className="easa-btn secondary" onClick={() => onOpenTab("users")}>
               Open users

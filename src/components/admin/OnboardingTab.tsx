@@ -23,7 +23,6 @@ type SetupTabId =
   | "users"
   | "flightbooks"
   | "sources"
-  | "ai"
   | "automation"
   | "branding"
   | "onboarding"
@@ -32,7 +31,7 @@ type SetupTabId =
 const ACTION_BY_KEY: Record<string, { label: string; type: "tab" | "route"; value: string }> = {
   branding: { label: "Open branding", type: "tab", value: "branding" },
   sources: { label: "Open RSS feeds", type: "tab", value: "sources" },
-  ai: { label: "Open AI settings", type: "tab", value: "ai" },
+  ai: { label: "Open RSS feeds", type: "tab", value: "sources" },
   schedule: { label: "Open automation", type: "tab", value: "automation" },
   manuals: { label: "Open manual upload", type: "route", value: "/flightbooks/upload" },
   programmes: { label: "Open training", type: "route", value: "/training/programmes" },

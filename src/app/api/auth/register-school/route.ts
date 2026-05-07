@@ -61,6 +61,20 @@ async function ensureDefaultFeeds() {
   }
 }
 
+async function ensureDefaultAiConfig(organizationId: string) {
+  const admin = getSupabaseAdminClient();
+  await admin.from("ai_provider_config").upsert(
+    {
+      organization_id: organizationId,
+      provider: "openai",
+      model: "gpt-4o",
+      api_key: null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "organization_id", ignoreDuplicates: true },
+  );
+}
+
 async function ensureLifetimeAccess(organizationId: string) {
   const admin = getSupabaseAdminClient();
   const { error } = await admin.from("organization_subscriptions").upsert(
@@ -149,6 +163,7 @@ export async function POST(request: Request) {
     }
 
     await ensureLifetimeAccess(organizationId);
+    await ensureDefaultAiConfig(organizationId);
 
     const { error: profileError } = await admin.from("user_profiles").upsert({
       id: userId,

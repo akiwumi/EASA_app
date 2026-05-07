@@ -9,6 +9,7 @@ interface Source {
   type: string;
   active: boolean;
   created_at: string;
+  shared: boolean;
 }
 
 export default function SourcesTab() {
@@ -148,7 +149,6 @@ export default function SourcesTab() {
         ) : (
           sources.map((s) => (
             <div key={s.id} className={`flex items-center gap-3 px-4 py-3 transition ${s.active ? "" : "opacity-50"}`}>
-              {/* RSS icon — orange when active, muted when inactive */}
               <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition ${
                 s.active
                   ? "bg-[var(--easa-color-accent-orange)]/15"
@@ -161,28 +161,46 @@ export default function SourcesTab() {
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{s.url}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm">{s.url}</p>
+                  {s.shared && (
+                    <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--easa-color-accent-blue)]/15 text-[var(--easa-color-accent-blue)]">
+                      Built-in
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-[var(--easa-color-text-muted)] uppercase">
                   {s.type} · {s.active ? <span className="text-[var(--easa-color-accent-green)]">active</span> : <span>inactive</span>}
                 </p>
               </div>
-              <button
-                className="shrink-0 transition"
-                title={s.active ? "Disable feed" : "Enable feed"}
-                onClick={() => toggleActive(s.id, s.active)}
-              >
-                {s.active
-                  ? <ToggleRight size={22} strokeWidth={1.75} className="text-[var(--easa-color-accent-green)]" />
-                  : <ToggleLeft size={22} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
-                }
-              </button>
-              <button
-                className="shrink-0 text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-accent-pink)] transition"
-                title="Remove feed"
-                onClick={() => remove(s.id)}
-              >
-                <Trash2 size={14} strokeWidth={1.75} />
-              </button>
+              {s.shared ? (
+                <span
+                  className="shrink-0 text-xs text-[var(--easa-color-text-muted)]"
+                  title="Built-in feeds are always active and cannot be removed"
+                >
+                  Always on
+                </span>
+              ) : (
+                <>
+                  <button
+                    className="shrink-0 transition"
+                    title={s.active ? "Disable feed" : "Enable feed"}
+                    onClick={() => toggleActive(s.id, s.active)}
+                  >
+                    {s.active
+                      ? <ToggleRight size={22} strokeWidth={1.75} className="text-[var(--easa-color-accent-green)]" />
+                      : <ToggleLeft size={22} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+                    }
+                  </button>
+                  <button
+                    className="shrink-0 text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-accent-pink)] transition"
+                    title="Remove feed"
+                    onClick={() => remove(s.id)}
+                  >
+                    <Trash2 size={14} strokeWidth={1.75} />
+                  </button>
+                </>
+              )}
             </div>
           ))
         )}
