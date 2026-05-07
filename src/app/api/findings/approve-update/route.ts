@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   const admin = getSupabaseAdminClient();
 
-  // 1. Fetch finding to get org
+  // 1. Fetch finding to confirm it exists.
   const { data: finding } = await admin
     .from("ai_findings")
     .select("id, organization_id, summary")
@@ -26,26 +26,6 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!finding) return NextResponse.json({ error: "Finding not found" }, { status: 404 });
-
-  // Findings from global EASA RSS feeds have organization_id = null.
-  // Fall back to the acting user's org so they can still approve and apply the text.
-  const findingOrgId = (finding.organization_id as string | null) ?? ctx.orgId;
-
-  // When the finding belongs to a specific org, make sure the user is a member of it.
-  if (finding.organization_id && finding.organization_id !== ctx.orgId) {
-    const { data: membership } = await admin
-      .from("org_users")
-      .select("role")
-      .eq("user_id", ctx.userId)
-      .eq("organization_id", finding.organization_id as string)
-      .maybeSingle();
-
-    if (!membership || !(ORG_APPROVER_ROLES as readonly string[]).includes(membership.role as string)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
-
-  const orgId = findingOrgId;
 
   // 2. Fetch the current section (to snapshot old body)
   const { data: section } = await admin
@@ -56,6 +36,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!section) return NextResponse.json({ error: "Section not found" }, { status: 404 });
+  const orgId = (section.organization_id as string | null) ?? ctx.orgId;
 
   // 3. Determine next version number
   const { data: latestVersion } = await admin
@@ -70,7 +51,7 @@ export async function POST(request: Request) {
 
   // 4. Save a version snapshot of the *current* body before overwriting
   const { error: versionErr } = await admin.from("flightbook_section_versions").insert({
-    organization_id: (section.organization_id as string | null) ?? orgId,
+    organization_id: orgId,
     flightbook_section_id: sectionId,
     body: section.body as string,
     version_number: nextVersion,

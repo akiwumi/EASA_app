@@ -267,6 +267,29 @@ export async function PATCH(request: Request) {
     .eq("organization_id", ctx.orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const { data: authUserResult, error: authUserError } = await admin.auth.admin.getUserById(userId);
+  if (authUserError) {
+    return NextResponse.json({ error: authUserError.message }, { status: 400 });
+  }
+
+  const existingUserMetadata =
+    authUserResult.user.user_metadata && typeof authUserResult.user.user_metadata === "object"
+      ? authUserResult.user.user_metadata
+      : {};
+
+  const { error: updateUserError } = await admin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      ...existingUserMetadata,
+      organization_id: ctx.orgId,
+      app_role: validRole,
+    },
+  });
+
+  if (updateUserError) {
+    return NextResponse.json({ error: updateUserError.message }, { status: 400 });
+  }
+
   return NextResponse.json({ ok: true });
 }
 
