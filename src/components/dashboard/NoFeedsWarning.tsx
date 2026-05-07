@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, X } from "lucide-react";
 
 const STORAGE_KEY = "no-feeds-warning-dismissed";
 
 export default function NoFeedsWarning() {
-  const [visible, setVisible] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return !localStorage.getItem(STORAGE_KEY);
-  });
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
+  }, []);
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, "1");
