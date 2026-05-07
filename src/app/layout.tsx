@@ -23,6 +23,19 @@ export const metadata: Metadata = {
   title: "Flight Lyceum — Training & compliance for flight schools",
   description:
     "The compliance and training platform built for Approved Training Organisations. Monitor EASA changes, control your manuals, assign reading by lesson, and track every acknowledgement.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    apple: "/images/mobile-icon.png",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/images/mobile-icon.png", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Flight Lyceum",
+  },
 };
 
 export default function RootLayout({
