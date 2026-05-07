@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getOrgAdminContext } from "@/lib/supabase/access";
 
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const supabase = await getSupabaseServerClient();
@@ -8,14 +9,8 @@ export default async function SettingsLayout({ children }: { children: React.Rea
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: orgUser } = await supabase
-    .from("org_users")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  // Allow access if role is admin, or if the org lookup failed entirely (no org linked yet)
-  if (orgUser && orgUser.role !== "admin") redirect("/dashboard");
+  const ctx = await getOrgAdminContext();
+  if (!ctx) redirect("/dashboard");
 
   return <>{children}</>;
 }

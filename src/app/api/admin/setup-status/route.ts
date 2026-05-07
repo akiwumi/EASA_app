@@ -7,15 +7,7 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const admin = getSupabaseAdminClient();
-  const { data: membership } = await admin
-    .from("org_users")
-    .select("organization_id, role, organizations ( name )")
-    .eq("user_id", ctx.userId)
-    .maybeSingle();
-
   const organizationId = ctx.orgId;
-  const organizationName =
-    (membership?.organizations as { name?: string } | null)?.name ?? "Demo Flight School";
 
   const [
     { data: org },
@@ -56,8 +48,8 @@ export async function GET() {
     await seedDefaultSources(organizationId);
   }
 
-  const linked = Boolean(membership?.organization_id);
-  const isAdmin = membership?.role === "admin";
+  const linked = Boolean(organizationId);
+  const isAdmin = ctx.role === "admin";
 
   return NextResponse.json({
     currentUser: {
@@ -66,9 +58,9 @@ export async function GET() {
     },
     organization: {
       id: organizationId,
-      name: org?.name ?? organizationName,
+      name: org?.name ?? "Demo Flight School",
       linked,
-      role: membership?.role ?? null,
+      role: ctx.role,
       exists: Boolean(org),
       isAdmin,
     },

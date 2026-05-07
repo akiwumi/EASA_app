@@ -3,6 +3,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/supabase/profile";
 import AppShell from "@/components/navigation/AppShell";
 import type { OrganizationBranding } from "@/lib/types/domain";
+import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 type OrganizationBrandingShellData = Pick<
   OrganizationBranding,
@@ -34,20 +35,25 @@ export default async function AppGroupLayout({
     // user_profiles table may not exist until migrations are applied
   }
 
-  const { data: orgRow } = await supabase
-    .from("org_users")
-    .select("organization_id, role, organizations ( name )")
-    .eq("user_id", user.id)
+  const ctx = await getOrgAccessContext();
+  if (!ctx) {
+    redirect("/login");
+  }
+
+  const admin = getSupabaseAdminClient();
+  const { data: orgRow } = await admin
+    .from("organizations")
+    .select("name")
+    .eq("id", ctx.orgId)
     .maybeSingle();
 
-  const org = (orgRow?.organizations ?? null) as { name?: string } | null;
   let branding: OrganizationBrandingShellData | null = null;
 
-  if (orgRow?.organization_id) {
-    const brandingResult = await supabase
+  if (ctx.orgId) {
+    const brandingResult = await admin
       .from("organization_branding")
       .select("public_name, logo_url, website_url, contact_email, contact_phone, primary_color, secondary_color")
-      .eq("organization_id", String(orgRow.organization_id))
+      .eq("organization_id", ctx.orgId)
       .maybeSingle();
 
     if (!brandingResult.error) {
@@ -57,14 +63,14 @@ export default async function AppGroupLayout({
 
   return (
     <AppShell
-      organizationName={branding?.public_name ?? org?.name ?? ""}
+      organizationName={branding?.public_name ?? (orgRow?.name as string | undefined) ?? ""}
       logoUrl={branding?.logo_url ?? null}
       websiteUrl={branding?.website_url ?? null}
       contactEmail={branding?.contact_email ?? null}
       contactPhone={branding?.contact_phone ?? null}
       brandPrimaryColor={branding?.primary_color ?? null}
       brandSecondaryColor={branding?.secondary_color ?? null}
-      role={orgRow?.role ? String(orgRow.role) : "admin"}
+      role={ctx.role}
     >
       {children}
     </AppShell>

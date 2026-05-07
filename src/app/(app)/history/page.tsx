@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { History } from "lucide-react";
 import HistoryClient, { type VersionRow } from "@/components/history/HistoryClient";
+import { getOrgAccessContext } from "@/lib/supabase/access";
 
 function getAdminClient() {
   return createClient(
@@ -19,29 +19,10 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
   );
 }
 
-async function getOrgContext(): Promise<{ orgId: string | null; role: string }> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return { orgId: null, role: "viewer" };
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { orgId: null, role: "viewer" };
-
-  const admin = getAdminClient();
-  const { data } = await admin
-    .from("org_users")
-    .select("organization_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  return {
-    orgId: (data?.organization_id as string | null) ?? null,
-    role: (data?.role as string | null) ?? "viewer",
-  };
-}
-
 export default async function HistoryPage() {
-  const { orgId, role } = await getOrgContext();
+  const ctx = await getOrgAccessContext();
+  const orgId = ctx?.orgId ?? null;
+  const role = ctx?.role ?? "viewer";
   const isAdmin = role === "admin";
   const admin = getAdminClient();
 

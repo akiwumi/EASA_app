@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { DEFAULT_ORG_ID, DEFAULT_ORG_NAME, pickPreferredOrgMembership } from "@/lib/supabase/org-membership";
 
 export type OrgAccessContext = {
   userId: string;
@@ -10,9 +11,7 @@ export type OrgAccessContext = {
 export const ORG_ADMIN_ROLES = ["admin"] as const;
 export const ORG_APPROVER_ROLES = ["admin", "editor", "compliance_manager"] as const;
 export const ORG_ROLLBACK_ROLES = ["admin", "compliance_manager"] as const;
-
-export const DEFAULT_ORG_ID = "00000000-0000-4000-8000-000000000001";
-export const DEFAULT_ORG_NAME = "Demo Flight School";
+export { DEFAULT_ORG_ID, DEFAULT_ORG_NAME } from "@/lib/supabase/org-membership";
 
 export function getSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -90,10 +89,7 @@ export async function getOrgAccessContext(): Promise<OrgAccessContext | null> {
   // Prefer the user's real org over the default fallback org.
   // Using maybeSingle() without a limit breaks when a user is in multiple orgs
   // (Supabase returns PGRST116 and data=null, silently falling through to ensureDefaultOrgMembership).
-  const orgUser =
-    orgUsers?.find((r) => (r.organization_id as string) !== DEFAULT_ORG_ID) ??
-    orgUsers?.[0] ??
-    null;
+  const orgUser = pickPreferredOrgMembership(orgUsers);
 
   if (!orgUser?.organization_id || !orgUser.role) {
     return ensureDefaultOrgMembership(user.id);

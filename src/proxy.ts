@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { pickPreferredOrgMembership } from "@/lib/supabase/org-membership";
 
 function copyCookies(from: NextResponse, to: NextResponse) {
   from.cookies.getAll().forEach((cookie) => {
@@ -90,11 +91,12 @@ export async function proxy(request: NextRequest) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: orgUser } = await admin
+    const { data: orgUsers } = await admin
       .from("org_users")
       .select("organization_id, role")
-      .eq("user_id", user.id)
-      .maybeSingle();
+      .eq("user_id", user.id);
+
+    const orgUser = pickPreferredOrgMembership(orgUsers);
 
     if (orgUser?.organization_id) {
       const { data: subscription } = await admin

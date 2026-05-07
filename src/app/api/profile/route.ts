@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { ensureUserProfile } from "@/lib/supabase/profile";
+import { getOrgAccessContext } from "@/lib/supabase/access";
 
 const NOTIFICATION_DIGESTS = new Set(["immediate", "daily", "partial", "weekly"]);
 
@@ -33,7 +34,8 @@ export async function GET() {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getAdminClient();
-  const [{ data: profile }, { data: membership }, { data: organization }] = await Promise.all([
+  const ctx = await getOrgAccessContext();
+  const [{ data: profile }, { data: organization }] = await Promise.all([
     admin
       .from("user_profiles")
       .select(
@@ -42,14 +44,9 @@ export async function GET() {
       .eq("id", auth.user.id)
       .maybeSingle(),
     admin
-      .from("org_users")
-      .select("organization_id, role")
-      .eq("user_id", auth.user.id)
-      .maybeSingle(),
-    admin
-      .from("org_users")
-      .select("organization_id, organizations(name)")
-      .eq("user_id", auth.user.id)
+      .from("organizations")
+      .select("name")
+      .eq("id", ctx?.orgId ?? "")
       .maybeSingle(),
   ]);
 
@@ -66,9 +63,8 @@ export async function GET() {
     },
     email: auth.user.email ?? null,
     emailConfirmedAt: auth.user.email_confirmed_at ?? null,
-    role: membership?.role ?? null,
-    organizationName:
-      (organization?.organizations as { name?: string } | null)?.name ?? null,
+    role: ctx?.role ?? null,
+    organizationName: (organization?.name as string | null | undefined) ?? null,
   });
 }
 

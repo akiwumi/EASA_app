@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import DiffViewer from "@/components/updates/DiffViewer";
-import { ORG_APPROVER_ROLES } from "@/lib/supabase/access";
+import { getOrgAccessContext, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
 
 type JoinedUpdateRow = {
   id: string;
@@ -47,48 +46,15 @@ function getAdminClient() {
   );
 }
 
-async function getOrgId(): Promise<string | null> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = getAdminClient();
-  const { data } = await admin
-    .from("org_users")
-    .select("organization_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  return (data?.organization_id as string | null) ?? null;
-}
-
-async function getRole(): Promise<string | null> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return null;
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const admin = getAdminClient();
-  const { data } = await admin
-    .from("org_users")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  return (data?.role as string | null) ?? null;
-}
-
 export default async function UpdateDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [orgId, role] = await Promise.all([getOrgId(), getRole()]);
+  const ctx = await getOrgAccessContext();
+  const orgId = ctx?.orgId ?? null;
+  const role = ctx?.role ?? null;
   const canManage = role ? ORG_APPROVER_ROLES.includes(role as (typeof ORG_APPROVER_ROLES)[number]) : false;
 
   const admin = getAdminClient();
