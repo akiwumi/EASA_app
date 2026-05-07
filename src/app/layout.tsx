@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
+import PullToRefresh from "@/components/PullToRefresh";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -49,6 +50,7 @@ export default function RootLayout({
       className={`${inter.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col easa-app">
+        <PullToRefresh />
         {children}
       </body>
     </html>
