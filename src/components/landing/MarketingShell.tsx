@@ -1,5 +1,6 @@
 "use client";
 
+import Footer from "@/components/home/Footer";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
@@ -99,25 +100,10 @@ export default function MarketingShell({
 
         <main className="easa-page-enter flex-1">{children}</main>
 
-        <footer className="overflow-hidden rounded-[30px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.72)] shadow-[var(--easa-shadow-1)] backdrop-blur-md">
+        <div className="overflow-hidden rounded-[30px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.72)] shadow-[var(--easa-shadow-1)] backdrop-blur-md">
           <div className="easa-gradient-bar" />
-          <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="easa-display text-lg">Flight Lyceum</p>
-              <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-                Controlled manuals, training reading, and EASA awareness in one workflow.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Link className="easa-btn secondary" href="/pricing">
-                View pricing
-              </Link>
-              <Link className="easa-btn primary" href="/register">
-                Register school
-              </Link>
-            </div>
-          </div>
-        </footer>
+          <Footer className="border-t-0 py-0" innerClassName="p-6" />
+        </div>
       </div>
     </div>
   );

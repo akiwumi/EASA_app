@@ -22,6 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import Footer from "@/components/home/Footer";
 import NotificationDrawer from "@/components/notifications/NotificationDrawer";
 
 type NavItem = {
@@ -325,6 +326,12 @@ export default function AppShell({
       <main className="easa-shell min-w-0 px-4 pb-8 pt-4 lg:px-6">
         <div className="easa-page-enter min-w-0">{children}</div>
       </main>
+
+      <div className="easa-shell px-4 lg:px-6">
+        <div className="overflow-hidden rounded-[28px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.72)] shadow-[var(--easa-shadow-1)] backdrop-blur-md">
+          <Footer className="border-t-0 py-0" innerClassName="p-5 md:p-6" />
+        </div>
+      </div>
 
       <NotificationDrawer
         open={drawerOpen}
