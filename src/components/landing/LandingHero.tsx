@@ -15,7 +15,7 @@ export default function LandingHero() {
         <span className="easa-eyebrow justify-center">
           Training operations and compliance
         </span>
-        <h1 className="easa-display mx-auto mt-5 max-w-5xl text-5xl leading-[0.98] md:text-7xl">
+        <h1 className="easa-display easa-h1-mobile-hero mx-auto mt-5 max-w-5xl text-5xl leading-[0.98] md:text-7xl">
           Keep your flight school aligned and audit-ready.
         </h1>
         <p className="mx-auto mt-6 max-w-3xl text-base leading-7 text-[var(--easa-color-text-muted)] md:text-lg">

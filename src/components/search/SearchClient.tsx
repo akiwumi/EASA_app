@@ -215,7 +215,7 @@ export default function SearchClient({ data }: { data: SearchPageData }) {
           <p className="text-xs uppercase tracking-[0.18em] text-[var(--easa-color-text-muted)]">
             Phase 8 search
           </p>
-          <h1 className="mt-2 text-3xl font-semibold text-[var(--easa-color-text-primary)]">
+          <h1 className="easa-h1-mobile-app mt-2 text-3xl font-semibold text-[var(--easa-color-text-primary)]">
             Search manuals and approved updates
           </h1>
           <p className="mt-3 text-sm text-[var(--easa-color-text-secondary)]">

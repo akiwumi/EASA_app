@@ -22,7 +22,7 @@ export default async function PricingPage({
           <div className="grid gap-8 px-6 py-10 lg:grid-cols-[1.2fr_0.8fr] lg:px-10 lg:py-12">
             <div>
               <span className="easa-eyebrow">Pricing</span>
-              <h1 className="easa-display mt-4 max-w-4xl text-5xl leading-tight md:text-6xl">
+              <h1 className="easa-display easa-h1-mobile-hero mt-4 max-w-4xl text-5xl leading-tight md:text-6xl">
                 Register the school once and move straight into a permanent workspace.
               </h1>
             </div>

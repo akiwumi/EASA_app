@@ -11,7 +11,7 @@ export default function HowItWorksPage() {
           <div className="easa-gradient-bar" />
           <div className="px-6 py-10 lg:px-10 lg:py-12">
             <span className="easa-eyebrow">How it works</span>
-            <h1 className="easa-display mt-4 max-w-4xl text-5xl leading-tight md:text-6xl">
+            <h1 className="easa-display easa-h1-mobile-hero mt-4 max-w-4xl text-5xl leading-tight md:text-6xl">
               From regulation change to lesson action in one controlled workflow.
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-8 text-[var(--easa-color-text-muted)]">

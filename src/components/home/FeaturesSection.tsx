@@ -50,11 +50,11 @@ export default function FeaturesSection() {
           </h2>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="easa-mobile-carousel grid gap-6 md:grid-cols-2">
           {cards.map((card) => (
             <div
               key={card.title}
-              className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card"
+              className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card"
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
                 <Image

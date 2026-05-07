@@ -44,11 +44,11 @@ export default function PersonasSection() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="easa-mobile-carousel grid grid-cols-2 gap-4">
             {personas.map((persona) => (
               <div
                 key={persona.num}
-                className="rounded-2xl border border-border bg-card p-5"
+                className="h-full rounded-2xl border border-border bg-card p-5"
               >
                 <p
                   className="mb-3 text-3xl leading-none text-muted-foreground/40"

@@ -94,7 +94,7 @@ export default function ProgrammeDetailClient({
             <p className="text-xs uppercase tracking-[0.16em] text-[var(--easa-color-text-muted)]">
               {programme.code || "Programme"}
             </p>
-            <h1 className="mt-2 text-2xl font-semibold">{programme.name}</h1>
+            <h1 className="easa-h1-mobile-app mt-2 text-2xl font-semibold">{programme.name}</h1>
             <p className="mt-2 max-w-2xl text-sm text-[var(--easa-color-text-muted)]">
               {programme.description || "No description yet."}
             </p>

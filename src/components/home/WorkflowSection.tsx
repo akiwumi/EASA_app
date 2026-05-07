@@ -43,11 +43,11 @@ export default function WorkflowSection() {
           </h2>
         </div>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-4">
+        <div className="easa-mobile-carousel mt-12 grid gap-6 md:grid-cols-4">
           {steps.map((step) => (
             <div
               key={step.num}
-              className="rounded-2xl border border-border bg-card p-6"
+              className="h-full rounded-2xl border border-border bg-card p-6"
             >
               <p className="mb-3 text-sm font-medium text-muted-foreground">
                 {step.num}

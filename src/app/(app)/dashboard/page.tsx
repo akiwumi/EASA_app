@@ -218,7 +218,7 @@ export default async function DashboardPage() {
           <p className="easa-eyebrow">
             Organisation · {org.organizationName}
           </p>
-          <h1 className="easa-display mt-3 text-3xl leading-tight text-[var(--easa-color-text-primary)] md:text-4xl">
+          <h1 className="easa-display easa-h1-mobile-app mt-3 text-3xl leading-tight text-[var(--easa-color-text-primary)] md:text-4xl">
             Flight school operations dashboard
           </h1>
           <p className="mt-2 max-w-xl text-sm text-[var(--easa-color-text-muted)]">

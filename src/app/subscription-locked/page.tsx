@@ -23,7 +23,7 @@ export default async function SubscriptionLockedPage() {
       <main className="easa-shell flex min-h-screen items-center justify-center py-12">
         <section className="easa-card-glass w-full max-w-2xl p-8">
           <span className="easa-eyebrow">Workspace locked</span>
-          <h1 className="mt-4 text-3xl font-semibold text-[var(--easa-color-text-primary)]">
+          <h1 className="easa-h1-mobile-app mt-4 text-3xl font-semibold text-[var(--easa-color-text-primary)]">
             This workspace is temporarily locked.
           </h1>
           <p className="mt-4 text-sm leading-7 text-[var(--easa-color-text-muted)]">

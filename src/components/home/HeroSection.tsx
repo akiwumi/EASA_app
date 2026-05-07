@@ -12,7 +12,7 @@ export default function HeroSection() {
     <section className="relative pb-[20px] pt-[20px]">
       <div className="mx-auto max-w-7xl px-6 text-center">
         <h1
-          className="text-4xl font-normal text-foreground sm:text-6xl md:text-7xl"
+          className="easa-h1-mobile-hero text-4xl font-normal text-foreground sm:text-6xl md:text-7xl"
           style={{
             fontFamily: "var(--font-display)",
             lineHeight: 1.05,
