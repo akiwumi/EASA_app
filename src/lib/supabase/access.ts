@@ -82,11 +82,18 @@ export async function getOrgAccessContext(): Promise<OrgAccessContext | null> {
   if (!user) return null;
 
   const admin = getSupabaseAdminClient();
-  const { data: orgUser } = await admin
+  const { data: orgUsers } = await admin
     .from("org_users")
     .select("organization_id, role")
-    .eq("user_id", user.id)
-    .maybeSingle();
+    .eq("user_id", user.id);
+
+  // Prefer the user's real org over the default fallback org.
+  // Using maybeSingle() without a limit breaks when a user is in multiple orgs
+  // (Supabase returns PGRST116 and data=null, silently falling through to ensureDefaultOrgMembership).
+  const orgUser =
+    orgUsers?.find((r) => (r.organization_id as string) !== DEFAULT_ORG_ID) ??
+    orgUsers?.[0] ??
+    null;
 
   if (!orgUser?.organization_id || !orgUser.role) {
     return ensureDefaultOrgMembership(user.id);

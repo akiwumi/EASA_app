@@ -28,8 +28,24 @@ export async function POST(request: Request) {
   if (!finding) return NextResponse.json({ error: "Finding not found" }, { status: 404 });
 
   const orgId = finding.organization_id as string | null;
-  if (!orgId || orgId !== ctx.orgId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!orgId) {
+    return NextResponse.json({ error: "Finding has no organisation" }, { status: 403 });
+  }
+
+  // Verify the user has approver-level membership in the finding's org.
+  // We check directly rather than comparing ctx.orgId, because a user in multiple
+  // orgs may have ctx resolved to a different org than the one owning the finding.
+  if (orgId !== ctx.orgId) {
+    const { data: membership } = await admin
+      .from("org_users")
+      .select("role")
+      .eq("user_id", ctx.userId)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+
+    if (!membership || !(ORG_APPROVER_ROLES as readonly string[]).includes(membership.role as string)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   // 2. Fetch the current section (to snapshot old body)
