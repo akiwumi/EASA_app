@@ -1,7 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import PricingPlans from "@/components/pricing/PricingPlans";
 import MarketingShell from "@/components/landing/MarketingShell";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Pricing — Flight Lyceum",
+  description:
+    "Simple, transparent pricing for EASA Approved Training Organisations. Register your flight school and get immediate access to your compliance and training workspace.",
+  alternates: {
+    canonical: "/pricing",
+  },
+  openGraph: {
+    title: "Pricing — Flight Lyceum",
+    description:
+      "Simple, transparent pricing for EASA ATOs. Register your flight school and get immediate access to your compliance and training workspace.",
+    url: "/pricing",
+  },
+};
 
 export default async function PricingPage({
   searchParams,

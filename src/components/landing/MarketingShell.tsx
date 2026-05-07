@@ -62,6 +62,7 @@ export default function MarketingShell({
             </div>
 
             <button
+              aria-controls="marketing-mobile-nav"
               aria-expanded={menuOpen}
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)] lg:hidden"
@@ -73,7 +74,7 @@ export default function MarketingShell({
           </nav>
 
           {menuOpen && (
-            <div className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 lg:hidden">
+            <div id="marketing-mobile-nav" className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 lg:hidden">
               <div className="flex flex-col gap-2">
                 {NAV_LINKS.map((item) => (
                   <Link

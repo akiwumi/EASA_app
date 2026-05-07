@@ -50,6 +50,7 @@ export default function HeroSection() {
           src="/images/hero-cessna.jpg"
           alt="Cessna 172 in flight surrounded by Flight Lyceum dashboard analytics"
           fill
+          sizes="100vw"
           className="object-cover object-center"
           priority
         />

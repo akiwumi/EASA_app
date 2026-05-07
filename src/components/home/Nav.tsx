@@ -72,6 +72,7 @@ export default function Nav() {
           </div>
 
           <button
+            aria-controls="mobile-nav"
             aria-expanded={menuOpen}
             aria-label={menuOpen ? "Close menu" : "Open menu"}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)] lg:hidden"
@@ -83,7 +84,7 @@ export default function Nav() {
         </div>
 
         {menuOpen ? (
-          <div className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 sm:px-5 lg:hidden">
+          <div id="mobile-nav" className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 sm:px-5 lg:hidden">
             <div className="flex flex-col gap-2">
               {navLinks.map((link) => (
                 <Link

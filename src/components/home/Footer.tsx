@@ -24,7 +24,6 @@ export default function Footer({
             alt="Flight Lyceum logo"
             className="h-12 w-auto object-contain"
             height={48}
-            priority
             src="/images/flight-lyceum-logo.png"
             width={120}
           />

@@ -1,7 +1,23 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import MarketingShell from "@/components/landing/MarketingShell";
 import LandingWorkflow from "@/components/landing/LandingWorkflow";
 import { featureProof } from "@/components/landing/site-content";
+
+export const metadata: Metadata = {
+  title: "How It Works — Flight Lyceum",
+  description:
+    "See how Flight Lyceum connects EASA regulation monitoring, manual control, reading assignments, and acknowledgement tracking in one controlled workflow for Approved Training Organisations.",
+  alternates: {
+    canonical: "/how-it-works",
+  },
+  openGraph: {
+    title: "How It Works — Flight Lyceum",
+    description:
+      "From regulation change to lesson action in one controlled workflow. See how Flight Lyceum ties together update monitoring, manual control, and completion evidence.",
+    url: "/how-it-works",
+  },
+};
 
 export default function HowItWorksPage() {
   return (

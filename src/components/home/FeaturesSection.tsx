@@ -6,25 +6,33 @@ const cards = [
     title: "Compliance overview",
     body: "See pending EASA changes, manuals due for review, and acknowledgement rates from one quiet dashboard.",
     image: "/images/dashboard-overview.jpg",
-    alt: "Compliance overview",
+    alt: "Flight Lyceum compliance dashboard showing pending EASA changes and acknowledgement rates",
+    href: "/how-it-works",
+    linkLabel: "See how compliance monitoring works",
   },
   {
     title: "AI impact assessment",
     body: "When a regulation changes, the AI flags affected manual sections and drafts a plain-language replacement. Your team approves.",
     image: "/images/change-impact-review.jpg",
-    alt: "AI impact assessment",
+    alt: "AI impact assessment screen showing regulation change review and manual update approval",
+    href: "/how-it-works",
+    linkLabel: "See how AI impact assessment works",
   },
   {
     title: "Read & acknowledge",
     body: "Assign reading to instructors and students. Know exactly who has read, who hasn't, and when.",
     image: "/images/acknowledgement-tracking.jpg",
-    alt: "Read & acknowledge",
+    alt: "Acknowledgement tracking view showing which staff have read and confirmed procedure updates",
+    href: "/how-it-works",
+    linkLabel: "See how read and acknowledge works",
   },
   {
     title: "Mobile-first for students",
     body: "Students read, understand, and acknowledge updates from their phone — before the next lesson.",
     image: "/images/mobile-student-view.jpg",
-    alt: "Mobile-first for students",
+    alt: "Mobile view of Flight Lyceum showing a student reading and acknowledging a training update",
+    href: "/how-it-works",
+    linkLabel: "See how mobile access works for students",
   },
 ];
 
@@ -61,7 +69,7 @@ export default function FeaturesSection() {
                   src={card.image}
                   alt={card.alt}
                   fill
-                  sizes="(min-width: 768px) 50vw, 100vw"
+                  sizes="(min-width: 768px) 44vw, 92vw"
                   className="h-full w-full object-cover"
                 />
               </div>
@@ -74,7 +82,8 @@ export default function FeaturesSection() {
                   {card.body}
                 </p>
                 <Link
-                  href="/#features"
+                  href={card.href}
+                  aria-label={card.linkLabel}
                   className="mt-4 text-sm font-medium text-foreground hover:underline"
                 >
                   Learn more →

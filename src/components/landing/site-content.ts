@@ -20,7 +20,7 @@ export const personaCards = [
   },
   {
     title: "Instructors",
-    body: "Get quick access to current procedures, lesson-linked documents, and sign-offs.",
+    body: "Get quick access to current procedures, lesson linked documents, and sign-offs.",
   },
   {
     title: "Students",
