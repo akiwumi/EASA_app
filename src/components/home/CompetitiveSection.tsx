@@ -3,7 +3,7 @@ const bullets = [
   "Instructors and students actually use it, not just admins",
   "Readable mobile acknowledgement flow for students on the go",
   "Training impact visible next to document impact in one view",
-  "EASA-specific regulatory structure built in from the start",
+  "EASA specific regulatory structure built in from the start",
 ];
 
 export default function CompetitiveSection() {
