@@ -44,7 +44,7 @@ export default function PersonasSection() {
             </p>
           </div>
 
-          <div className="easa-mobile-carousel grid grid-cols-2 gap-4">
+          <div className="easa-mobile-carousel grid md:grid-cols-2 gap-4">
             {personas.map((persona) => (
               <div
                 key={persona.num}
