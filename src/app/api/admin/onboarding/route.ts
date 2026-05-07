@@ -119,7 +119,10 @@ async function loadSnapshot(orgId: string) {
           (brandingResult.data.contact_email as string | null)),
     ),
     sources: Number(sourcesResult.count ?? 0) > 0,
-    ai: Boolean((aiResult.data?.provider as string | null) && (aiResult.data?.api_key as string | null)),
+    ai: Boolean(
+      (aiResult.data?.provider as string | null) &&
+        ((aiResult.data?.provider as string) === "openai" || (aiResult.data?.api_key as string | null)),
+    ),
     schedule: Boolean(scheduleResult.data),
     manuals: Number(manualsResult.count ?? 0) > 0,
     programmes: !isMissingSchemaError(programmesResult.error) && Number(programmesResult.count ?? 0) > 0,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { seedDefaultSources } from "@/lib/seed-default-sources";
 
 export async function GET() {
   const ctx = await getOrgAdminContext();
@@ -12,6 +13,10 @@ export async function GET() {
     .from("sources")
     .select("id")
     .or(`organization_id.eq.${organizationId},organization_id.is.null`);
+
+  if ((sourceIds ?? []).length === 0) {
+    await seedDefaultSources(organizationId);
+  }
   const scopedSourceIds = (sourceIds ?? []).map((source) => source.id as string);
 
   const [
@@ -88,7 +93,7 @@ export async function GET() {
     recentRssItems: recentItems ?? [],
     recentFindings: recentFindings ?? [],
     aiConfig: aiConfig
-      ? { provider: aiConfig.provider, model: aiConfig.model, hasKey: !!aiConfig.api_key }
+      ? { provider: aiConfig.provider, model: aiConfig.model, hasKey: aiConfig.provider === "openai" || !!aiConfig.api_key }
       : null,
   });
 }

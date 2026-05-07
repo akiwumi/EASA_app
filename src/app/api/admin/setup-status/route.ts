@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { seedDefaultSources } from "@/lib/seed-default-sources";
 
 export async function GET() {
   const ctx = await getOrgAdminContext();
@@ -51,6 +52,10 @@ export async function GET() {
       .maybeSingle(),
   ]);
 
+  if ((activeSourceCount ?? 0) === 0) {
+    await seedDefaultSources(organizationId);
+  }
+
   const linked = Boolean(membership?.organization_id);
   const isAdmin = membership?.role === "admin";
 
@@ -74,7 +79,7 @@ export async function GET() {
       hasAiConfig: Boolean(aiConfig),
       aiProvider: aiConfig?.provider ?? null,
       aiModel: aiConfig?.model ?? null,
-      hasAiKey: Boolean(aiConfig?.api_key),
+      hasAiKey: Boolean(aiConfig?.provider === "openai" || aiConfig?.api_key),
       hasSchedule: Boolean(schedule),
       scheduleEnabled: schedule?.enabled ?? null,
       runsPerDay: schedule?.runs_per_day ?? null,

@@ -70,7 +70,7 @@ serve(async (request) => {
     .eq("type", "rss");
 
   if (organizationId) {
-    sourcesQuery = sourcesQuery.eq("organization_id", organizationId);
+    sourcesQuery = sourcesQuery.or(`organization_id.eq.${organizationId},organization_id.is.null`);
   }
 
   const { data: sources, error: sourcesError } = await sourcesQuery;
@@ -115,7 +115,7 @@ serve(async (request) => {
       const payload = items.map((item) => ({
         ...item,
         source_id: source.id,
-        organization_id: source.organization_id,
+        organization_id: source.organization_id ?? organizationId,
       }));
 
       const { error: insertError } = await supabase

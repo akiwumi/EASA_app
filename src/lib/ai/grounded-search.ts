@@ -115,7 +115,7 @@ async function loadAiConfig(
     .maybeSingle();
 
   const row = (data ?? null) as AiConfigRow | null;
-  const provider = (row?.provider ?? "anthropic").toLowerCase();
+  const provider = (row?.provider ?? "openai").toLowerCase();
   const model = row?.model ?? "claude-sonnet-4-20250514";
 
   let apiKey = row?.api_key ?? "";
