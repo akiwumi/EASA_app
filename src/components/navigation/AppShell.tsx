@@ -98,10 +98,9 @@ export default function AppShell({
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (!menuOpen) return;
     const timer = window.setTimeout(() => setMenuOpen(false), 0);
     return () => window.clearTimeout(timer);
-  }, [menuOpen, pathname]);
+  }, [pathname]);
 
   useEffect(() => {
     fetch("/api/notifications")
