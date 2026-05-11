@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
-  Bot,
   BookOpen,
   CheckCircle2,
   Clock3,
@@ -143,17 +142,6 @@ export default async function DashboardPage() {
       icon: Radio,
     },
     {
-      label: "AI analysis configured",
-      done: setupSummary.hasAiConfig && setupSummary.hasAiKey,
-      hint:
-        setupSummary.hasAiConfig && setupSummary.hasAiKey
-          ? "Provider and API key are saved."
-          : "Save your provider, model, and API key so the app can draft update text.",
-      href: "/settings?tab=ai",
-      action: "Open AI settings",
-      icon: Bot,
-    },
-    {
       label: "Automation schedule saved",
       done: setupSummary.hasSchedule,
       hint: setupSummary.hasSchedule
@@ -246,7 +234,6 @@ export default async function DashboardPage() {
       <SetupAssistCard
         hasActiveFeeds={hasActiveFeeds}
         hasFlightbooks={setupSummary.hasFlightbooks}
-        hasAiConfig={setupSummary.hasAiConfig && setupSummary.hasAiKey}
         hasSchedule={setupSummary.hasSchedule}
       />
 

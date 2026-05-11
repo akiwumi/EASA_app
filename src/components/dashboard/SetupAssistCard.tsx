@@ -3,19 +3,17 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BookOpen, Bot, Clock3, Radio } from "lucide-react";
+import { BookOpen, Clock3, Radio } from "lucide-react";
 
 type SetupAssistCardProps = {
   hasActiveFeeds: boolean;
   hasFlightbooks: boolean;
-  hasAiConfig: boolean;
   hasSchedule: boolean;
 };
 
 export default function SetupAssistCard({
   hasActiveFeeds,
   hasFlightbooks,
-  hasAiConfig,
   hasSchedule,
 }: SetupAssistCardProps) {
   const router = useRouter();
@@ -26,7 +24,6 @@ export default function SetupAssistCard({
   const missingItems = [
     !hasActiveFeeds ? "no active EASA feeds" : null,
     !hasFlightbooks ? "no flight books uploaded" : null,
-    !hasAiConfig ? "AI settings not saved" : null,
     !hasSchedule ? "automation schedule missing" : null,
   ].filter(Boolean) as string[];
 
@@ -129,21 +126,6 @@ export default function SetupAssistCard({
             </p>
             <Link className="easa-btn primary mt-4 inline-flex text-xs" href="/flightbooks/upload">
               Upload flight books
-            </Link>
-          </div>
-        )}
-
-        {!hasAiConfig && (
-          <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Bot size={16} />
-              AI settings
-            </div>
-            <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
-              Save your provider, model, and API key before asking the app to draft updates.
-            </p>
-            <Link className="easa-btn secondary mt-4 inline-flex text-xs" href="/settings?tab=ai">
-              Open AI settings
             </Link>
           </div>
         )}

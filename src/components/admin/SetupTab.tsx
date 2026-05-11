@@ -30,10 +30,6 @@ type SetupStatus = {
     hasOrganization: boolean;
     sourcesTotal: number;
     activeSources: number;
-    hasAiConfig: boolean;
-    aiProvider: string | null;
-    aiModel: string | null;
-    hasAiKey: boolean;
     hasSchedule: boolean;
     scheduleEnabled: boolean | null;
     runsPerDay: number | null;
@@ -125,11 +121,6 @@ export default function SetupTab({
           label: "At least one active EASA RSS feed exists",
           done: status.setup.activeSources > 0,
           help: "Active RSS feeds are what the dashboard and pipeline use for update checks.",
-        },
-        {
-          label: "AI provider settings are saved",
-          done: status.setup.hasAiConfig && status.setup.hasAiKey,
-          help: "Needed for AI analysis, matching, and suggested update text.",
         },
         {
           label: "Automation schedule exists",
