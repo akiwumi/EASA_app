@@ -108,7 +108,7 @@ export default function AiScrapeButton({ compact = false }: AiScrapeButtonProps)
                 Pipeline complete.
                 {result.ingest?.note
                   ? ` ${result.ingest.note}`
-                  : ` Fetched ${result.ingest?.count ?? 0} RSS items.`}
+                  : ` Fetched ${result.ingest?.count ?? 0} RSS items; analyzed ${result.analyze?.analyzed ?? 0} new items.`}
               </span>
             </div>
           </div>

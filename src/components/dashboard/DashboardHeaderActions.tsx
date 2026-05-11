@@ -6,6 +6,7 @@ import { RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
 
 type RunResult = {
   ingest?: { count?: number; note?: string };
+  analyze?: { analyzed?: number };
 };
 
 export default function DashboardHeaderActions({ showFinishSetup }: { showFinishSetup: boolean }) {
@@ -22,7 +23,7 @@ export default function DashboardHeaderActions({ showFinishSetup }: { showFinish
       const payload = await response.json();
       if (!response.ok || !payload?.ok) throw new Error(payload?.error ?? "Unable to run scrape.");
       setStatus("done");
-      setResult({ ingest: payload.ingest });
+      setResult({ ingest: payload.ingest, analyze: payload.analyze });
     } catch (error) {
       setStatus("error");
       setErrorMsg(error instanceof Error ? error.message : "Unable to run scrape.");
@@ -32,7 +33,7 @@ export default function DashboardHeaderActions({ showFinishSetup }: { showFinish
   const noticeText = status === "done" && result
     ? result.ingest?.note
       ? result.ingest.note
-      : `Pipeline complete. Fetched ${result.ingest?.count ?? 0} RSS items.`
+      : `Pipeline complete. Fetched ${result.ingest?.count ?? 0} RSS items; analyzed ${result.analyze?.analyzed ?? 0} new items.`
     : null;
 
   return (

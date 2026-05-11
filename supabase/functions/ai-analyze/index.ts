@@ -243,12 +243,18 @@ serve(async (request) => {
   // Fall back to environment variable if no key stored in DB yet
   const apiKey = (aiConfig?.api_key as string | null) ?? Deno.env.get("OPENAI_API_KEY") ?? "";
 
+  const analysisLimitRaw = Number(payload?.analysisLimit ?? Deno.env.get("AI_ANALYZE_LIMIT") ?? 100);
+  const analysisLimit = Number.isFinite(analysisLimitRaw)
+    ? Math.max(1, Math.min(analysisLimitRaw, 200))
+    : 100;
+  const candidateLimit = Math.max(analysisLimit * 5, 500);
+
   // Fetch unanalyzed RSS items
   let rssQuery = supabase
     .from("rss_items")
     .select("id,title,summary,category,organization_id,published_at")
     .order("published_at", { ascending: false })
-    .limit(25);
+    .limit(candidateLimit);
 
   if (organizationId) {
     rssQuery = rssQuery.eq("organization_id", organizationId);
@@ -273,7 +279,9 @@ serve(async (request) => {
     : { data: [] as { rss_item_id: string }[] };
 
   const existingFindingIds = new Set((existingFindings ?? []).map((row) => row.rss_item_id));
-  const pendingItems = (rssItems ?? []).filter((item) => !existingFindingIds.has(item.id as string));
+  const pendingItems = (rssItems ?? [])
+    .filter((item) => !existingFindingIds.has(item.id as string))
+    .slice(0, analysisLimit);
 
   // Fetch active flightbook section titles for mapping context
   let sectionsQuery = supabase
@@ -345,6 +353,8 @@ serve(async (request) => {
       model,
       bookSectionsUsed: sections.length,
       rssItemsConsidered: pendingItems.length,
+      analysisLimit,
+      candidateLimit,
     }),
     { status: 200 },
   );
