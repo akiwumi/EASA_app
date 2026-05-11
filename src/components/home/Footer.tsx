@@ -22,10 +22,11 @@ export default function Footer({
         >
           <Image
             alt="Flight Lyceum logo"
-            className="h-12 w-auto object-contain"
+            className="object-contain"
             height={48}
             src="/images/flight-lyceum-logo.png"
-            width={120}
+            style={{ width: 88, height: 48 }}
+            width={88}
           />
           <div>
             <p

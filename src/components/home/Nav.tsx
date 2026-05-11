@@ -28,11 +28,12 @@ export default function Nav() {
           >
             <Image
               alt="Flight Lyceum logo"
-              className="h-10 w-auto object-contain"
+              className="object-contain"
               height={40}
               priority
               src="/images/flight-lyceum-logo.png"
-              width={72}
+              style={{ width: 73, height: 40 }}
+              width={73}
             />
             <div className="min-w-0">
               <p className="easa-display text-lg leading-none text-[var(--easa-color-text-primary)]">

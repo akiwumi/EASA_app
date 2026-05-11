@@ -245,11 +245,12 @@ export default function AppShell({
               ) : (
                 <Image
                   alt="Flight Lyceum logo"
-                  className="h-10 w-auto object-contain"
+                  className="object-contain"
                   height={40}
                   priority
                   src="/images/flight-lyceum-logo.png"
-                  width={72}
+                  style={{ width: 73, height: 40 }}
+                  width={73}
                 />
               )}
               <div className="min-w-0">

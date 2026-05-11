@@ -29,10 +29,11 @@ export default function MarketingShell({
             <Link href="/" className="flex items-center gap-3">
               <Image
                 alt="Flight Lyceum logo"
-                className="h-11 w-auto object-contain"
+                className="object-contain"
                 height={44}
                 priority
                 src="/images/flight-lyceum-logo.png"
+                style={{ width: 80, height: 44 }}
                 width={80}
               />
               <div>
