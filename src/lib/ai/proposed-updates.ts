@@ -333,7 +333,7 @@ async function loadAiConfig(
 
   const row = (data ?? null) as AiConfigRow | null;
   const provider = (row?.provider ?? "openai").toLowerCase();
-  const model = row?.model ?? "claude-sonnet-4-20250514";
+  const model = row?.model ?? "gpt-4o";
 
   let apiKey = row?.api_key ?? "";
   if (!apiKey) {

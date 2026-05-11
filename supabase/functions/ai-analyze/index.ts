@@ -238,10 +238,10 @@ serve(async (request) => {
 
   const { data: aiConfig } = await aiConfigQuery.maybeSingle();
 
-  const provider = aiConfig?.provider ?? "anthropic";
-  const model = aiConfig?.model ?? "claude-sonnet-4-20250514";
+  const provider = aiConfig?.provider ?? "openai";
+  const model = aiConfig?.model ?? "gpt-4o";
   // Fall back to environment variable if no key stored in DB yet
-  const apiKey = (aiConfig?.api_key as string | null) ?? Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+  const apiKey = (aiConfig?.api_key as string | null) ?? Deno.env.get("OPENAI_API_KEY") ?? "";
 
   // Fetch unanalyzed RSS items
   let rssQuery = supabase
