@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { fetchAiScrapedUpdates } from "@/lib/ai-scraper";
+import { getOrgAccessContext } from "@/lib/supabase/access";
 import AddToQueueButton from "@/components/results/AddToQueueButton";
 import ExportResultsButton from "@/components/results/ExportResultsButton";
 
 export default async function ResultsPage() {
-  const results = await fetchAiScrapedUpdates();
+  const ctx = await getOrgAccessContext();
+  const results = await fetchAiScrapedUpdates(ctx?.orgId);
 
   return (
     <div className="space-y-6">

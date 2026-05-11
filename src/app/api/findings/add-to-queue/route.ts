@@ -22,7 +22,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Finding not found" }, { status: 404 });
   }
 
-  if ((finding.organization_id as string | null) !== ctx.orgId) {
+  const findingOrgId = finding.organization_id as string | null;
+  if (findingOrgId !== null && findingOrgId !== ctx.orgId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

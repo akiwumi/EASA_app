@@ -112,7 +112,7 @@ function buildCollation(
   };
 }
 
-export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
+export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpdates> {
   const allowMockFallback = process.env.EASA_ENABLE_MOCK_UPDATES === "true";
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -132,7 +132,7 @@ export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
 
   const supabase = getAdminClient();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("ai_findings")
     .select(
       `
@@ -155,6 +155,13 @@ export async function fetchAiScrapedUpdates(): Promise<CollatedUpdates> {
     )
     .order("created_at", { ascending: false })
     .limit(50);
+
+  // Scope to the org's own findings plus any global (null-org) findings.
+  if (orgId) {
+    query = query.or(`organization_id.eq.${orgId},organization_id.is.null`);
+  }
+
+  const { data, error } = await query;
 
   if (error || !data) {
     if (allowMockFallback) {

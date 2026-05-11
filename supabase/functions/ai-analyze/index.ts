@@ -261,12 +261,17 @@ serve(async (request) => {
   }
 
   const rssItemIds = (rssItems ?? []).map((item) => item.id as string);
-  const { data: existingFindings } = rssItemIds.length
-    ? await supabase
-        .from("ai_findings")
-        .select("rss_item_id")
-        .in("rss_item_id", rssItemIds)
+
+  // Scope the existing-findings check to the current org so that findings from a
+  // different org (or a previous null-org run) don't silently block analysis here.
+  let existingQuery = rssItemIds.length
+    ? supabase.from("ai_findings").select("rss_item_id").in("rss_item_id", rssItemIds)
+    : null;
+  if (existingQuery && organizationId) existingQuery = existingQuery.eq("organization_id", organizationId);
+  const { data: existingFindings } = existingQuery
+    ? await existingQuery
     : { data: [] as { rss_item_id: string }[] };
+
   const existingFindingIds = new Set((existingFindings ?? []).map((row) => row.rss_item_id));
   const pendingItems = (rssItems ?? []).filter((item) => !existingFindingIds.has(item.id as string));
 
@@ -326,7 +331,7 @@ serve(async (request) => {
   if (findingsPayload.length > 0) {
     const { error: insertError } = await supabase
       .from("ai_findings")
-      .upsert(findingsPayload, { onConflict: "rss_item_id" });
+      .upsert(findingsPayload, { onConflict: "rss_item_id,organization_id" });
     if (insertError) {
       return new Response(JSON.stringify({ ok: false, error: insertError.message }), { status: 500 });
     }
