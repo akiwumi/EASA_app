@@ -1,6 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
 import FlightbookUpload from "@/components/flightbooks/FlightbookUpload";
-import { getOrgAccessContext } from "@/lib/supabase/access";
+import { getOptionalSupabaseAdminClient, getOrgAccessContext } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
@@ -16,11 +15,9 @@ async function loadBooks() {
     return [];
   }
 
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
+  const admin = getOptionalSupabaseAdminClient();
+  if (!admin) return [];
+
   const { data, error } = await admin
     .from("flightbooks")
     .select("id, name, doc_type")

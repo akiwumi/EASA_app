@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 import DiffViewer from "@/components/updates/DiffViewer";
-import { getOrgAccessContext, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
+import { getOptionalSupabaseAdminClient, getOrgAccessContext, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
 
 type JoinedUpdateRow = {
   id: string;
@@ -38,14 +37,6 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
   );
 }
 
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
-
 export default async function UpdateDetailPage({
   params,
 }: {
@@ -57,7 +48,9 @@ export default async function UpdateDetailPage({
   const role = ctx?.role ?? null;
   const canManage = role ? ORG_APPROVER_ROLES.includes(role as (typeof ORG_APPROVER_ROLES)[number]) : false;
 
-  const admin = getAdminClient();
+  const admin = getOptionalSupabaseAdminClient();
+
+  if (!admin) notFound();
 
   let query = admin
     .from("proposed_updates")

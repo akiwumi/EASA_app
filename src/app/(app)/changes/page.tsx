@@ -1,14 +1,6 @@
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 import AggregateButton from "@/components/changes/AggregateButton";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOptionalSupabaseAdminClient } from "@/lib/supabase/access";
 
 // EASA regulation part display metadata
 const PART_META: Record<string, { label: string; colour: string }> = {
@@ -53,19 +45,24 @@ export default async function ChangesPage({
   searchParams: Promise<{ part?: string; type?: string }>;
 }) {
   const { part: filterPart, type: filterType } = await searchParams;
-  const admin = getAdminClient();
+  const admin = getOptionalSupabaseAdminClient();
 
-  let query = admin
-    .from("reg_changes")
-    .select(`id, reg_part, section_ref, change_type, diff_text, detected_at, ai_finding_id,
-      ai_findings ( id, impact, confidence, category )`)
-    .order("detected_at", { ascending: false })
-    .limit(500);
+  let changes: unknown[] = [];
 
-  if (filterPart) query = query.eq("reg_part", filterPart);
-  if (filterType) query = query.eq("change_type", filterType);
+  if (admin) {
+    let query = admin
+      .from("reg_changes")
+      .select(`id, reg_part, section_ref, change_type, diff_text, detected_at, ai_finding_id,
+        ai_findings ( id, impact, confidence, category )`)
+      .order("detected_at", { ascending: false })
+      .limit(500);
 
-  const { data: changes } = await query;
+    if (filterPart) query = query.eq("reg_part", filterPart);
+    if (filterType) query = query.eq("change_type", filterType);
+
+    const result = await query;
+    changes = result.data ?? [];
+  }
 
   const rows = (changes ?? []) as unknown as RegChange[];
 

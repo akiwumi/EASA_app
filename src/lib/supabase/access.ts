@@ -13,19 +13,27 @@ export const ORG_APPROVER_ROLES = ["admin", "editor", "compliance_manager"] as c
 export const ORG_ROLLBACK_ROLES = ["admin", "compliance_manager"] as const;
 export { DEFAULT_ORG_ID, DEFAULT_ORG_NAME } from "@/lib/supabase/org-membership";
 
-export function getSupabaseAdminClient() {
+export function getOptionalSupabaseAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-  if (!url || !serviceRoleKey) {
+  if (!url || !serviceRoleKey) return null;
+
+  return createClient(url, serviceRoleKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
+
+export function getSupabaseAdminClient() {
+  const admin = getOptionalSupabaseAdminClient();
+
+  if (!admin) {
     throw new Error(
       "Supabase admin credentials are missing. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.",
     );
   }
 
-  return createClient(url, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  return admin;
 }
 
 async function ensureDefaultOrgMembership(userId: string): Promise<OrgAccessContext | null> {

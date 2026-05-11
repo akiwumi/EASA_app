@@ -1,21 +1,14 @@
 import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
 import ReviewPanel from "@/components/results/ReviewPanel";
-import { getOrgAccessContext, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOptionalSupabaseAdminClient, getOrgAccessContext, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
 
 export default async function FindingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const admin = getAdminClient();
+  const admin = getOptionalSupabaseAdminClient();
   const ctx = await getOrgAccessContext();
+
+  if (!admin) notFound();
 
   const { data: finding } = await admin
     .from("ai_findings")

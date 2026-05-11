@@ -1,15 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { History } from "lucide-react";
 import HistoryClient, { type VersionRow } from "@/components/history/HistoryClient";
-import { getOrgAccessContext } from "@/lib/supabase/access";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOptionalSupabaseAdminClient, getOrgAccessContext } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
   return (
@@ -24,7 +15,34 @@ export default async function HistoryPage() {
   const orgId = ctx?.orgId ?? null;
   const role = ctx?.role ?? "viewer";
   const isAdmin = role === "admin";
-  const admin = getAdminClient();
+  const admin = getOptionalSupabaseAdminClient();
+
+  if (!admin) {
+    return (
+      <div className="space-y-6">
+        <div className="easa-card p-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--easa-color-surface-2)]">
+              <History size={20} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">Time machine</h1>
+              <p className="mt-0.5 text-sm text-[var(--easa-color-text-muted)]">
+                Browse all version snapshots, compare any two, and roll back to any previous state.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="easa-card p-10 text-center">
+          <p className="text-sm font-medium">No version history found</p>
+          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+            Versions are created when flight book sections are edited or AI updates are approved.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   let query = admin
     .from("flightbook_section_versions")
