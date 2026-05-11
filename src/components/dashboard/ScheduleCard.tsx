@@ -72,15 +72,15 @@ export default function ScheduleCard() {
   };
 
   return (
-    <div className="easa-card p-6">
+    <div className="easa-card min-w-0 overflow-hidden p-4 sm:p-6">
       <h2 className="text-lg font-semibold">Automation schedule</h2>
-      <p className="text-sm text-[var(--easa-color-text-muted)]">
+      <p className="break-words text-sm text-[var(--easa-color-text-muted)]">
         Daily pipeline window (UTC). Full multi-run configuration lives in
         Settings.
       </p>
 
       <div className="mt-4 space-y-4 text-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <span>Enabled</span>
           <button
             className={`easa-chip ${schedule.enabled ? "is-active" : ""}`}
@@ -129,9 +129,9 @@ export default function ScheduleCard() {
         </label>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
+      <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap sm:items-center">
         <button
-          className="easa-btn primary"
+          className="easa-btn primary w-full sm:w-auto"
           type="button"
           onClick={saveSchedule}
           disabled={status === "saving"}
@@ -139,7 +139,7 @@ export default function ScheduleCard() {
           {status === "saving" ? "Saving..." : "Save schedule"}
         </button>
         {message ? (
-          <p className="text-xs text-[var(--easa-color-text-muted)]">{message}</p>
+          <p className="min-w-0 break-words text-xs text-[var(--easa-color-text-muted)]">{message}</p>
         ) : null}
       </div>
     </div>

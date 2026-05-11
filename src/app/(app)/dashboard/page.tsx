@@ -462,24 +462,24 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="easa-card p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+          <div className="easa-card min-w-0 overflow-hidden p-4 sm:p-6">
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-lg font-semibold">AI RSS ingestion</h2>
                 <p className="text-sm text-[var(--easa-color-text-muted)]">
                   RSS sources configured for your organisation.
                 </p>
               </div>
               <Link
-                className="easa-btn secondary shrink-0 text-xs"
+                className="easa-btn secondary w-full shrink-0 text-xs sm:w-auto"
                 href="/settings?tab=sources"
               >
                 Manage feeds
               </Link>
             </div>
-            <div className="mt-4 max-h-48 space-y-2 overflow-y-auto text-sm">
+            <div className="mt-4 max-h-48 min-w-0 space-y-2 overflow-y-auto text-sm">
             {rssUrls.length === 0 ? (
-              <div className="rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
+              <div className="min-w-0 rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
                 No feeds connected yet.{" "}
                 <Link href="/settings?tab=sources" className="underline">
                   Manage feeds →
@@ -489,28 +489,28 @@ export default async function DashboardPage() {
                 rssUrls.map((feed) => (
                   <div
                     key={feed.url}
-                    className="flex items-center gap-2 rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2"
+                    className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-center gap-x-2 gap-y-1 rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 sm:grid-cols-[auto_minmax(0,1fr)_auto]"
                   >
                     <span
                       className={`h-2 w-2 shrink-0 rounded-full ${feed.active ? "bg-[var(--easa-color-accent-green)]" : "bg-[var(--easa-color-border)]"}`}
                     />
-                    <span className="min-w-0 flex-1 truncate text-xs font-medium">{feed.name}</span>
+                    <span className="min-w-0 break-words text-xs font-medium">{feed.name}</span>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
                       feed.active
                         ? "bg-[color-mix(in_srgb,var(--easa-color-accent-green)_14%,transparent)] text-[var(--easa-color-accent-green)]"
                         : "bg-[var(--easa-color-surface-3)] text-[var(--easa-color-text-muted)]"
-                    }`}>
+                    } sm:col-auto col-start-2 w-fit`}>
                       {feed.active ? "Active" : "Inactive"}
                     </span>
                   </div>
                 ))
               )}
             </div>
-            <div className="mt-5 flex flex-wrap items-center gap-2">
-              <Link className="easa-btn secondary" href="/results">
+            <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap sm:items-center">
+              <Link className="easa-btn secondary w-full text-center sm:w-auto" href="/results">
                 Collated results
               </Link>
-              <Link className="easa-btn secondary" href="#top">
+              <Link className="easa-btn secondary w-full text-center sm:w-auto" href="#top">
                 Run from dashboard header
               </Link>
             </div>
