@@ -39,7 +39,7 @@ export default function WorkflowSection() {
             className="text-4xl font-normal tracking-tight text-foreground md:text-5xl"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            From EASA change to instructor sign-off — in one workflow.
+            From EASA change to instructor sign-off in one workflow.
           </h2>
         </div>
 
