@@ -46,8 +46,29 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      <div className="md:hidden">
+        <label
+          className="mb-2 block text-xs font-medium uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]"
+          htmlFor="admin-section-select"
+        >
+          Admin section
+        </label>
+        <select
+          id="admin-section-select"
+          className="w-full rounded-2xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)] px-4 py-3 text-sm font-medium text-[var(--easa-color-text-primary)] shadow-[var(--easa-shadow-1)] outline-none focus:border-[var(--easa-color-brand-primary)]"
+          value={active}
+          onChange={(event) => setActive(event.target.value as TabId)}
+        >
+          {TABS.map((tab) => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* Tab bar */}
-      <div className="flex gap-1 rounded-2xl bg-[var(--easa-color-surface-2)] p-1">
+      <div className="hidden gap-1 rounded-2xl bg-[var(--easa-color-surface-2)] p-1 md:flex">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = active === tab.id;

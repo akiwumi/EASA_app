@@ -47,6 +47,19 @@ const NAV: NavItem[] = [
   { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
 ] as const;
 
+const DASHBOARD_SECTIONS: NavItem[] = [
+  { href: "/dashboard/setup", label: "Setup", icon: Settings },
+  { href: "/dashboard/operations", label: "Operations", icon: LayoutDashboard },
+  { href: "/dashboard/proposed-updates", label: "Proposed updates", icon: ListChecks },
+  { href: "/dashboard/rss-ingestion", label: "RSS ingestion", icon: LineChart },
+  { href: "/dashboard/lessons-affected", label: "Lessons affected", icon: GraduationCap },
+  { href: "/dashboard/flightbook-mapping", label: "Flight book mapping", icon: BookOpen },
+  { href: "/dashboard/time-machine", label: "Time machine", icon: History },
+  { href: "/dashboard/compliance", label: "Compliance", icon: ScrollText },
+  { href: "/dashboard/pipeline", label: "Pipeline status", icon: LineChart },
+  { href: "/dashboard/admin-settings", label: "Admin settings", icon: Settings, adminOnly: true },
+] as const;
+
 function navItemActive(pathname: string, href: string) {
   if (href === "/flightbooks") {
     if (!pathname.startsWith("/flightbooks")) return false;
@@ -274,8 +287,24 @@ export default function AppShell({
               style={{ backdropFilter: "blur(16px)" }}
             >
               <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {NAV.map((item) => renderNavLink(item, () => setMenuOpen(false)))}
+                <div className="space-y-4">
+                  <div>
+                    <p className="mb-2 px-3 text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
+                      Main menu
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {NAV.map((item) => renderNavLink(item, () => setMenuOpen(false)))}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-[var(--easa-color-border)] pt-4">
+                    <p className="mb-2 px-3 text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
+                      Dashboard sections
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {DASHBOARD_SECTIONS.map((item) => renderNavLink(item, () => setMenuOpen(false)))}
+                    </div>
+                  </div>
                 </div>
                 <div className="rounded-[24px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
                   <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">Organisation</p>
