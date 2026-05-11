@@ -26,17 +26,27 @@ function versionTag(versionNumber: number) {
   return `v${String(versionNumber).padStart(4, "0")}`;
 }
 
+function formatRevisionTimestamp(iso: string) {
+  return iso.slice(0, 16).replace("T", " ");
+}
+
+function revisionLabel(versionNumber: number, exportedAt: string) {
+  return `Rev ${String(versionNumber).padStart(4, "0")} - ${formatRevisionTimestamp(exportedAt)} UTC`;
+}
+
 function buildMarkdown(input: {
   book: ExportBook;
   sections: ExportSection[];
   exportedAt: string;
   versionNumber: number;
+  revisionLabel: string;
 }) {
   const lines = [
     `# ${input.book.name}`,
     "",
     `- Document type: ${input.book.doc_type}`,
-    `- Version label: ${input.book.version_label ?? "Current"}`,
+    `- Revision: ${input.revisionLabel}`,
+    `- Previous version label: ${input.book.version_label ?? "Current"}`,
     `- Export version: ${versionTag(input.versionNumber)}`,
     `- Exported at: ${input.exportedAt}`,
     "",
@@ -58,6 +68,7 @@ function buildText(input: {
   sections: ExportSection[];
   exportedAt: string;
   versionNumber: number;
+  revisionLabel: string;
 }) {
   const title = input.book.name;
   const lines = [
@@ -65,7 +76,8 @@ function buildText(input: {
     "=".repeat(title.length),
     "",
     `Document type: ${input.book.doc_type}`,
-    `Version label: ${input.book.version_label ?? "Current"}`,
+    `Revision: ${input.revisionLabel}`,
+    `Previous version label: ${input.book.version_label ?? "Current"}`,
     `Export version: ${versionTag(input.versionNumber)}`,
     `Exported at: ${input.exportedAt}`,
     "",
@@ -125,6 +137,7 @@ export async function createFlightbookExport(
 
   const nextVersion = ((latestExport?.version_number as number | null) ?? 0) + 1;
   const exportedAt = new Date().toISOString();
+  const nextRevisionLabel = revisionLabel(nextVersion, exportedAt);
   const versionFolder = versionTag(nextVersion);
   const filenameBase = sanitizeFilename((book.name as string) || "flightbook");
   const markdownPath = `${input.organizationId}/${input.flightbookId}/${versionFolder}/${filenameBase}.md`;
@@ -139,6 +152,7 @@ export async function createFlightbookExport(
     })),
     exportedAt,
     versionNumber: nextVersion,
+    revisionLabel: nextRevisionLabel,
   };
 
   const markdown = buildMarkdown(exportInput);
@@ -185,11 +199,21 @@ export async function createFlightbookExport(
 
   if (exportError) return { ok: false as const, error: exportError.message };
 
+  await admin
+    .from("flightbooks")
+    .update({
+      version_label: nextRevisionLabel,
+      updated_at: exportedAt,
+    })
+    .eq("id", input.flightbookId)
+    .eq("organization_id", input.organizationId);
+
   return {
     ok: true as const,
     exportRow: {
       id: exportRow?.id as string,
       versionNumber: exportRow?.version_number as number,
+      revisionLabel: nextRevisionLabel,
       markdownPath: exportRow?.markdown_storage_path as string,
       textPath: exportRow?.text_storage_path as string,
       createdAt: exportRow?.created_at as string,

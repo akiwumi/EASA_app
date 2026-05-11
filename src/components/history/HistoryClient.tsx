@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { ArrowLeftRight, GitCompare } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeftRight, ExternalLink, GitCompare } from "lucide-react";
 import RollbackButton from "@/components/history/RollbackButton";
 import ComparePanel from "@/components/history/ComparePanel";
 
@@ -11,6 +12,7 @@ export interface VersionRow {
   change_source: string;
   created_at: string;
   flightbook_section_id: string;
+  flightbookId: string | null;
   sectionNumber: string | null;
   sectionTitle: string | null;
   flightbookName: string | null;
@@ -29,13 +31,16 @@ function changeSourceLabel(source: string): string {
     rollback: "Rollback",
     upload: "Upload",
     approved: "Approved",
+    manual_version: "Manual full-book version",
+    approved_finding: "Approved finding",
   };
+  if (source.startsWith("ai-finding:")) return "Approved AI finding";
   return map[source] ?? source.replace(/_/g, " ");
 }
 
 function changeSourceBadgeClass(source: string): string {
   if (source === "rollback") return "easa-badge is-orange";
-  if (source === "ai_generated" || source === "approved_update" || source === "approved")
+  if (source === "ai_generated" || source === "approved_update" || source === "approved" || source.startsWith("ai-finding:"))
     return "easa-badge is-green";
   if (source === "manual") return "easa-badge is-blue";
   return "easa-badge is-muted";
@@ -316,13 +321,25 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
                     </div>
 
                     {/* Rollback action */}
-                    {isAdmin && !compareMode && (
-                      <div className="shrink-0">
-                        <RollbackButton
-                          sectionId={v.flightbook_section_id}
-                          versionNumber={v.version_number}
-                          sectionLabel={sectionLabel || "section"}
-                        />
+                    {!compareMode && (
+                      <div className="flex shrink-0 flex-wrap items-center gap-2">
+                        {v.flightbookId && (
+                          <Link
+                            href={`/flightbooks/${v.flightbookId}#section-${v.flightbook_section_id}`}
+                            className="easa-btn secondary flex items-center gap-2 text-sm"
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            <ExternalLink size={14} strokeWidth={1.75} />
+                            Open section
+                          </Link>
+                        )}
+                        {isAdmin && (
+                          <RollbackButton
+                            sectionId={v.flightbook_section_id}
+                            versionNumber={v.version_number}
+                            sectionLabel={sectionLabel || "section"}
+                          />
+                        )}
                       </div>
                     )}
                   </div>

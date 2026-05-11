@@ -171,7 +171,7 @@ export default function FlightbookDetailClient({
 
       <div className="space-y-4">
         {sections.map((section) => (
-          <div key={section.id} className="easa-card p-5">
+          <div id={`section-${section.id}`} key={section.id} className="easa-card scroll-mt-24 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs uppercase tracking-[0.16em] text-[var(--easa-color-text-muted)]">

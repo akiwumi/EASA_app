@@ -261,9 +261,6 @@ export default function SetupTab({
         <div className="easa-card p-6 space-y-4">
           <div>
             <h3 className="text-sm font-semibold">Current app status</h3>
-            <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-              These values come from your live Supabase project.
-            </p>
           </div>
 
           {status ? (
@@ -288,15 +285,6 @@ export default function SetupTab({
               </div>
 
               <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
-                <p className="font-medium">AI config</p>
-                <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
-                  {status.setup.hasAiConfig
-                    ? `${status.setup.aiProvider ?? "provider"} · ${status.setup.aiModel ?? "model"}`
-                    : "Not configured yet"}
-                </p>
-              </div>
-
-              <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
                 <p className="font-medium">Automation</p>
                 <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
                   {status.setup.hasSchedule
@@ -309,32 +297,6 @@ export default function SetupTab({
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <div className="easa-card p-6">
-          <h3 className="text-sm font-semibold">Troubleshooting without SQL</h3>
-          <div className="mt-3 space-y-3 text-sm text-[var(--easa-color-text-muted)]">
-            <p>
-              The app should create and link the default organisation for you
-              automatically. If this page still says your user is not linked,
-              sign out and sign back in, then refresh the dashboard.
-            </p>
-            <p>
-              If feeds are missing, use <strong className="text-[var(--easa-color-text-secondary)]">Restore EASA defaults</strong> or open the RSS feeds tab and add them there.
-            </p>
-            <p>
-              If AI is not producing results, open AI settings and save a provider,
-              model, and API key from the app instead of editing the database directly.
-            </p>
-            <p>
-              After setup is done, go back to the dashboard and click
-              <strong className="text-[var(--easa-color-text-secondary)]">
-                {" "}Run now
-              </strong>
-              to fetch feeds and compare them with your uploaded flight books.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

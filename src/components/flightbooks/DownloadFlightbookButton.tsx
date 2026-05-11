@@ -16,7 +16,7 @@ export default function DownloadFlightbookButton({
   exportId,
   label,
 }: Props) {
-  function download(format: "md" | "txt") {
+  function download(format: "md" | "txt" | "doc" | "pdf") {
     const link = document.createElement("a");
     const exportQuery = exportId ? `&exportId=${exportId}` : "";
     link.href = `/api/flightbooks/${id}/download?format=${format}${exportQuery}`;
@@ -29,7 +29,7 @@ export default function DownloadFlightbookButton({
         type="button"
         className="rounded-lg p-2 text-[var(--easa-color-text-muted)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-brand-primary)]"
         title="Download flight book"
-        onClick={() => download("md")}
+        onClick={() => download("doc")}
       >
         <Download size={15} strokeWidth={1.75} />
       </button>
@@ -41,17 +41,24 @@ export default function DownloadFlightbookButton({
       <button
         type="button"
         className="easa-btn secondary flex items-center gap-2 text-sm"
-        onClick={() => download("md")}
+        onClick={() => download("doc")}
       >
         <Download size={15} strokeWidth={1.75} />
-        {label ?? "Download Markdown"}
+        {label ?? "Download Word"}
       </button>
       <button
         type="button"
         className="easa-btn secondary text-sm"
-        onClick={() => download("txt")}
+        onClick={() => download("pdf")}
       >
-        TXT
+        PDF
+      </button>
+      <button
+        type="button"
+        className="easa-btn secondary text-sm"
+        onClick={() => download("md")}
+      >
+        MD
       </button>
     </div>
   );

@@ -124,6 +124,7 @@ export default async function HistoryPage() {
       change_source: v.change_source as string,
       created_at: v.created_at as string,
       flightbook_section_id: v.flightbook_section_id as string,
+      flightbookId: section?.flightbook_id ?? null,
       sectionNumber: section?.section_number ?? null,
       sectionTitle: section?.title ?? null,
       flightbookName: section?.flightbook_id

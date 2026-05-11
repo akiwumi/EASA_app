@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import StatCard from "@/components/cards/StatCard";
 import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
-import NoFeedsWarning from "@/components/dashboard/NoFeedsWarning";
 import RoleFocusPanel from "@/components/dashboard/RoleFocusPanel";
 import ScheduleCard from "@/components/dashboard/ScheduleCard";
 import SetupAssistCard from "@/components/dashboard/SetupAssistCard";
@@ -212,7 +211,6 @@ export default async function DashboardPage() {
 
   return (
     <div id="top" className="space-y-6">
-      {!hasActiveFeeds && <NoFeedsWarning />}
       <header className="easa-card-glass flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="easa-eyebrow">

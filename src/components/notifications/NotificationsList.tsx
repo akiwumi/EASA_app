@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   CheckCircle,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import NotificationDetailModal from "@/components/notifications/NotificationDetailModal";
 import { parseNotificationRecord, type NotificationRecord as Notification } from "@/components/notifications/notification-record";
 
 type ViewerRole = "admin" | "editor" | "viewer" | "instructor" | "student" | "compliance_manager";
@@ -78,9 +79,10 @@ function roleCopy(role: ViewerRole) {
 }
 
 export default function NotificationsList({ role = "viewer" }: { role?: ViewerRole }) {
+  const router = useRouter();
   const copy = roleCopy(role);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
@@ -97,7 +99,6 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
     }
     const json = await res.json();
     setNotifications(json.notifications ?? []);
-    setUnreadCount(json.unreadCount ?? 0);
     setLoading(false);
   }, []);
 
@@ -132,7 +133,6 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
             const n = parseNotificationRecord(payload.new);
             if (!n) return;
             setNotifications((prev) => [n, ...prev]);
-            setUnreadCount((c) => c + 1);
           },
         )
         .on(
@@ -148,9 +148,6 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
             if (!updated) return;
             setNotifications((prev) =>
               prev.map((n) => (n.id === updated.id ? updated : n)),
-            );
-            setUnreadCount((prev) =>
-              prev === 0 ? 0 : (!updated.read ? prev : Math.max(0, prev - 1)),
             );
           },
         )
@@ -178,7 +175,6 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
     setNotifications((prev) =>
       prev.map((n) => (ids.includes(n.id) ? { ...n, read: true } : n)),
     );
-    setUnreadCount((c) => Math.max(0, c - ids.length));
   }
 
   async function markAllRead() {
@@ -189,9 +185,21 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
       body: JSON.stringify({ markAllRead: true }),
     });
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    setUnreadCount(0);
     setMarkingAll(false);
   }
+
+  function getRelatedHref(n: Notification) {
+    if (n.related_entity_type === "proposed_update" && n.related_entity_id) {
+      return `/updates/${n.related_entity_id}`;
+    }
+    if (n.related_entity_type === "flightbook_section" && n.related_entity_id) {
+      return "/history";
+    }
+    return null;
+  }
+
+  const selectedNotification = selectedId ? notifications.find((n) => n.id === selectedId) : null;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <div className="space-y-4">
@@ -247,57 +255,63 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
       ) : (
         <div className="easa-card divide-y divide-[var(--easa-color-border)] p-0">
           {notifications.map((n) => {
-            const isLink =
-              n.related_entity_type === "proposed_update" && n.related_entity_id;
-            const href = isLink ? `/updates/${n.related_entity_id}` : null;
-
-            const inner = (
+            return (
               <div
-                className={`flex items-start gap-3 px-5 py-4 transition ${
+                key={n.id}
+                className={`flex items-start gap-3 px-5 py-4 transition hover:bg-[var(--easa-color-surface-2)] ${
                   n.read
                     ? ""
                     : "bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_5%,transparent)]"
                 }`}
               >
-                <NotificationIcon type={n.type} />
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm leading-snug ${n.read ? "" : "font-semibold"}`}>
-                    {n.title}
-                  </p>
-                  {n.body && (
-                    <p className="mt-0.5 text-xs text-[var(--easa-color-text-secondary)]">
-                      {n.body}
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                  onClick={() => setSelectedId(n.id)}
+                >
+                  <NotificationIcon type={n.type} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm leading-snug ${n.read ? "" : "font-semibold"}`}>
+                      {n.title}
                     </p>
-                  )}
-                  <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-                    {relativeTime(n.created_at)}
-                  </p>
-                </div>
+                    {n.body && (
+                      <p className="mt-0.5 text-xs text-[var(--easa-color-text-secondary)]">
+                        {n.body}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                      {relativeTime(n.created_at)}
+                    </p>
+                  </div>
+                </button>
                 {!n.read && (
                   <button
                     type="button"
                     className="easa-btn secondary shrink-0 px-2 py-1 text-xs"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      markRead([n.id]);
-                    }}
+                    onClick={() => markRead([n.id])}
                   >
                     Mark read
                   </button>
                 )}
               </div>
             );
-
-            return href ? (
-              <Link key={n.id} href={href} className="block hover:bg-[var(--easa-color-surface-2)] transition">
-                {inner}
-              </Link>
-            ) : (
-              <div key={n.id}>{inner}</div>
-            );
           })}
         </div>
+      )}
+      {selectedNotification && (
+        <NotificationDetailModal
+          notification={selectedNotification}
+          relatedHref={getRelatedHref(selectedNotification)}
+          relatedLabel={selectedNotification.related_entity_type === "proposed_update" ? "Open update" : "Open history"}
+          onClose={() => setSelectedId(null)}
+          onMarkRead={(id) => markRead([id])}
+          onOpenRelated={() => {
+            const href = getRelatedHref(selectedNotification);
+            if (!href) return;
+            setSelectedId(null);
+            router.push(href);
+          }}
+        />
       )}
     </div>
   );

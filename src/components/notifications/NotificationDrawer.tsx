@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import NotificationDetailModal from "@/components/notifications/NotificationDetailModal";
 import { parseNotificationRecord, type NotificationRecord as Notification } from "@/components/notifications/notification-record";
 
 interface Props {
@@ -54,6 +55,7 @@ function relativeTime(iso: string): string {
 export default function NotificationDrawer({ open, onClose, onUnreadChange }: Props) {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
   const realtimeRef = useRef<RealtimeChannel | null>(null);
@@ -174,17 +176,18 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
     setMarkingAll(false);
   }
 
-  function handleNotifClick(n: Notification) {
-    if (!n.read) markRead([n.id]);
+  function getRelatedHref(n: Notification) {
     if (n.related_entity_type === "proposed_update" && n.related_entity_id) {
-      router.push(`/updates/${n.related_entity_id}`);
-    } else if (n.related_entity_type === "flightbook_section" && n.related_entity_id) {
-      router.push(`/history`);
+      return `/updates/${n.related_entity_id}`;
     }
-    onClose();
+    if (n.related_entity_type === "flightbook_section" && n.related_entity_id) {
+      return "/history";
+    }
+    return null;
   }
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+  const selectedNotification = selectedId ? notifications.find((n) => n.id === selectedId) : null;
 
   return (
     <>
@@ -253,9 +256,6 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
           ) : (
             <ul className="divide-y divide-[var(--easa-color-border)]">
               {notifications.map((n) => {
-                const clickable =
-                  (n.related_entity_type === "proposed_update" && n.related_entity_id) ||
-                  n.related_entity_type === "flightbook_section";
                 return (
                   <li key={n.id}>
                     <button
@@ -264,8 +264,8 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
                         !n.read
                           ? "bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_5%,transparent)]"
                           : ""
-                      } ${clickable ? "cursor-pointer" : "cursor-default"}`}
-                      onClick={() => handleNotifClick(n)}
+                      }`}
+                      onClick={() => setSelectedId(n.id)}
                     >
                       <NotificationIcon type={n.type} />
                       <div className="min-w-0 flex-1">
@@ -303,6 +303,22 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
           </Link>
         </div>
       </div>
+      {selectedNotification && (
+        <NotificationDetailModal
+          notification={selectedNotification}
+          relatedHref={getRelatedHref(selectedNotification)}
+          relatedLabel={selectedNotification.related_entity_type === "proposed_update" ? "Open update" : "Open history"}
+          onClose={() => setSelectedId(null)}
+          onMarkRead={(id) => markRead([id])}
+          onOpenRelated={() => {
+            const href = getRelatedHref(selectedNotification);
+            if (!href) return;
+            setSelectedId(null);
+            onClose();
+            router.push(href);
+          }}
+        />
+      )}
     </>
   );
 }

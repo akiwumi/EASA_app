@@ -3,6 +3,7 @@ import {
   getOrgAccessContext,
   getSupabaseAdminClient,
 } from "@/lib/supabase/access";
+import { seedDefaultSources } from "@/lib/seed-default-sources";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export type OrgContext = {
@@ -260,7 +261,7 @@ export async function loadRssSourceUrls(organizationId: string): Promise<RssSour
     .from("sources")
     .select("url, active")
     .eq("type", "rss")
-    .eq("organization_id", organizationId)
+    .or(`organization_id.eq.${organizationId},organization_id.is.null`)
     .order("created_at", { ascending: true });
 
   if (error) return [];
@@ -418,12 +419,23 @@ export async function loadDashboardSetupSummary(
     };
   }
 
+  async function countRssSources(activeOnly: boolean) {
+    let query = admin
+      .from("sources")
+      .select("id", { count: "exact", head: true })
+      .eq("type", "rss")
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`);
+
+    if (activeOnly) query = query.eq("active", true);
+    return query;
+  }
+
   const [
     { data: aiConfig, error: aiError },
     { data: schedule, error: scheduleError },
     { count: flightbookCount, error: booksError },
-    { count: rssSourceCount, error: rssError },
-    { count: activeRssCount, error: activeRssError },
+    initialRssSourceResult,
+    initialActiveRssResult,
   ] = await Promise.all([
     admin
       .from("ai_provider_config")
@@ -440,18 +452,23 @@ export async function loadDashboardSetupSummary(
       .select("id", { count: "exact", head: true })
       .eq("organization_id", organizationId)
       .eq("active", true),
-    admin
-      .from("sources")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("type", "rss"),
-    admin
-      .from("sources")
-      .select("id", { count: "exact", head: true })
-      .eq("organization_id", organizationId)
-      .eq("type", "rss")
-      .eq("active", true),
+    countRssSources(false),
+    countRssSources(true),
   ]);
+
+  let rssSourceResult = initialRssSourceResult;
+  let activeRssResult = initialActiveRssResult;
+
+  if (!activeRssResult.error && (activeRssResult.count ?? 0) === 0) {
+    await seedDefaultSources(organizationId);
+    [rssSourceResult, activeRssResult] = await Promise.all([
+      countRssSources(false),
+      countRssSources(true),
+    ]);
+  }
+
+  const { count: rssSourceCount, error: rssError } = rssSourceResult;
+  const { count: activeRssCount, error: activeRssError } = activeRssResult;
 
   return {
     hasAiConfig: !aiError && Boolean(aiConfig),

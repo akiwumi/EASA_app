@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import FlightbookDetailClient from "@/components/flightbooks/FlightbookDetailClient";
 import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
 import DownloadFlightbookButton from "@/components/flightbooks/DownloadFlightbookButton";
+import SaveFlightbookVersionButton from "@/components/flightbooks/SaveFlightbookVersionButton";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function isMissingSchemaError(error: { code?: string | null; message?: string | null }) {
@@ -16,6 +17,7 @@ function isMissingSchemaError(error: { code?: string | null; message?: string | 
 async function loadBook(id: string) {
   const ctx = await getOrgAccessContext();
   if (!ctx) return { auth: false as const, book: null, sections: [] };
+  const canManage = ["admin", "editor", "compliance_manager"].includes(ctx.role);
 
   const admin = getSupabaseAdminClient();
 
@@ -76,7 +78,7 @@ async function loadBook(id: string) {
     .order("sort_order");
 
   if (sectionsError && isMissingSchemaError(sectionsError)) {
-    return { auth: true as const, book, sections: [], exports: [] };
+    return { auth: true as const, book, sections: [], exports: [], canManage };
   }
 
   const lessonDocsResult = await admin
@@ -142,6 +144,7 @@ async function loadBook(id: string) {
       metadataReady,
       sectionUsage: [],
       commentsReady,
+      canManage,
     };
   }
 
@@ -219,6 +222,7 @@ async function loadBook(id: string) {
     metadataReady,
     sectionUsage,
     commentsReady,
+    canManage,
   };
 }
 
@@ -256,8 +260,9 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
           <Link href={`/flightbooks/upload`} className="easa-btn secondary text-sm">
             Re-import
           </Link>
+          {data.canManage && <SaveFlightbookVersionButton id={book.id as string} />}
           <DownloadFlightbookButton id={book.id as string} />
-          <DeleteFlightbookButton id={book.id as string} name={book.name as string} />
+          {data.canManage && <DeleteFlightbookButton id={book.id as string} name={book.name as string} />}
         </div>
       </div>
 
@@ -286,7 +291,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
             active: Boolean(book.active),
           }}
           sections={data.sectionUsage ?? []}
-          canManage={true}
+          canManage={Boolean(data.canManage)}
           metadataReady={Boolean(data.metadataReady)}
           commentsReady={Boolean(data.commentsReady)}
         />
@@ -297,7 +302,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
           <div>
             <h2 className="text-lg font-semibold">Export history</h2>
             <p className="text-sm text-[var(--easa-color-text-muted)]">
-              Download retained full-book versions generated after approvals or rollbacks.
+              Download retained full-book versions generated after approvals, rollbacks, or manual saves.
             </p>
           </div>
           <span className="easa-badge is-blue">
@@ -321,7 +326,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
                     Full-book export v{String(exportRow.version_number).padStart(4, "0")}
                   </p>
                   <p className="text-xs text-[var(--easa-color-text-muted)]">
-                    {new Date(exportRow.created_at as string).toLocaleString("en-GB")} · {exportRow.change_source as string}
+                    Rev {String(exportRow.version_number).padStart(4, "0")} · {new Date(exportRow.created_at as string).toLocaleString("en-GB")} · {exportRow.change_source as string}
                   </p>
                   {(exportRow.note as string | null) && (
                     <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
@@ -332,7 +337,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
                 <DownloadFlightbookButton
                   id={book.id as string}
                   exportId={exportRow.id as string}
-                  label="Download MD"
+                  label="Download Word"
                 />
               </div>
             ))}
