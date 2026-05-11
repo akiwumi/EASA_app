@@ -9,7 +9,7 @@ export async function GET() {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("sources")
-    .select("id, url, type, active, created_at, organization_id")
+    .select("id, url, type, active, created_at, organization_id, category, label")
     .or(`organization_id.eq.${ctx.orgId},organization_id.is.null`)
     .order("created_at", { ascending: true });
 
@@ -27,7 +27,12 @@ export async function POST(request: Request) {
   const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { url, type } = (await request.json()) as { url?: string; type?: string };
+  const { url, type, category, label } = (await request.json()) as {
+    url?: string;
+    type?: string;
+    category?: string;
+    label?: string;
+  };
   if (!url) return NextResponse.json({ error: "url required" }, { status: 400 });
 
   // Basic URL validation
@@ -38,8 +43,15 @@ export async function POST(request: Request) {
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("sources")
-    .insert({ organization_id: ctx.orgId, url, type: type ?? "rss", active: true })
-    .select("id, url, type, active, created_at")
+    .insert({
+      organization_id: ctx.orgId,
+      url,
+      type: type ?? "rss",
+      active: true,
+      category: category ?? null,
+      label: label ?? null,
+    })
+    .select("id, url, type, active, created_at, category, label")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

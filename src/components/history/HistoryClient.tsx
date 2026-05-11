@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { ArrowLeftRight, GitCompare } from "lucide-react";
+import { ArrowLeftRight, GitCompare, Upload, RefreshCw, Download, FileText } from "lucide-react";
 import RollbackButton from "@/components/history/RollbackButton";
 import ComparePanel from "@/components/history/ComparePanel";
 
@@ -16,8 +16,20 @@ export interface VersionRow {
   flightbookName: string | null;
 }
 
+export interface FileEventRow {
+  id: string;
+  flightbook_id: string;
+  event_type: string;
+  actor_id: string | null;
+  note: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+  flightbookName: string | null;
+}
+
 interface Props {
   versions: VersionRow[];
+  fileEvents: FileEventRow[];
   isAdmin: boolean;
 }
 
@@ -57,29 +69,71 @@ function formatTime(iso: string): string {
   });
 }
 
-function groupByDate(versions: VersionRow[]): Map<string, VersionRow[]> {
-  const groups = new Map<string, VersionRow[]>();
-  for (const v of versions) {
-    const dateKey = v.created_at.slice(0, 10);
+type TimelineItem =
+  | { kind: "version"; data: VersionRow }
+  | { kind: "file_event"; data: FileEventRow };
+
+function fileEventIcon(eventType: string) {
+  if (eventType === "uploaded") return Upload;
+  if (eventType === "replaced") return RefreshCw;
+  if (eventType === "exported") return Download;
+  return FileText;
+}
+
+function fileEventLabel(eventType: string): string {
+  const map: Record<string, string> = {
+    uploaded: "File uploaded",
+    replaced: "File replaced",
+    exported: "Exported",
+    rolled_back: "Rolled back",
+  };
+  return map[eventType] ?? eventType.replace(/_/g, " ");
+}
+
+function fileEventBadgeClass(eventType: string): string {
+  if (eventType === "uploaded") return "easa-badge is-blue";
+  if (eventType === "replaced") return "easa-badge is-orange";
+  if (eventType === "exported") return "easa-badge is-muted";
+  if (eventType === "rolled_back") return "easa-badge is-yellow";
+  return "easa-badge is-muted";
+}
+
+function groupByDate(items: TimelineItem[]): Map<string, TimelineItem[]> {
+  const groups = new Map<string, TimelineItem[]>();
+  for (const item of items) {
+    const dateKey = item.data.created_at.slice(0, 10);
     if (!groups.has(dateKey)) groups.set(dateKey, []);
-    groups.get(dateKey)!.push(v);
+    groups.get(dateKey)!.push(item);
   }
   return groups;
 }
 
-export default function HistoryClient({ versions, isAdmin }: Props) {
+export default function HistoryClient({ versions, fileEvents, isAdmin }: Props) {
   const [compareMode, setCompareMode] = useState(false);
   const [selected, setSelected] = useState<VersionRow[]>([]);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"all" | "versions" | "files">("all");
   const dateGroupRefs = useRef<Map<string, HTMLElement>>(new Map());
 
-  const dateGroups = groupByDate(versions);
+  const allItems: TimelineItem[] = [
+    ...versions.map((v): TimelineItem => ({ kind: "version", data: v })),
+    ...fileEvents.map((e): TimelineItem => ({ kind: "file_event", data: e })),
+  ].sort((a, b) => b.data.created_at.localeCompare(a.data.created_at));
+
+  const filteredItems = allItems.filter((item) => {
+    if (viewMode === "versions") return item.kind === "version";
+    if (viewMode === "files") return item.kind === "file_event";
+    return true;
+  });
+
+  const dateGroups = groupByDate(filteredItems);
   const sortedDates = Array.from(dateGroups.keys()).sort((a, b) => b.localeCompare(a));
 
-  // Build timeline data: date → count
-  const timelineDates = Array.from(dateGroups.entries())
+  // Build timeline data: date → count (always from all items for the strip)
+  const allDateGroups = groupByDate(allItems);
+  const timelineDates = Array.from(allDateGroups.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, vers]) => ({ date, count: vers.length }));
+    .map(([date, items]) => ({ date, count: items.length }));
 
   function toggleSelect(v: VersionRow) {
     setSelected((prev) => {
@@ -153,9 +207,28 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
         </div>
       )}
 
-      {/* Compare mode toggle bar */}
+      {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        {!compareMode ? (
+        {/* View filter */}
+        <div className="flex rounded-xl border border-[var(--easa-color-border)] overflow-hidden text-sm">
+          {(["all", "versions", "files"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => { setViewMode(mode); if (compareMode && mode !== "versions") exitCompareMode(); }}
+              className={`px-3 py-1.5 transition capitalize ${
+                viewMode === mode
+                  ? "bg-[var(--easa-color-brand-primary)] text-white font-medium"
+                  : "hover:bg-[var(--easa-color-surface-2)] text-[var(--easa-color-text-muted)]"
+              }`}
+            >
+              {mode === "all" ? "All activity" : mode === "versions" ? "Section versions" : "File events"}
+            </button>
+          ))}
+        </div>
+
+        {/* Compare (only in versions view) */}
+        {viewMode !== "files" && !compareMode && (
           <button
             type="button"
             className="easa-btn secondary flex items-center gap-2 text-sm"
@@ -164,7 +237,8 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
             <GitCompare size={16} strokeWidth={1.75} />
             Compare versions
           </button>
-        ) : (
+        )}
+        {compareMode && (
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 rounded-full border border-[var(--easa-color-accent-teal)] px-3 py-1.5 text-sm text-[var(--easa-color-accent-teal)]">
               <ArrowLeftRight size={14} strokeWidth={1.75} />
@@ -174,27 +248,21 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
               {selected.length}/2 selected
             </span>
             {selected.length === 2 && (
-              <button
-                type="button"
-                className="easa-btn primary text-sm"
-                onClick={() => setCompareOpen(true)}
-              >
+              <button type="button" className="easa-btn primary text-sm" onClick={() => setCompareOpen(true)}>
                 View diff
               </button>
             )}
-            <button
-              type="button"
-              className="easa-btn secondary text-sm"
-              onClick={exitCompareMode}
-            >
+            <button type="button" className="easa-btn secondary text-sm" onClick={exitCompareMode}>
               Cancel
             </button>
           </div>
         )}
-        <div className="ml-auto">
-          <span className="easa-badge is-blue">
-            {versions.length} version{versions.length !== 1 ? "s" : ""}
-          </span>
+
+        <div className="ml-auto flex gap-2">
+          <span className="easa-badge is-blue">{versions.length} version{versions.length !== 1 ? "s" : ""}</span>
+          {fileEvents.length > 0 && (
+            <span className="easa-badge is-muted">{fileEvents.length} file event{fileEvents.length !== 1 ? "s" : ""}</span>
+          )}
         </div>
       </div>
 
@@ -225,7 +293,7 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
 
       {/* Date groups */}
       {sortedDates.map((dateKey) => {
-        const dayVersions = dateGroups.get(dateKey)!;
+        const dayItems = dateGroups.get(dateKey)!;
         return (
           <section
             key={dateKey}
@@ -243,7 +311,38 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
             </div>
 
             <div className="space-y-2">
-              {dayVersions.map((v) => {
+              {dayItems.map((item) => {
+                if (item.kind === "file_event") {
+                  const e = item.data as FileEventRow;
+                  const Icon = fileEventIcon(e.event_type);
+                  const meta = e.metadata ?? {};
+                  const fileName = meta.file_name as string | undefined;
+                  const sectionCount = meta.sections_imported as number | undefined;
+                  return (
+                    <div key={`fe-${e.id}`} className="easa-card flex flex-wrap items-center gap-4 p-4">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--easa-color-surface-2)]">
+                        <Icon size={15} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {e.flightbookName ?? "Flight book"}
+                          {fileName ? ` — ${fileName}` : ""}
+                        </p>
+                        {(e.note || sectionCount !== undefined) && (
+                          <p className="mt-0.5 text-xs text-[var(--easa-color-text-muted)]">
+                            {[e.note, sectionCount !== undefined ? `${sectionCount} sections` : null].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={fileEventBadgeClass(e.event_type)}>{fileEventLabel(e.event_type)}</span>
+                        <span className="text-xs text-[var(--easa-color-text-muted)]">{formatTime(e.created_at)}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const v = item.data as VersionRow;
                 const sectionLabel = [
                   v.sectionNumber ? `§${v.sectionNumber}` : null,
                   v.sectionTitle,
@@ -255,7 +354,7 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
 
                 return (
                   <div
-                    key={v.id}
+                    key={`v-${v.id}`}
                     className={`easa-card flex flex-wrap items-center gap-4 p-4 transition ${
                       compareMode
                         ? isSelected

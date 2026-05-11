@@ -186,6 +186,23 @@ export async function POST(request: Request) {
   const filename = file.name.toLowerCase();
   const bytes = Buffer.from(await file.arrayBuffer());
 
+  // Store the raw file in Supabase Storage so users can download the original
+  const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const storageKey = `${orgId}/${Date.now()}_${safeFilename}`;
+  let fileRef: string | null = null;
+
+  const { error: storageErr } = await admin.storage
+    .from("flightbooks")
+    .upload(storageKey, bytes, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (!storageErr) {
+    fileRef = storageKey;
+  }
+  // Non-fatal: section parsing continues even if storage upload fails
+
   let documents: { docName: string; docType: string; versionLabel: string | null; bookId?: string; sections: ParsedSection[] }[] = [];
 
   // ── JSON fixture ────────────────────────────────────────────────────────────
@@ -235,6 +252,9 @@ export async function POST(request: Request) {
           import_notes: importNotes?.trim() || null,
           tags,
           active: true,
+          file_ref: fileRef,
+          file_size_bytes: bytes.length,
+          file_content_type: file.type || null,
         })
         .select("id").single();
       if (bookErr && isMissingColumnError(bookErr)) {
@@ -265,6 +285,7 @@ export async function POST(request: Request) {
           import_notes: importNotes?.trim() || null,
           tags,
           updated_at: new Date().toISOString(),
+          ...(fileRef ? { file_ref: fileRef, file_size_bytes: bytes.length, file_content_type: file.type || null } : {}),
         })
         .eq("id", bookId)
         .eq("organization_id", orgId);
@@ -341,7 +362,23 @@ export async function POST(request: Request) {
     }
 
     results.push({ bookName: doc.docName, sectionsImported: doc.sections.length });
+
+    // Log flightbook event for Time Machine (non-fatal)
+    await admin.from("flightbook_events").insert({
+      organization_id: orgId,
+      flightbook_id: bookId,
+      event_type: (doc.bookId ?? flightbookId) ? "replaced" : "uploaded",
+      actor_id: ctx.userId,
+      note: importNotes?.trim() || null,
+      metadata: {
+        file_name: file.name,
+        file_size_bytes: bytes.length,
+        sections_imported: doc.sections.length,
+        version_label: doc.versionLabel,
+        file_ref: fileRef,
+      },
+    }).then(() => null, () => null);
   }
 
-  return NextResponse.json({ ok: true, results });
+  return NextResponse.json({ ok: true, results, fileRef });
 }

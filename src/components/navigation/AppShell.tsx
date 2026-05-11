@@ -17,6 +17,7 @@ import {
   ScrollText,
   Search,
   Settings,
+  ShieldAlert,
   Upload,
   User,
   X,
@@ -36,6 +37,7 @@ const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/updates", label: "Update queue", icon: ListChecks },
   { href: "/changes", label: "Change list", icon: ScrollText },
+  { href: "/updates/advisories", label: "Advisories", icon: ShieldAlert },
   { href: "/flightbooks", label: "Flight Books", icon: BookOpen },
   { href: "/search", label: "Search", icon: Search },
   { href: "/training/programmes", label: "Training", icon: GraduationCap },
@@ -52,6 +54,9 @@ function navItemActive(pathname: string, href: string) {
     if (!pathname.startsWith("/flightbooks")) return false;
     if (pathname.startsWith("/flightbooks/upload")) return false;
     return true;
+  }
+  if (href === "/updates") {
+    return pathname === "/updates" || pathname.startsWith("/updates/") && !pathname.startsWith("/updates/advisories");
   }
   if (pathname === href) return true;
   if (href === "/dashboard") return false;

@@ -63,6 +63,9 @@ export type FlightbookSummary = {
   tags: string[];
   active: boolean;
   created_at: string;
+  file_ref: string | null;
+  file_size_bytes: number | null;
+  file_content_type: string | null;
   sectionCount: number;
   linkedLessonCount?: number;
   pendingAssignmentCount?: number;

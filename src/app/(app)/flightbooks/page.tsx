@@ -21,7 +21,7 @@ async function loadBooks() {
 
   const primaryQuery = await admin
     .from("flightbooks")
-    .select("id, name, doc_type, version_label, aircraft, manual_group, effective_date, import_notes, tags, active, created_at")
+    .select("id, name, doc_type, version_label, aircraft, manual_group, effective_date, import_notes, tags, active, created_at, file_ref, file_size_bytes, file_content_type")
     .eq("organization_id", ctx.orgId)
     .order("created_at", { ascending: false });
 
@@ -45,6 +45,9 @@ async function loadBooks() {
       effective_date: null,
       import_notes: null,
       tags: [],
+      file_ref: null,
+      file_size_bytes: null,
+      file_content_type: null,
     }));
     return enrichBooks(admin, ctx.orgId, normalized as BaseFlightbookRow[]);
   }
@@ -120,6 +123,9 @@ async function enrichBooks(
       effective_date: book.effective_date ?? null,
       import_notes: book.import_notes ?? null,
       tags: Array.isArray(book.tags) ? book.tags : [],
+      file_ref: (book as { file_ref?: string | null }).file_ref ?? null,
+      file_size_bytes: (book as { file_size_bytes?: number | null }).file_size_bytes ?? null,
+      file_content_type: (book as { file_content_type?: string | null }).file_content_type ?? null,
       sectionCount: countMap.get(book.id) ?? 0,
       linkedLessonCount: lessonIds.length,
       pendingAssignmentCount,
