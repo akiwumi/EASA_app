@@ -13,7 +13,7 @@ export async function GET() {
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
-  const config = data ?? { provider: "openai", model: "gpt-4o", api_key: null };
+  const config = data ?? { provider: "openai", model: "gpt-4o", api_key: "" };
   // Never return the api_key value to the client — only indicate whether a custom key is active
   return NextResponse.json({
     config: { provider: config.provider, model: config.model },
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   if (!provider || !model) return NextResponse.json({ error: "provider and model required" }, { status: 400 });
 
   // Don't save the masked placeholder back to the database
-  const keyToSave = apiKey && apiKey !== "••••••••" ? apiKey : null;
+  const keyToSave = apiKey && apiKey !== "••••••••" ? apiKey : "";
 
   const admin = getSupabaseAdminClient();
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       .select("api_key")
       .eq("organization_id", ctx.orgId)
       .maybeSingle();
-    const preservedKey = (existing as { api_key?: string | null } | null)?.api_key ?? null;
+    const preservedKey = (existing as { api_key?: string | null } | null)?.api_key ?? "";
 
     const { error } = await admin
       .from("ai_provider_config")
@@ -76,7 +76,7 @@ export async function DELETE() {
   const admin = getSupabaseAdminClient();
   const { error } = await admin
     .from("ai_provider_config")
-    .update({ api_key: null, updated_at: new Date().toISOString() })
+    .update({ api_key: "", updated_at: new Date().toISOString() })
     .eq("organization_id", ctx.orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

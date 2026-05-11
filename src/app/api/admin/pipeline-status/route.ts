@@ -15,7 +15,7 @@ export async function GET() {
     .or(`organization_id.eq.${organizationId},organization_id.is.null`);
 
   if ((sourceIds ?? []).length === 0) {
-    await seedDefaultSources(organizationId);
+    await seedDefaultSources();
   }
   const scopedSourceIds = (sourceIds ?? []).map((source) => source.id as string);
 

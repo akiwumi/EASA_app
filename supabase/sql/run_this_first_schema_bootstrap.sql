@@ -49,7 +49,10 @@ create table if not exists rss_items (
   created_at timestamptz not null default now()
 );
 
-create unique index if not exists rss_items_external_id_unique on rss_items (external_id);
+drop index if exists rss_items_external_id_unique;
+create unique index if not exists rss_items_source_external_org_unique
+  on rss_items (source_id, external_id, organization_id)
+  nulls not distinct;
 
 create table if not exists ai_findings (
   id uuid primary key default gen_random_uuid(),

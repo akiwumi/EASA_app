@@ -7,6 +7,6 @@ export async function POST() {
   const ctx = await getOrgAdminContext();
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { inserted, skipped } = await seedDefaultSources(ctx.orgId);
+  const { inserted, skipped } = await seedDefaultSources();
   return NextResponse.json({ ok: true, inserted, activated: skipped });
 }

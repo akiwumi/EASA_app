@@ -464,7 +464,7 @@ export async function loadDashboardSetupSummary(
   let activeRssResult = initialActiveRssResult;
 
   if (!activeRssResult.error && (activeRssResult.count ?? 0) === 0) {
-    await seedDefaultSources(organizationId);
+    await seedDefaultSources();
     [rssSourceResult, activeRssResult] = await Promise.all([
       countRssSources(false),
       countRssSources(true),

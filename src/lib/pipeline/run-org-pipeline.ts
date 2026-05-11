@@ -5,6 +5,7 @@ import {
 } from "@/lib/ai/proposed-updates";
 import { enrichRssItemEmbeddings } from "@/lib/ai/embeddings";
 import { aggregateRegChangesForOrg } from "@/lib/pipeline/aggregate-reg-changes";
+import { ensureDefaultAiConfig, seedDefaultSources } from "@/lib/seed-default-sources";
 
 type FunctionSuccess<T> = {
   ok: true;
@@ -192,6 +193,11 @@ export async function runPipelineForOrganization(
   }
 
   try {
+    await Promise.all([
+      seedDefaultSources(),
+      ensureDefaultAiConfig(orgId),
+    ]);
+
     const functionArgs = { organizationId: orgId };
 
     const ingestStart = new Date().toISOString();

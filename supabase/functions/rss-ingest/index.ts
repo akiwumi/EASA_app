@@ -120,7 +120,7 @@ serve(async (request) => {
 
       const { error: insertError } = await supabase
         .from("rss_items")
-        .upsert(payload, { onConflict: "external_id" });
+        .upsert(payload, { onConflict: "source_id,external_id,organization_id" });
 
       if (insertError) {
         ingestResults.push({ feed: source.url, inserted: 0, error: insertError.message });

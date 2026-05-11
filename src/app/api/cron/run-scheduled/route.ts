@@ -11,7 +11,7 @@ type ScheduleRow = {
 };
 
 function authorized(request: Request) {
-  const secret = process.env.SCHEDULED_PIPELINE_SECRET;
+  const secret = process.env.SCHEDULED_PIPELINE_SECRET ?? process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = request.headers.get("authorization");
   return auth === `Bearer ${secret}`;
@@ -35,6 +35,12 @@ function scheduledWindowStart(now: Date, hhmm: string) {
   return start;
 }
 
+function isDueNow(now: Date, hhmm: string) {
+  const start = scheduledWindowStart(now, hhmm);
+  const elapsedMs = now.getTime() - start.getTime();
+  return elapsedMs >= 0 && elapsedMs < 20 * 60 * 1000;
+}
+
 async function orgAlreadyRanSince(admin: ReturnType<typeof getSupabaseAdminClient>, orgId: string, sinceIso: string) {
   const { data } = await admin
     .from("pipeline_runs")
@@ -48,7 +54,7 @@ async function orgAlreadyRanSince(admin: ReturnType<typeof getSupabaseAdminClien
   return Boolean(data?.id);
 }
 
-export async function POST(request: Request) {
+async function runScheduledPipelines(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -71,7 +77,7 @@ export async function POST(request: Request) {
   for (const row of (schedules ?? []) as ScheduleRow[]) {
     const runTimes = normalizeRunTimes(row);
     for (const slot of runTimes) {
-      if (slot !== nowUtc) continue;
+      if (slot !== nowUtc && !isDueNow(now, slot)) continue;
       const since = scheduledWindowStart(now, slot).toISOString();
       const alreadyRan = await orgAlreadyRanSince(admin, row.organization_id, since);
       if (!alreadyRan) {
@@ -106,4 +112,12 @@ export async function POST(request: Request) {
     dueCount: dueSchedules.length,
     results,
   });
+}
+
+export async function GET(request: Request) {
+  return runScheduledPipelines(request);
+}
+
+export async function POST(request: Request) {
+  return runScheduledPipelines(request);
 }

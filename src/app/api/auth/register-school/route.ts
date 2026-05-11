@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/access";
+import { ensureOrganizationPipelineDefaults, seedDefaultSources } from "@/lib/seed-default-sources";
 
 type RegisterBody = {
   schoolName?: string;
@@ -8,71 +9,8 @@ type RegisterBody = {
   password?: string;
 };
 
-const DEFAULT_RSS_FEEDS = [
-  "https://www.easa.europa.eu/en/newsroom-and-events/news/feed.xml",
-  "https://www.easa.europa.eu/en/newsroom-and-events/press-releases/feed.xml",
-  "https://www.easa.europa.eu/en/document-library/notices-of-proposed-amendment/feed.xml",
-  "https://www.easa.europa.eu/en/document-library/opinions/feed.xml",
-  "https://www.easa.europa.eu/en/document-library/easy-access-rules/feed.xml",
-  "https://www.easa.europa.eu/en/document-library/acceptable-means-of-compliance-and-guidance-material/feed.xml",
-] as const;
-
-const DEAD_RSS_FEEDS = [
-  "https://www.easa.europa.eu/en/rss/news",
-  "https://www.easa.europa.eu/en/rss/consultations",
-  "https://www.easa.europa.eu/en/rss/publications",
-  "https://example.com/feed.xml",
-] as const;
-
 function normalizeSchoolName(value: string) {
   return value.trim().replace(/\s+/g, " ");
-}
-
-async function ensureDefaultFeeds() {
-  const admin = getSupabaseAdminClient();
-
-  if (DEAD_RSS_FEEDS.length > 0) {
-    await admin.from("sources").delete().in("url", [...DEAD_RSS_FEEDS]);
-  }
-
-  for (const url of DEFAULT_RSS_FEEDS) {
-    const { data: existing } = await admin
-      .from("sources")
-      .select("id, organization_id, active")
-      .eq("url", url)
-      .maybeSingle();
-
-    if (!existing) {
-      await admin.from("sources").insert({
-        organization_id: null,
-        url,
-        type: "rss",
-        active: true,
-      });
-      continue;
-    }
-
-    if (existing.organization_id !== null || existing.active !== true) {
-      await admin
-        .from("sources")
-        .update({ organization_id: null, active: true, type: "rss" })
-        .eq("id", existing.id as string);
-    }
-  }
-}
-
-async function ensureDefaultAiConfig(organizationId: string) {
-  const admin = getSupabaseAdminClient();
-  await admin.from("ai_provider_config").upsert(
-    {
-      organization_id: organizationId,
-      provider: "openai",
-      model: "gpt-4o",
-      api_key: null,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "organization_id", ignoreDuplicates: true },
-  );
 }
 
 async function ensureLifetimeAccess(organizationId: string) {
@@ -117,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   const admin = getSupabaseAdminClient();
-  await ensureDefaultFeeds();
+  await seedDefaultSources();
 
   const { data: createdUser, error: createUserError } = await admin.auth.admin.createUser({
     email,
@@ -163,7 +101,7 @@ export async function POST(request: Request) {
     }
 
     await ensureLifetimeAccess(organizationId);
-    await ensureDefaultAiConfig(organizationId);
+    await ensureOrganizationPipelineDefaults(organizationId);
 
     const { error: profileError } = await admin.from("user_profiles").upsert({
       id: userId,

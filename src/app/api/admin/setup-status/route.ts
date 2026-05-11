@@ -45,7 +45,7 @@ export async function GET() {
   ]);
 
   if ((activeSourceCount ?? 0) === 0) {
-    await seedDefaultSources(organizationId);
+    await seedDefaultSources();
   }
 
   const linked = Boolean(organizationId);

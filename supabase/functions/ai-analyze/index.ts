@@ -43,13 +43,33 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 }
 
 type FlightbookSection = { id: string; section_number: string | null; title: string | null; flightbook_name: string };
+type RetrievedFlightbookSection = FlightbookSection & { body: string; similarity: number };
 type SimilarItem = { title: string; summary: string; category: string; similarity: number };
+type RpcClient = {
+  rpc: (
+    functionName: string,
+    args: Record<string, unknown>,
+  ) => Promise<{ data: Record<string, unknown>[] | null }>;
+};
 
-function buildPrompt(title: string, summary: string, sections: FlightbookSection[], similarItems: SimilarItem[]): string {
+function buildPrompt(
+  title: string,
+  summary: string,
+  sections: FlightbookSection[],
+  similarItems: SimilarItem[],
+  retrievedSections: RetrievedFlightbookSection[] = [],
+): string {
   const sectionList = sections
     .slice(0, 40)
     .map((s) => `- [${s.flightbook_name}] ${s.section_number ? s.section_number + " " : ""}${s.title ?? "(untitled)"}`)
     .join("\n");
+
+  const retrievedBlock = retrievedSections.length > 0
+    ? `\nMost relevant flight book body excerpts:\n` +
+      retrievedSections.slice(0, 5).map((section) =>
+        `- [${section.flightbook_name}] ${section.section_number ? section.section_number + " " : ""}${section.title ?? "(untitled)"} (similarity ${section.similarity.toFixed(2)}): ${section.body.slice(0, 900)}`,
+      ).join("\n")
+    : "";
 
   const similarBlock = similarItems.length > 0
     ? `\nRelated past EASA items (for context — do not copy their classifications blindly):\n` +
@@ -70,9 +90,10 @@ Analyse this EASA regulatory update and return a single JSON object with keys:
 EASA Update:
 Title: ${title}
 Summary: ${summary}
-${similarBlock}
+	${similarBlock}
+	${retrievedBlock}
 
-${sections.length > 0 ? `Flight book sections:\n${sectionList}` : "No flight book sections uploaded yet. Use a general reference."}
+	${sections.length > 0 ? `Flight book sections:\n${sectionList}` : "No flight book sections uploaded yet. Use a general reference."}
 
 Return only valid JSON, no markdown or commentary.`;
 }
@@ -96,9 +117,8 @@ function vectorLiteral(values: number[]) {
   return `[${values.join(",")}]`;
 }
 
-// deno-lint-ignore no-explicit-any
 async function fetchSimilarItems(
-  supabase: any,
+  supabase: RpcClient,
   organizationId: string,
   embedding: number[],
   excludeId: string,
@@ -114,6 +134,30 @@ async function fetchSimilarItems(
     title: String(row.title ?? ""),
     summary: String(row.summary ?? ""),
     category: String(row.category ?? ""),
+    similarity: Number(row.similarity ?? 0),
+  }));
+}
+
+async function fetchRelevantFlightbookSections(
+  supabase: RpcClient,
+  organizationId: string,
+  embedding: number[],
+): Promise<RetrievedFlightbookSection[]> {
+  const { data } = await supabase.rpc("match_flightbook_sections", {
+    query_embedding: vectorLiteral(embedding),
+    match_count: 5,
+    min_similarity: 0.18,
+    filter_organization_id: organizationId,
+    filter_part: null,
+    filter_flightbook_id: null,
+  });
+
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    id: String(row.id),
+    section_number: (row.section_number as string | null) ?? null,
+    title: (row.title as string | null) ?? null,
+    body: String(row.body ?? ""),
+    flightbook_name: (row.flightbook_name as string | null) ?? "Unknown",
     similarity: Number(row.similarity ?? 0),
   }));
 }
@@ -172,8 +216,9 @@ async function aiAnalysis(
   model: string,
   apiKey: string,
   similarItems: SimilarItem[] = [],
+  retrievedSections: RetrievedFlightbookSection[] = [],
 ): Promise<AnalysisResult> {
-  const prompt = buildPrompt(title, summary, sections, similarItems);
+  const prompt = buildPrompt(title, summary, sections, similarItems, retrievedSections);
 
   try {
     let text: string | null = null;
@@ -241,7 +286,7 @@ serve(async (request) => {
   const provider = aiConfig?.provider ?? "openai";
   const model = aiConfig?.model ?? "gpt-4o";
   // Fall back to environment variable if no key stored in DB yet
-  const apiKey = (aiConfig?.api_key as string | null) ?? Deno.env.get("OPENAI_API_KEY") ?? "";
+  const apiKey = (aiConfig?.api_key as string | null) || Deno.env.get("OPENAI_API_KEY") || "";
 
   const analysisLimitRaw = Number(payload?.analysisLimit ?? Deno.env.get("AI_ANALYZE_LIMIT") ?? 100);
   const analysisLimit = Number.isFinite(analysisLimitRaw)
@@ -314,16 +359,29 @@ serve(async (request) => {
 
   for (const item of pendingItems) {
     let similarItems: SimilarItem[] = [];
+    let retrievedSections: RetrievedFlightbookSection[] = [];
     if (openAiKey && item.organization_id) {
       const queryText = [item.title, item.summary].filter(Boolean).join("\n");
       const embedding = await fetchEmbedding(queryText, openAiKey);
       if (embedding) {
-        similarItems = await fetchSimilarItems(supabase, item.organization_id as string, embedding, item.id as string);
+        [similarItems, retrievedSections] = await Promise.all([
+          fetchSimilarItems(supabase, item.organization_id as string, embedding, item.id as string),
+          fetchRelevantFlightbookSections(supabase, item.organization_id as string, embedding),
+        ]);
         // Persist the embedding so future items can match against this one
         await supabase.from("rss_items").update({ embedding: vectorLiteral(embedding) }).eq("id", item.id);
       }
     }
-    const analysis = await aiAnalysis(item.title, item.summary ?? "", sections, provider, model, apiKey, similarItems);
+    const analysis = await aiAnalysis(
+      item.title,
+      item.summary ?? "",
+      sections,
+      provider,
+      model,
+      apiKey,
+      similarItems,
+      retrievedSections,
+    );
     findingsPayload.push({
       rss_item_id: item.id,
       organization_id: item.organization_id ?? null,
