@@ -163,6 +163,7 @@ export default async function DashboardPage() {
     },
   ];
   const setupDoneCount = setupTasks.filter((task) => task.done).length;
+  const hasIncompleteSetup = setupDoneCount < setupTasks.length;
   const isEmptyWorkspace =
     queuePreview.length === 0 &&
     mappingRows.length === 0 &&
@@ -222,7 +223,7 @@ export default async function DashboardPage() {
             </span>
           </div>
         </div>
-        <DashboardHeaderActions />
+        <DashboardHeaderActions showFinishSetup={hasIncompleteSetup} />
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -411,7 +412,7 @@ export default async function DashboardPage() {
             {queuePreview.length === 0 ? (
               <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 text-sm text-[var(--easa-color-text-muted)]">
                 {isEmptyWorkspace
-                  ? "No proposed updates yet because setup is still incomplete. Start by adding feeds, saving AI settings, and uploading flight books."
+                  ? "No proposed updates yet because setup is still incomplete. Start by adding feeds and uploading flight books."
                   : "No proposed updates yet. Run the RSS pipeline and review incoming regulation items once they have been analyzed."}
               </div>
             ) : (
@@ -493,7 +494,14 @@ export default async function DashboardPage() {
                     <span
                       className={`h-2 w-2 shrink-0 rounded-full ${feed.active ? "bg-[var(--easa-color-accent-green)]" : "bg-[var(--easa-color-border)]"}`}
                     />
-                    <span className="min-w-0 truncate text-xs">{feed.url}</span>
+                    <span className="min-w-0 flex-1 truncate text-xs font-medium">{feed.name}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      feed.active
+                        ? "bg-[color-mix(in_srgb,var(--easa-color-accent-green)_14%,transparent)] text-[var(--easa-color-accent-green)]"
+                        : "bg-[var(--easa-color-surface-3)] text-[var(--easa-color-text-muted)]"
+                    }`}>
+                      {feed.active ? "Active" : "Inactive"}
+                    </span>
                   </div>
                 ))
               )}

@@ -8,7 +8,7 @@ type RunResult = {
   ingest?: { count?: number; note?: string };
 };
 
-export default function DashboardHeaderActions() {
+export default function DashboardHeaderActions({ showFinishSetup }: { showFinishSetup: boolean }) {
   const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [result, setResult] = useState<RunResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -39,9 +39,11 @@ export default function DashboardHeaderActions() {
     <div className="flex min-w-0 w-full flex-col items-stretch gap-2 md:w-auto md:shrink-0 md:items-end">
       {/* ── Button row — never shifts when notification appears ─────────── */}
       <div className="flex min-w-0 flex-wrap items-stretch gap-2 md:justify-end">
-        <Link className="easa-btn primary w-full justify-center text-sm sm:w-auto" href="/settings?tab=setup">
-          Finish setup
-        </Link>
+        {showFinishSetup && (
+          <Link className="easa-btn primary w-full justify-center text-sm sm:w-auto" href="/settings?tab=setup">
+            Finish setup
+          </Link>
+        )}
 
         <button
           className="easa-btn secondary flex w-full items-center justify-center gap-1.5 text-sm sm:w-auto"

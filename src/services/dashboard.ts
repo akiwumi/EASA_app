@@ -4,6 +4,7 @@ import {
   getSupabaseAdminClient,
 } from "@/lib/supabase/access";
 import { seedDefaultSources } from "@/lib/seed-default-sources";
+import { sourceDisplayName } from "@/lib/source-labels";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export type OrgContext = {
@@ -252,7 +253,7 @@ export async function loadUpdateQueuePreview(
   });
 }
 
-export type RssSourceRow = { url: string; active: boolean };
+export type RssSourceRow = { url: string; name: string; active: boolean };
 
 export async function loadRssSourceUrls(organizationId: string): Promise<RssSourceRow[]> {
   const admin = getSupabaseAdminClient();
@@ -265,7 +266,11 @@ export async function loadRssSourceUrls(organizationId: string): Promise<RssSour
     .order("created_at", { ascending: true });
 
   if (error) return [];
-  return (data ?? []).map((s) => ({ url: s.url as string, active: s.active as boolean }));
+  return (data ?? []).map((s) => ({
+    url: s.url as string,
+    name: sourceDisplayName(s.url as string),
+    active: s.active as boolean,
+  }));
 }
 
 export async function loadLastRssIngestAt(

@@ -5,6 +5,7 @@ import { Plus, Trash2, ToggleLeft, ToggleRight, Rss } from "lucide-react";
 
 interface Source {
   id: string;
+  name: string;
   url: string;
   type: string;
   active: boolean;
@@ -162,23 +163,27 @@ export default function SourcesTab() {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <p className="truncate text-sm">{s.url}</p>
+                  <p className="truncate text-sm font-medium">{s.name}</p>
                   {s.shared && (
                     <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium bg-[var(--easa-color-accent-blue)]/15 text-[var(--easa-color-accent-blue)]">
                       Built-in
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-[var(--easa-color-text-muted)] uppercase">
-                  {s.type} · {s.active ? <span className="text-[var(--easa-color-accent-green)]">active</span> : <span>inactive</span>}
+                <p className="text-xs uppercase text-[var(--easa-color-text-muted)]">
+                  {s.type} · {s.active ? <span className="text-[var(--easa-color-accent-green)]">Active</span> : <span>Inactive</span>}
                 </p>
               </div>
               {s.shared ? (
                 <span
-                  className="shrink-0 text-xs text-[var(--easa-color-text-muted)]"
+                  className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
+                    s.active
+                      ? "bg-[color-mix(in_srgb,var(--easa-color-accent-green)_14%,transparent)] text-[var(--easa-color-accent-green)]"
+                      : "bg-[var(--easa-color-surface-2)] text-[var(--easa-color-text-muted)]"
+                  }`}
                   title="Built-in feeds are always active and cannot be removed"
                 >
-                  Always on
+                  {s.active ? "Active" : "Inactive"}
                 </span>
               ) : (
                 <>

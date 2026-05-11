@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { sourceDisplayName } from "@/lib/source-labels";
 
 // GET /api/admin/sources
 export async function GET() {
@@ -17,6 +18,7 @@ export async function GET() {
   return NextResponse.json({
     sources: (data ?? []).map((source) => ({
       ...source,
+      name: sourceDisplayName(source.url as string),
       shared: source.organization_id === null,
     })),
   });
