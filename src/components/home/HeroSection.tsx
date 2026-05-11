@@ -21,7 +21,7 @@ export default function HeroSection() {
           priority
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,24,23,0.16)_0%,rgba(13,24,23,0.03)_48%,rgba(255,253,248,0.42)_100%)]" />
-        <div className="absolute inset-0 z-10 flex translate-y-[30%] items-center justify-center px-6 text-center">
+        <div className="absolute inset-0 z-10 flex translate-y-[10%] items-center justify-center px-6 text-center sm:translate-y-[30%]">
           <h1
             className="easa-h1-mobile-hero max-w-5xl text-4xl font-bold text-white sm:text-6xl md:text-7xl"
             style={{
