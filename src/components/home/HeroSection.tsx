@@ -43,7 +43,7 @@ export default function HeroSection() {
       </div>
 
       <div
-        className="relative mt-5 w-full"
+        className="relative mt-5 w-full overflow-hidden"
         style={{ height: "75vh", minHeight: "580px" }}
       >
         <Image
@@ -51,7 +51,7 @@ export default function HeroSection() {
           alt="Cessna 172 in flight surrounded by Flight Lyceum dashboard analytics"
           fill
           sizes="100vw"
-          className="object-cover object-center"
+          className="bg-[oklch(0.985_0.003_110)] object-contain object-center"
           priority
         />
 
@@ -64,12 +64,12 @@ export default function HeroSection() {
           }}
         />
 
-        <div className="absolute inset-x-0 bottom-0 px-8 pb-10">
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="absolute inset-x-0 bottom-0 px-4 pb-8 sm:px-8 sm:pb-10">
+          <div className="easa-mobile-carousel mx-auto flex max-w-6xl snap-x gap-4 overflow-x-auto pb-2 md:overflow-visible">
             {proofPoints.map((point) => (
               <div
                 key={point}
-                className="rounded-2xl px-6 py-5"
+                className="min-w-[78vw] snap-center rounded-2xl px-6 py-5 sm:min-w-[360px] md:min-w-0 md:flex-1"
                 style={{
                   backgroundColor: "rgba(255,255,255,0.88)",
                   backdropFilter: "blur(16px)",

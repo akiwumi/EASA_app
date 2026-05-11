@@ -9,6 +9,7 @@ import {
   Bell,
   GraduationCap,
   History,
+  Home,
   LayoutDashboard,
   LineChart,
   ListChecks,
@@ -58,6 +59,14 @@ const DASHBOARD_SECTIONS: NavItem[] = [
   { href: "/dashboard/compliance", label: "Compliance", icon: ScrollText },
   { href: "/dashboard/pipeline", label: "Pipeline status", icon: LineChart },
   { href: "/dashboard/admin-settings", label: "Admin settings", icon: Settings, adminOnly: true },
+] as const;
+
+const MOBILE_NAV: NavItem[] = [
+  { href: "/dashboard", label: "Home", icon: Home },
+  { href: "/training/programmes", label: "Training", icon: GraduationCap },
+  { href: "/changes", label: "Changes", icon: ScrollText },
+  { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+  { href: "/profile", label: "Profile", icon: User },
 ] as const;
 
 function navItemActive(pathname: string, href: string) {
@@ -201,7 +210,7 @@ export default function AppShell({
 
   return (
     <div
-      className="relative min-h-screen overflow-x-clip pb-8"
+      className="relative min-h-screen overflow-x-clip pb-24 lg:pb-8"
       style={
         brandPrimaryColor || brandSecondaryColor
           ? ({
@@ -337,13 +346,6 @@ export default function AppShell({
                       {contactPhone}
                     </a>
                   ) : null}
-                  <button
-                    className="easa-btn secondary mt-4 w-full justify-center"
-                    type="button"
-                    onClick={signOut}
-                  >
-                    <LogOut size={15} strokeWidth={2} /> Sign out
-                  </button>
                 </div>
               </div>
             </div>
@@ -355,11 +357,47 @@ export default function AppShell({
         <div className="easa-page-enter min-w-0">{children}</div>
       </main>
 
-      <div className="easa-shell px-4 lg:px-6">
+      <div className="easa-shell hidden px-4 lg:block lg:px-6">
         <div className="overflow-hidden rounded-[28px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.72)] shadow-[var(--easa-shadow-1)] backdrop-blur-md">
           <Footer className="border-t-0 py-0" innerClassName="p-5 md:p-6" />
         </div>
       </div>
+
+      <nav
+        aria-label="Mobile app navigation"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.94)] px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-[0_-12px_32px_rgba(24,36,33,0.12)] backdrop-blur-xl lg:hidden"
+      >
+        <div className="mx-auto grid max-w-md grid-cols-6 gap-1">
+          {MOBILE_NAV.map((item) => {
+            if (item.adminOnly && role !== "admin") return null;
+            const active = navItemActive(pathname, item.href);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium transition ${
+                  active
+                    ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
+                    : "text-[var(--easa-color-text-muted)]"
+                }`}
+                href={item.href}
+              >
+                <Icon size={19} strokeWidth={active ? 2.3 : 1.9} />
+                <span className="max-w-full truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+          <button
+            aria-label="Sign out"
+            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium text-[var(--easa-color-text-muted)] transition hover:text-[var(--easa-color-brand-primary)]"
+            type="button"
+            onClick={signOut}
+          >
+            <LogOut size={19} strokeWidth={1.9} />
+            <span className="max-w-full truncate">Logout</span>
+          </button>
+        </div>
+      </nav>
 
       <NotificationDrawer
         open={drawerOpen}

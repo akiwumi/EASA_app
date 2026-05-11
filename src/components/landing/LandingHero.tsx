@@ -33,21 +33,21 @@ export default function LandingHero() {
         </div>
       </div>
 
-      <div className="relative mt-2 min-h-[520px]">
+      <div className="relative mt-2 min-h-[520px] overflow-hidden">
         <Image
           src="/images/hero-cessna.jpg"
           alt="Aircraft in flight with the EASA app experience layered over it"
           fill
           priority
-          className="object-cover object-center"
+          className="bg-[var(--easa-color-surface-2)] object-contain object-center"
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,253,248,0)_0%,rgba(244,242,236,0.16)_65%,rgba(244,242,236,0.96)_100%)]" />
         <div className="absolute inset-x-0 bottom-0 px-5 pb-6 md:px-8 md:pb-8">
-          <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-3">
+          <div className="easa-mobile-carousel mx-auto flex max-w-6xl snap-x gap-4 overflow-x-auto pb-2 md:overflow-visible">
             {proofPoints.map((point) => (
               <div
                 key={point}
-                className="rounded-[24px] border border-white/60 bg-white/74 px-5 py-5 shadow-[0_14px_40px_rgba(24,36,33,0.1)] backdrop-blur-md"
+                className="min-w-[78vw] snap-center rounded-[24px] border border-white/60 bg-white/74 px-5 py-5 shadow-[0_14px_40px_rgba(24,36,33,0.1)] backdrop-blur-md sm:min-w-[360px] md:min-w-0 md:flex-1"
               >
                 <p className="text-sm leading-6 text-[var(--easa-color-text-primary)]">{point}</p>
               </div>
