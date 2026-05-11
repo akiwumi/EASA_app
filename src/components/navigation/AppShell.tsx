@@ -210,7 +210,7 @@ export default function AppShell({
 
   return (
     <div
-      className="relative min-h-screen overflow-x-clip pb-24 lg:pb-8"
+      className="relative min-h-screen overflow-x-clip pb-16 lg:pb-8"
       style={
         brandPrimaryColor || brandSecondaryColor
           ? ({
@@ -365,9 +365,9 @@ export default function AppShell({
 
       <nav
         aria-label="Mobile app navigation"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.94)] px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 shadow-[0_-12px_32px_rgba(24,36,33,0.12)] backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-2 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1.5 shadow-[0_-10px_28px_rgba(24,36,33,0.12)] backdrop-blur-xl lg:hidden"
       >
-        <div className="mx-auto grid max-w-md grid-cols-6 gap-1">
+        <div className="flex w-full items-center gap-1">
           {MOBILE_NAV.map((item) => {
             if (item.adminOnly && role !== "admin") return null;
             const active = navItemActive(pathname, item.href);
@@ -375,26 +375,27 @@ export default function AppShell({
             return (
               <Link
                 key={item.href}
-                className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium transition ${
+                aria-label={item.label}
+                title={item.label}
+                className={`flex h-11 min-w-0 flex-1 items-center justify-center rounded-2xl transition ${
                   active
                     ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
                     : "text-[var(--easa-color-text-muted)]"
                 }`}
                 href={item.href}
               >
-                <Icon size={19} strokeWidth={active ? 2.3 : 1.9} />
-                <span className="max-w-full truncate">{item.label}</span>
+                <Icon size={21} strokeWidth={active ? 2.3 : 1.9} />
               </Link>
             );
           })}
           <button
-            aria-label="Sign out"
-            className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10px] font-medium text-[var(--easa-color-text-muted)] transition hover:text-[var(--easa-color-brand-primary)]"
+            aria-label="Logout"
+            className="flex h-11 min-w-0 flex-1 items-center justify-center rounded-2xl text-[var(--easa-color-text-muted)] transition hover:text-[var(--easa-color-brand-primary)]"
+            title="Logout"
             type="button"
             onClick={signOut}
           >
-            <LogOut size={19} strokeWidth={1.9} />
-            <span className="max-w-full truncate">Logout</span>
+            <LogOut size={21} strokeWidth={1.9} />
           </button>
         </div>
       </nav>
