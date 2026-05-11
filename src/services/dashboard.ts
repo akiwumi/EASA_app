@@ -385,10 +385,9 @@ export async function loadRecentSectionVersions(
   organizationId: string,
   limit = 3,
 ): Promise<{ at: string; note: string }[]> {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return [];
+  const admin = getSupabaseAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from("flightbook_section_versions")
     .select("created_at, change_source, version_number")
     .eq("organization_id", organizationId)
