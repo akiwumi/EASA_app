@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { getOrgAccessContext } from "@/lib/supabase/access";
 
 function getAdminClient() {
   return createClient(
@@ -18,6 +19,9 @@ export type EasaUpdate = {
   confidence: string;
   mappedSection: string;
   status: "New" | "Analyzed" | "Ready";
+  queuedUpdateId?: string | null;
+  queuedDraftReady?: boolean;
+  deletedAt?: string | null;
 };
 
 export const EASA_RSS_FEEDS = [
@@ -83,6 +87,7 @@ const MOCK_UPDATES: EasaUpdate[] = [
 export type CollatedUpdates = {
   updatedAt: string;
   items: EasaUpdate[];
+  deletedItems: EasaUpdate[];
   byCategory: Record<string, number>;
   byImpact: Record<string, number>;
   source: "supabase" | "mock";
@@ -92,7 +97,7 @@ export type CollatedUpdates = {
 function buildCollation(
   items: EasaUpdate[],
   updatedAt: string,
-  options?: { source?: "supabase" | "mock"; fallbackReason?: string | null },
+  options?: { deletedItems?: EasaUpdate[]; source?: "supabase" | "mock"; fallbackReason?: string | null },
 ): CollatedUpdates {
   const byCategory: Record<string, number> = {};
   const byImpact: Record<string, number> = {};
@@ -105,11 +110,20 @@ function buildCollation(
   return {
     updatedAt,
     items,
+    deletedItems: options?.deletedItems ?? [],
     byCategory,
     byImpact,
     source: options?.source ?? "supabase",
     fallbackReason: options?.fallbackReason ?? null,
   };
+}
+
+function isMissingDeletedColumnError(error: { message?: string | null; code?: string | null } | null | undefined) {
+  return (
+    error?.code === "42703" ||
+    /column .*deleted_at.* does not exist/i.test(error?.message ?? "") ||
+    /could not find the 'deleted_at' column/i.test(error?.message ?? "")
+  );
 }
 
 export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpdates> {
@@ -131,6 +145,14 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
   }
 
   const supabase = getAdminClient();
+  const ctx = await getOrgAccessContext();
+
+  if (!ctx) {
+    return buildCollation([], "Login required", {
+      source: "supabase",
+      fallbackReason: null,
+    });
+  }
 
   let query = supabase
     .from("ai_findings")
@@ -143,7 +165,9 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
         status,
         category,
         summary,
+        organization_id,
         created_at,
+        deleted_at,
         rss_items (
           title,
           summary,
@@ -159,9 +183,50 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
   // Scope to the org's own findings plus any global (null-org) findings.
   if (orgId) {
     query = query.or(`organization_id.eq.${orgId},organization_id.is.null`);
+  } else {
+    query = query.eq("organization_id", ctx.orgId);
   }
 
-  const { data, error } = await query;
+  query = query.is("deleted_at", null);
+
+  let { data, error } = await query;
+
+  if (error && isMissingDeletedColumnError(error)) {
+    let fallbackQuery = supabase
+      .from("ai_findings")
+      .select(
+        `
+          id,
+          impact,
+          confidence,
+          mapped_section,
+          status,
+          category,
+          summary,
+          organization_id,
+          created_at,
+          rss_items (
+            title,
+            summary,
+            published_at,
+            category,
+            link
+          )
+        `,
+      )
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (orgId) {
+      fallbackQuery = fallbackQuery.or(`organization_id.eq.${orgId},organization_id.is.null`);
+    } else {
+      fallbackQuery = fallbackQuery.eq("organization_id", ctx.orgId);
+    }
+
+    const fallbackResult = await fallbackQuery;
+    data = fallbackResult.data?.map((finding) => ({ ...finding, deleted_at: null })) ?? null;
+    error = fallbackResult.error;
+  }
 
   if (error || !data) {
     if (allowMockFallback) {
@@ -177,10 +242,83 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
     });
   }
 
+  const findingIds = data.map((finding) => String(finding.id));
+  const queuedByFindingId = new Map<string, { id: string; draftReady: boolean }>();
+
+  if (findingIds.length > 0) {
+    const orgIds = Array.from(
+      new Set(
+        data
+          .map((finding) => finding.organization_id)
+          .filter((orgId): orgId is string => typeof orgId === "string" && orgId.length > 0),
+      ),
+    );
+    const summaries = Array.from(
+      new Set(
+        data
+          .map((finding) => finding.summary)
+          .filter((summary): summary is string => typeof summary === "string" && summary.length > 0),
+      ),
+    );
+
+    const { data: regChanges } = await supabase
+      .from("reg_changes")
+      .select("id, ai_finding_id")
+      .in("ai_finding_id", findingIds);
+
+    const regChangeIds = (regChanges ?? []).map((row) => String(row.id));
+    const findingByRegChangeId = new Map(
+      (regChanges ?? []).map((row) => [String(row.id), String(row.ai_finding_id)]),
+    );
+
+    if (regChangeIds.length > 0) {
+      const { data: queuedByRegChange } = await supabase
+        .from("proposed_updates")
+        .select("id, reg_change_id, ai_suggested_text")
+        .in("reg_change_id", regChangeIds);
+
+      for (const row of queuedByRegChange ?? []) {
+        const findingId = findingByRegChangeId.get(String(row.reg_change_id));
+        if (findingId && !queuedByFindingId.has(findingId)) {
+          queuedByFindingId.set(findingId, {
+            id: String(row.id),
+            draftReady: Boolean(row.ai_suggested_text),
+          });
+        }
+      }
+    }
+
+    if (orgIds.length > 0 && summaries.length > 0) {
+      const { data: queuedByRationale } = await supabase
+        .from("proposed_updates")
+        .select("id, organization_id, ai_rationale, ai_suggested_text")
+        .in("organization_id", orgIds)
+        .in("ai_rationale", summaries);
+
+      const findingByOrgAndSummary = new Map(
+        data.map((finding) => [
+          `${finding.organization_id ?? ""}\u0000${finding.summary ?? ""}`,
+          String(finding.id),
+        ]),
+      );
+
+      for (const row of queuedByRationale ?? []) {
+        const findingId = findingByOrgAndSummary.get(`${row.organization_id ?? ""}\u0000${row.ai_rationale ?? ""}`);
+        if (findingId && !queuedByFindingId.has(findingId)) {
+          queuedByFindingId.set(findingId, {
+            id: String(row.id),
+            draftReady: Boolean(row.ai_suggested_text),
+          });
+        }
+      }
+    }
+  }
+
   const items: EasaUpdate[] = data.map((finding) => {
     const rssItem = Array.isArray(finding.rss_items)
       ? finding.rss_items[0]
       : finding.rss_items;
+    const queued = queuedByFindingId.get(String(finding.id));
 
     return {
       id: finding.id,
@@ -194,6 +332,8 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
       confidence: finding.confidence,
       mappedSection: finding.mapped_section,
       status: finding.status as EasaUpdate["status"],
+      queuedUpdateId: queued?.id ?? null,
+      queuedDraftReady: queued?.draftReady ?? false,
     };
   });
 
@@ -201,5 +341,58 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
     ? new Date(data[0].created_at).toISOString()
     : new Date().toISOString();
 
-  return buildCollation(items, latest, { source: "supabase", fallbackReason: null });
+  let deletedItems: EasaUpdate[] = [];
+  const deletedQuery = supabase
+    .from("ai_findings")
+    .select(
+      `
+        id,
+        impact,
+        confidence,
+        mapped_section,
+        status,
+        category,
+        summary,
+        organization_id,
+        created_at,
+        deleted_at,
+        rss_items (
+          title,
+          summary,
+          published_at,
+          category,
+          link
+        )
+      `,
+    )
+    .eq("organization_id", ctx.orgId)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false })
+    .limit(50);
+
+  const deletedResult = await deletedQuery;
+  if (!deletedResult.error) {
+    deletedItems = deletedResult.data.map((finding) => {
+      const rssItem = Array.isArray(finding.rss_items)
+        ? finding.rss_items[0]
+        : finding.rss_items;
+
+      return {
+        id: finding.id,
+        title: rssItem?.title ?? "Untitled update",
+        summary: finding.summary ?? rssItem?.summary ?? "No summary provided.",
+        publishedAt: rssItem?.published_at
+          ? new Date(rssItem.published_at).toISOString().split("T")[0]
+          : "Unknown date",
+        category: finding.category ?? rssItem?.category ?? "General",
+        impact: finding.impact as EasaUpdate["impact"],
+        confidence: finding.confidence,
+        mappedSection: finding.mapped_section,
+        status: finding.status as EasaUpdate["status"],
+        deletedAt: (finding.deleted_at as string | null) ?? null,
+      };
+    });
+  }
+
+  return buildCollation(items, latest, { deletedItems, source: "supabase", fallbackReason: null });
 }
