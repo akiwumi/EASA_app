@@ -1,15 +1,57 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Upload, CheckCircle, XCircle } from "lucide-react";
+import { BookOpen, Upload, CheckCircle, XCircle, FileText, ArrowDownUp } from "lucide-react";
 import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
-import type { FlightbookSummary } from "@/lib/types/domain";
+import DownloadFlightbookButton from "@/components/flightbooks/DownloadFlightbookButton";
+import type { FlightbookExportSummary, FlightbookSummary } from "@/lib/types/domain";
 
 interface Props {
   books: FlightbookSummary[];
 }
 
+type SortOrder = "newest" | "oldest";
+
+type GeneratedCopy = FlightbookExportSummary & {
+  flightbookId: string;
+  flightbookName: string;
+  docType: string;
+};
+
+function sortByDate<T>(items: T[], order: SortOrder, getDate: (item: T) => string) {
+  return [...items].sort((a, b) => {
+    const diff = new Date(a ? getDate(a) : 0).getTime() - new Date(b ? getDate(b) : 0).getTime();
+    return order === "newest" ? -diff : diff;
+  });
+}
+
 export default function FlightbooksBrowser({ books }: Props) {
+  const [originalSort, setOriginalSort] = useState<SortOrder>("newest");
+  const [generatedSort, setGeneratedSort] = useState<SortOrder>("newest");
+
+  const sortedBooks = useMemo(
+    () => sortByDate(books, originalSort, (book) => book.created_at),
+    [books, originalSort],
+  );
+
+  const generatedCopies = useMemo<GeneratedCopy[]>(
+    () =>
+      sortByDate(
+        books.flatMap((book) =>
+          (book.generatedCopies ?? []).map((copy) => ({
+            ...copy,
+            flightbookId: book.id,
+            flightbookName: book.name,
+            docType: book.doc_type,
+          })),
+        ),
+        generatedSort,
+        (copy) => copy.created_at,
+      ),
+    [books, generatedSort],
+  );
+
   if (books.length === 0) {
     return (
       <div className="space-y-6">
@@ -47,8 +89,78 @@ export default function FlightbooksBrowser({ books }: Props) {
         </Link>
       </div>
 
+      {generatedCopies.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Created flight books</h2>
+              <p className="text-sm text-[var(--easa-color-text-muted)]">
+                Date-stamped copies generated after approved updates.
+              </p>
+            </div>
+            <label className="flex items-center gap-2 text-sm text-[var(--easa-color-text-muted)]">
+              <ArrowDownUp size={14} strokeWidth={1.75} />
+              <select
+                className="easa-input py-1.5 text-sm"
+                value={generatedSort}
+                onChange={(event) => setGeneratedSort(event.target.value as SortOrder)}
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+            </label>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {generatedCopies.map((copy) => (
+              <div
+                key={copy.id}
+                className="easa-card p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
+                      <p className="truncate text-sm font-semibold">{copy.flightbookName}</p>
+                    </div>
+                    <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                      v{String(copy.version_number).padStart(4, "0")} · {new Date(copy.created_at).toLocaleString("en-GB")}
+                    </p>
+                    <p className="mt-1 text-xs capitalize text-[var(--easa-color-text-muted)]">
+                      {copy.change_source.replace(/_/g, " ")} · {copy.docType}
+                    </p>
+                  </div>
+                  <DownloadFlightbookButton id={copy.flightbookId} exportId={copy.id} compact />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Original flight books</h2>
+            <p className="text-sm text-[var(--easa-color-text-muted)]">
+              Uploaded source books parsed into indexed sections.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-[var(--easa-color-text-muted)]">
+            <ArrowDownUp size={14} strokeWidth={1.75} />
+            <select
+              className="easa-input py-1.5 text-sm"
+              value={originalSort}
+              onChange={(event) => setOriginalSort(event.target.value as SortOrder)}
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+        </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {books.map((book) => (
+        {sortedBooks.map((book) => (
           <div
             key={book.id}
             className="easa-card p-5 transition hover:shadow-[var(--easa-shadow-2)]"
@@ -120,6 +232,7 @@ export default function FlightbooksBrowser({ books }: Props) {
           </div>
         ))}
       </div>
+      </section>
     </div>
   );
 }

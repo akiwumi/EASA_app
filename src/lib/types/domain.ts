@@ -66,6 +66,15 @@ export type FlightbookSummary = {
   sectionCount: number;
   linkedLessonCount?: number;
   pendingAssignmentCount?: number;
+  generatedCopies?: FlightbookExportSummary[];
+};
+
+export type FlightbookExportSummary = {
+  id: string;
+  version_number: number;
+  change_source: string;
+  created_at: string;
+  note: string | null;
 };
 
 export type FlightbookSectionSummary = {

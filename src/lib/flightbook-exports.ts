@@ -30,6 +30,10 @@ function formatRevisionTimestamp(iso: string) {
   return iso.slice(0, 16).replace("T", " ");
 }
 
+function storageTimestamp(iso: string) {
+  return iso.replace(/[:.]/g, "-");
+}
+
 function revisionLabel(versionNumber: number, exportedAt: string) {
   return `Rev ${String(versionNumber).padStart(4, "0")} - ${formatRevisionTimestamp(exportedAt)} UTC`;
 }
@@ -140,8 +144,9 @@ export async function createFlightbookExport(
   const nextRevisionLabel = revisionLabel(nextVersion, exportedAt);
   const versionFolder = versionTag(nextVersion);
   const filenameBase = sanitizeFilename((book.name as string) || "flightbook");
-  const markdownPath = `${input.organizationId}/${input.flightbookId}/${versionFolder}/${filenameBase}.md`;
-  const textPath = `${input.organizationId}/${input.flightbookId}/${versionFolder}/${filenameBase}.txt`;
+  const timestampTag = storageTimestamp(exportedAt);
+  const markdownPath = `${input.organizationId}/${input.flightbookId}/${versionFolder}/${filenameBase}-${versionFolder}-${timestampTag}.md`;
+  const textPath = `${input.organizationId}/${input.flightbookId}/${versionFolder}/${filenameBase}-${versionFolder}-${timestampTag}.txt`;
 
   const exportInput = {
     book: book as ExportBook,

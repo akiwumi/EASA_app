@@ -86,9 +86,35 @@ async function enrichBooks(
     return books.map((b) => ({ ...b, sectionCount: 0 }));
   }
 
+  const exportsResult = await admin
+    .from("flightbook_exports")
+    .select("id, flightbook_id, version_number, change_source, created_at, note")
+    .eq("organization_id", orgId)
+    .in("flightbook_id", books.map((b) => b.id))
+    .order("created_at", { ascending: false });
+
   const countMap = new Map<string, number>();
   for (const row of counts ?? []) {
     countMap.set(row.flightbook_id, (countMap.get(row.flightbook_id) ?? 0) + 1);
+  }
+
+  const exportsByBook = new Map<
+    string,
+    { id: string; version_number: number; change_source: string; created_at: string; note: string | null }[]
+  >();
+  if (!exportsResult.error) {
+    for (const row of exportsResult.data ?? []) {
+      const flightbookId = row.flightbook_id as string;
+      const current = exportsByBook.get(flightbookId) ?? [];
+      current.push({
+        id: row.id as string,
+        version_number: row.version_number as number,
+        change_source: row.change_source as string,
+        created_at: row.created_at as string,
+        note: (row.note as string | null) ?? null,
+      });
+      exportsByBook.set(flightbookId, current);
+    }
   }
 
   const lessonCountMap = new Map<string, Set<string>>();
@@ -123,6 +149,7 @@ async function enrichBooks(
       sectionCount: countMap.get(book.id) ?? 0,
       linkedLessonCount: lessonIds.length,
       pendingAssignmentCount,
+      generatedCopies: (exportsByBook.get(book.id) ?? []).slice(0, 3),
     };
   });
 }
