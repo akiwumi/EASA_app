@@ -2,7 +2,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/access";
 
 export const DEFAULT_FEEDS = [
   // Priority 1 — Easy Access Rules (consolidated rulebook updates)
-  "https://www.easa.europa.eu/en/document-library/easy-access-rules/feed.xml",
+  "https://www.easa.europa.eu/document-library/easy-access-rules/feed.xml",
   // Priority 2 — Regulations (underlying regulation changes)
   "https://www.easa.europa.eu/document-library/regulations/feed.xml",
   // Priority 3 — AMC & GM (compliance demonstration guidance)
@@ -21,6 +21,7 @@ export const DEFAULT_FEEDS = [
 
 export const DEAD_FEEDS = [
   // Legacy /en/ variants replaced by canonical URLs above
+  "https://www.easa.europa.eu/en/document-library/easy-access-rules/feed.xml",
   "https://www.easa.europa.eu/en/newsroom-and-events/news/feed.xml",
   "https://www.easa.europa.eu/en/newsroom-and-events/press-releases/feed.xml",
   "https://www.easa.europa.eu/en/document-library/notices-of-proposed-amendment/feed.xml",

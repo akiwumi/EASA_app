@@ -1,5 +1,5 @@
 const EASA_FEED_LABELS: Record<string, string> = {
-  "https://www.easa.europa.eu/en/document-library/easy-access-rules/feed.xml": "Easy Access Rules",
+  "https://www.easa.europa.eu/document-library/easy-access-rules/feed.xml": "Easy Access Rules",
   "https://www.easa.europa.eu/document-library/regulations/feed.xml": "Regulations",
   "https://www.easa.europa.eu/document-library/acceptable-means-of-compliance-and-guidance-materials/feed.xml": "AMC and GM",
   "https://www.easa.europa.eu/document-library/agency-decisions/feed.xml": "Agency Decisions",
