@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw } from "lucide-react";
+import { CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw, FileText } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
 
 const STATUS_OPTIONS = [
@@ -84,6 +84,8 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkMsg, setBulkMsg] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
 
   function updateFilter(
     setter: React.Dispatch<React.SetStateAction<string>>,
@@ -151,6 +153,29 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     setBulkLoading(false);
   }
 
+  async function createUpdatedFlightbooks() {
+    setExportLoading(true);
+    setExportMsg(null);
+    const approvedSelectedIds = items
+      .filter((item) => selected.has(item.id) && item.status === "approved")
+      .map((item) => item.id);
+
+    const res = await fetch("/api/flightbooks/exports/updated", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: approvedSelectedIds.length > 0 ? approvedSelectedIds : undefined }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setExportMsg(`Error: ${json.error ?? "Could not create updated flight books."}`);
+    } else if (json.exported === 0) {
+      setExportMsg(json.message ?? "No approved mapped updates found.");
+    } else {
+      setExportMsg(`${json.exported} updated flight book${json.exported === 1 ? "" : "s"} created.`);
+    }
+    setExportLoading(false);
+  }
+
   const totalPages = Math.ceil(total / limit);
   const allSelected = items.length > 0 && selected.size === items.length;
 
@@ -165,6 +190,16 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           </p>
         </div>
         <div className="flex gap-2">
+          {canManage && (
+            <button
+              className="easa-btn primary flex items-center gap-2 text-sm"
+              disabled={exportLoading}
+              onClick={createUpdatedFlightbooks}
+            >
+              <FileText size={15} strokeWidth={1.75} />
+              {exportLoading ? "Creating..." : "Create flight books"}
+            </button>
+          )}
           <button
             className="easa-btn secondary flex items-center gap-2 text-sm"
             onClick={() => exportCsv(items)}
@@ -181,6 +216,14 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           </button>
         </div>
       </div>
+
+      {exportMsg && (
+        <p className={`rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-sm ${
+          exportMsg.startsWith("Error") ? "text-[var(--easa-color-accent-pink)]" : "text-[var(--easa-color-text-secondary)]"
+        }`}>
+          {exportMsg}
+        </p>
+      )}
 
       {/* Filters */}
       <div className="easa-card flex flex-wrap gap-3 p-4">

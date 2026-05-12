@@ -28,6 +28,18 @@ function isMissingColumnError(error: { code?: string | null; message?: string | 
   return error.code === "42703" || /column .* does not exist/i.test(error.message ?? "");
 }
 
+function sanitizeStorageFilename(value: string) {
+  const trimmed = value.trim() || "flightbook";
+  const parts = trimmed.split(".");
+  const ext = parts.length > 1 ? `.${parts.pop()}` : "";
+  const base = parts.join(".") || trimmed;
+  return `${base
+    .replace(/[^\w\s-]+/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .toLowerCase()}${ext.toLowerCase()}`;
+}
+
 function chunkWholeDocument(text: string): ParsedSection[] {
   const paragraphs = text
     .split(/\n{2,}/)
@@ -215,6 +227,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unsupported file type. Upload PDF, TXT, MD, or JSON." }, { status: 400 });
   }
 
+  const originalStoragePath = `${orgId}/originals/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${sanitizeStorageFilename(file.name)}`;
+  const { error: storageErr } = await admin.storage
+    .from("flightbooks")
+    .upload(originalStoragePath, bytes, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (storageErr) {
+    return NextResponse.json(
+      { error: `Flight book file storage failed: ${storageErr.message}. Confirm the private "flightbooks" storage bucket exists.` },
+      { status: 400 },
+    );
+  }
+
   const results: { bookName: string; sectionsImported: number }[] = [];
 
   for (const doc of documents) {
@@ -228,6 +255,7 @@ export async function POST(request: Request) {
           organization_id: orgId,
           name: doc.docName,
           doc_type: doc.docType,
+          file_ref: originalStoragePath,
           version_label: doc.versionLabel,
           aircraft: aircraft?.trim() || null,
           manual_group: manualGroup?.trim() || null,
@@ -240,7 +268,14 @@ export async function POST(request: Request) {
       if (bookErr && isMissingColumnError(bookErr)) {
         const fallbackBook = await admin
           .from("flightbooks")
-          .insert({ organization_id: orgId, name: doc.docName, doc_type: doc.docType, version_label: doc.versionLabel, active: true })
+          .insert({
+            organization_id: orgId,
+            name: doc.docName,
+            doc_type: doc.docType,
+            file_ref: originalStoragePath,
+            version_label: doc.versionLabel,
+            active: true,
+          })
           .select("id")
           .single();
         if (fallbackBook.error) return NextResponse.json({ error: fallbackBook.error.message }, { status: 400 });
@@ -258,6 +293,7 @@ export async function POST(request: Request) {
         .update({
           name: doc.docName,
           doc_type: doc.docType,
+          file_ref: originalStoragePath,
           version_label: doc.versionLabel,
           aircraft: aircraft?.trim() || null,
           manual_group: manualGroup?.trim() || null,
@@ -275,6 +311,7 @@ export async function POST(request: Request) {
           .update({
             name: doc.docName,
             doc_type: doc.docType,
+            file_ref: originalStoragePath,
             version_label: doc.versionLabel,
             updated_at: new Date().toISOString(),
           })
