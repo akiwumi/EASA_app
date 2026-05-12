@@ -67,7 +67,10 @@ create table if not exists ai_findings (
   created_at timestamptz not null default now()
 );
 
-create unique index if not exists ai_findings_item_unique on ai_findings (rss_item_id);
+drop index if exists ai_findings_item_unique;
+create unique index if not exists ai_findings_item_org_unique
+  on ai_findings (rss_item_id, organization_id)
+  nulls not distinct;
 
 alter table organizations enable row level security;
 alter table org_users enable row level security;
