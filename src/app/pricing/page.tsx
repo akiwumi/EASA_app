@@ -1,20 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Footer from "@/components/home/Footer";
+import Nav from "@/components/home/Nav";
 import PricingPlans from "@/components/pricing/PricingPlans";
-import MarketingShell from "@/components/landing/MarketingShell";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Pricing — Flight Lyceum",
   description:
-    "Simple, transparent pricing for EASA Approved Training Organisations. Register your flight school and get immediate access to your compliance and training workspace.",
+    "Simple subscription pricing for EASA Approved Training Organisations. Start with a 7 day free trial, then pay by month, quarter, or year through Stripe.",
   alternates: {
     canonical: "/pricing",
   },
   openGraph: {
     title: "Pricing — Flight Lyceum",
     description:
-      "Simple, transparent pricing for EASA ATOs. Register your flight school and get immediate access to your compliance and training workspace.",
+      "Start with a 7 day free trial, then choose monthly, quarterly, or annual Stripe billing for Flight Lyceum.",
     url: "/pricing",
   },
 };
@@ -31,89 +32,52 @@ export default async function PricingPage({
   } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
   return (
-    <MarketingShell>
-      <div className="space-y-6">
-        <section className="overflow-hidden rounded-[40px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)] shadow-[var(--easa-shadow-1)]">
-          <div className="easa-gradient-bar" />
-          <div className="grid gap-8 px-6 py-10 lg:grid-cols-[1.2fr_0.8fr] lg:px-10 lg:py-12">
+    <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
+      <Nav />
+      <main>
+        <div className="pricing-page mx-auto max-w-7xl px-6">
+          <section className="pricing-hero">
             <div>
-              <span className="easa-eyebrow">Pricing</span>
-              <h1 className="easa-display easa-h1-mobile-hero mt-4 max-w-4xl text-5xl leading-tight md:text-6xl">
-                Register the school once and move straight into a permanent workspace.
-              </h1>
+              <p className="pricing-kicker">Pricing</p>
+              <h1>Choose the plan that works for your flight school</h1>
             </div>
-            <p className="max-w-xl text-base leading-8 text-[var(--easa-color-text-muted)]">
-              Create the admin account, open the workspace immediately, and continue with setup,
-              manuals, training workflows, and EASA monitoring without Stripe.
+            <p>
+              Start with a 7 day free trial. After trial, pay securely through Stripe
+              on a monthly, quarterly, or annual subscription.
             </p>
-          </div>
-        </section>
+          </section>
 
-        <PricingPlans
-          signedIn={Boolean(user)}
-          schoolName={resolvedSearchParams.registered === "1" ? resolvedSearchParams.school : undefined}
-        />
+          <PricingPlans
+            signedIn={Boolean(user)}
+            schoolName={resolvedSearchParams.registered === "1" ? resolvedSearchParams.school : undefined}
+          />
 
-        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-          <article className="easa-panel p-8">
-            <span className="easa-eyebrow">How it works</span>
-            <h2 className="easa-display mt-4 text-4xl leading-tight md:text-5xl">
-              Registration first. School setup immediately after account creation.
-            </h2>
-            <p className="mt-5 text-base leading-8 text-[var(--easa-color-text-muted)]">
-              The new school flow is simple: create the admin account, generate the school workspace,
-              and move into branding, manuals, users, and onboarding inside the app.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <span className="easa-chip is-active">Instant workspace</span>
-              <span className="easa-chip">No Stripe checkout</span>
-              <span className="easa-chip">Lifetime access</span>
-            </div>
-          </article>
-
-          <article className="easa-panel p-8">
-            <span className="easa-eyebrow">What opens next</span>
-            <div className="mt-5 space-y-4">
-              {[
-                {
-                  title: "Branding",
-                  body: "Set the school name, public profile, contacts, and billing contact details from the workspace settings.",
-                },
-                {
-                  title: "Manuals and sources",
-                  body: "Add manuals, RSS sources, and document mappings so the compliance flow starts with real school data.",
-                },
-                {
-                  title: "Users and onboarding",
-                  body: "Invite instructors or compliance staff and work through the setup checklist inside the app.",
-                },
-              ].map((item) => (
-                <div key={item.title} className="rounded-[22px] bg-[var(--easa-color-surface-2)] p-4">
-                  <h3 className="text-base font-semibold text-[var(--easa-color-text-primary)]">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-7 text-[var(--easa-color-text-muted)]">{item.body}</p>
-                </div>
-              ))}
-            </div>
-          </article>
-        </section>
-
-        <section className="rounded-[40px] bg-[var(--easa-color-brand-primary)] px-6 py-10 text-[#f7f2e8] shadow-[var(--easa-shadow-brand)] md:px-10">
-          <h2 className="easa-display text-4xl leading-tight md:text-5xl">
-            Ready to open the workspace for your school?
-          </h2>
-          <p className="mt-4 max-w-2xl text-base leading-8 text-white/72">
-            Register now to move straight into setup and the school onboarding flow.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link className="easa-btn bg-[#f7f2e8]" style={{ color: '#ffffff' }} href="/register">
-              Register school
-            </Link>
-            <Link className="easa-btn border border-white/16 bg-white/8 text-white" href="/register">
-              Register
-            </Link>
-          </div>
-        </section>
-      </div>
-    </MarketingShell>
+          <section className="pricing-support">
+            <article>
+              <p className="pricing-kicker">Included</p>
+              <h2>One workspace for compliance, manuals, and training records.</h2>
+              <p>
+                Every paid plan opens the same operational platform: EASA source monitoring,
+                proposed manual updates, acknowledgement tracking, flightbook workflows,
+                user management, and school branding controls.
+              </p>
+            </article>
+            <article>
+              <p className="pricing-kicker">Checkout</p>
+              <h2>Stripe handles payment and subscription billing.</h2>
+              <p>
+                Signed-in school admins can start checkout directly from this page. New
+                schools register first, then choose the plan from the same pricing screen.
+              </p>
+              <div className="pricing-support-actions">
+                <Link href="/register">Register school</Link>
+                <Link href="/login">Login to pay</Link>
+              </div>
+            </article>
+          </section>
+        </div>
+      </main>
+      <Footer />
+    </div>
   );
 }

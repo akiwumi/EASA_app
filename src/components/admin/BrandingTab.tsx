@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 type BrandingPayload = {
@@ -181,7 +182,7 @@ export default function BrandingTab() {
               <div>
                 <h3 className="text-sm font-semibold">Workspace access</h3>
                 <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-                  Each registered school receives active workspace access immediately. Stripe checkout is not required.
+                  Each registered school can manage subscription status and start Stripe checkout from the pricing page.
                 </p>
               </div>
               <div className="rounded-[22px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4">
@@ -199,7 +200,7 @@ export default function BrandingTab() {
                       </span>
                       <span className="text-[var(--easa-color-text-muted)]">
                         {billingState === "active"
-                          ? "Lifetime access enabled"
+                          ? "Subscription access enabled"
                           : "Access state recorded for this school"}
                       </span>
                     </div>
@@ -209,8 +210,11 @@ export default function BrandingTab() {
                       </p>
                     ) : null}
                     <p className="text-xs text-[var(--easa-color-text-muted)]">
-                      New school registration writes an active organization subscription row with no expiry and no Stripe dependency.
+                      Stripe checkout starts with a 7 day free trial. Subscription events update this access state automatically.
                     </p>
+                    <Link className="easa-btn primary w-fit" href="/pricing">
+                      Manage Stripe plan
+                    </Link>
                         </>
                       );
                     })()}

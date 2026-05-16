@@ -7,6 +7,9 @@ import { usePathname } from "next/navigation";
 import {
   BookOpen,
   Bell,
+  CalendarDays,
+  CircleHelp,
+  ClipboardList,
   GraduationCap,
   History,
   Home,
@@ -15,6 +18,10 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  MoreVertical,
+  PieChart,
+  PlusCircle,
+  RefreshCw,
   ScrollText,
   Search,
   Settings,
@@ -23,7 +30,6 @@ import {
   X,
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
-import Footer from "@/components/home/Footer";
 import NotificationDrawer from "@/components/notifications/NotificationDrawer";
 
 type NavItem = {
@@ -69,6 +75,24 @@ const MOBILE_NAV: NavItem[] = [
   { href: "/profile", label: "Profile", icon: User },
 ] as const;
 
+const RAIL_NAV: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/updates", label: "Update queue", icon: RefreshCw },
+  { href: "/changes", label: "Change list", icon: ClipboardList },
+  { href: "/training/programmes", label: "Training", icon: CalendarDays },
+  { href: "/flightbooks", label: "Flight books", icon: BookOpen },
+  { href: "/results", label: "AI results", icon: PieChart },
+  { href: "/history", label: "Time machine", icon: LineChart },
+  { href: "/search", label: "Search", icon: Search },
+] as const;
+
+const UTILITY_NAV: NavItem[] = [
+  { href: "/notifications", label: "Notifications", icon: Bell },
+  { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+  { href: "/dashboard/setup", label: "Help", icon: CircleHelp },
+  { href: "/profile", label: "Profile", icon: User },
+] as const;
+
 function navItemActive(pathname: string, href: string) {
   if (href === "/flightbooks") {
     if (!pathname.startsWith("/flightbooks")) return false;
@@ -86,8 +110,6 @@ export default function AppShell({
   websiteUrl,
   contactEmail,
   contactPhone,
-  brandPrimaryColor,
-  brandSecondaryColor,
   role,
   children,
 }: {
@@ -208,29 +230,144 @@ export default function AppShell({
     );
   };
 
+  const renderRailLink = (item: NavItem) => {
+    if (item.adminOnly && role !== "admin") return null;
+
+    const active = navItemActive(pathname, item.href);
+    const Icon = item.icon;
+
+    return (
+      <Link
+        key={item.href}
+        aria-label={item.label}
+        className={`relative flex h-16 w-full items-center justify-center border-l-2 transition ${
+          active
+            ? "border-[var(--easa-color-brand-primary)] bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
+            : "border-transparent text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-brand-primary)]"
+        }`}
+        href={item.href}
+        title={item.label}
+      >
+        <Icon size={21} strokeWidth={active ? 2.25 : 1.85} />
+        {item.href === "/notifications" && unreadCount > 0 ? (
+          <span className="absolute right-3 top-3 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--easa-color-accent-pink)] px-1 text-[10px] font-bold leading-none text-white">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        ) : null}
+      </Link>
+    );
+  };
+
   return (
-    <div
-      className="relative min-h-screen overflow-x-clip pb-16 lg:pb-8"
-      style={
-        brandPrimaryColor || brandSecondaryColor
-          ? ({
-              ...(brandPrimaryColor ? { "--easa-color-brand-primary": brandPrimaryColor } : {}),
-              ...(brandSecondaryColor ? { "--easa-color-brand-secondary": brandSecondaryColor } : {}),
-            } as React.CSSProperties)
-          : undefined
-      }
-    >
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(circle_at_top,rgba(31,52,52,0.12),transparent_58%)]" />
-      <div className="pointer-events-none absolute left-[-140px] top-[180px] h-[300px] w-[300px] rounded-full bg-[rgba(242,155,63,0.08)] blur-3xl" />
-      <div className="pointer-events-none absolute right-[-120px] top-[100px] h-[260px] w-[260px] rounded-full bg-[rgba(47,115,240,0.08)] blur-3xl" />
+    <div className="easa-quicken-app relative min-h-screen overflow-x-clip bg-[var(--easa-color-bg)] pb-16 lg:pb-0">
+      <aside className="fixed inset-y-0 left-0 z-50 hidden w-[72px] overflow-y-auto border-r border-[var(--easa-color-border)] bg-white shadow-[1px_0_3px_rgba(15,23,42,0.12)] lg:flex lg:flex-col">
+        <Link
+          aria-label="Dashboard home"
+          className="mx-auto my-6 flex h-[52px] w-[52px] items-center justify-center rounded-[10px] bg-[var(--easa-color-brand-primary)] text-white shadow-[0_8px_18px_rgba(67,38,232,0.24)]"
+          href="/dashboard"
+        >
+          <span className="relative block h-7 w-7 rounded-full border-[5px] border-white">
+            <span className="absolute -bottom-1 right-0 h-[5px] w-3 rotate-45 rounded-full bg-white" />
+          </span>
+        </Link>
 
-      <header className="z-40 w-full px-0 py-0">
-        <div className="w-full overflow-hidden border-b border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.88)] shadow-[var(--easa-shadow-2)] backdrop-blur-xl">
-          <div className="easa-gradient-bar" />
+        <nav aria-label="Primary app navigation" className="flex flex-1 flex-col items-center">
+          {RAIL_NAV.map((item) => renderRailLink(item))}
+        </nav>
 
-          <div className="flex min-h-[72px] w-full items-center gap-3 px-4 py-3 sm:px-5 lg:px-6">
+        <nav aria-label="Utility navigation" className="mb-5 flex flex-col items-center">
+          <button
+            aria-label="Refresh page"
+            className="flex h-16 w-full items-center justify-center text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-brand-primary)]"
+            type="button"
+            onClick={() => window.location.reload()}
+          >
+            <RefreshCw size={21} strokeWidth={1.85} />
+          </button>
+          {UTILITY_NAV.map((item) => renderRailLink(item))}
+          <button
+            aria-label="Sign out"
+            className="flex h-16 w-full items-center justify-center text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-brand-primary)]"
+            title="Sign out"
+            type="button"
+            onClick={signOut}
+          >
+            <LogOut size={21} strokeWidth={1.85} />
+          </button>
+        </nav>
+      </aside>
+
+      <aside className="fixed bottom-8 left-[120px] top-12 z-30 hidden w-[408px] overflow-hidden rounded-[24px] border border-[var(--easa-color-border)] bg-white shadow-[var(--easa-shadow-1)] xl:block">
+        <div className="flex items-center justify-between px-8 pb-5 pt-11">
+          <h2 className="text-[32px] font-medium leading-none text-[var(--easa-color-text-primary)]">Workspace</h2>
+          <div className="flex items-center gap-3 text-[var(--easa-color-brand-primary)]">
+            <Link className="flex items-center gap-2 text-[18px] font-semibold" href="/flightbooks/upload">
+              <PlusCircle size={18} fill="currentColor" strokeWidth={2.25} />
+              Add
+            </Link>
+            <MoreVertical size={24} className="text-[var(--easa-color-text-muted)]" />
+          </div>
+        </div>
+
+        <div className="px-6 pb-7">
+          <div className="rounded-b-none border-b border-[var(--easa-color-border)] px-2 pb-5">
+            <div className="flex items-center justify-between text-[22px] font-semibold">
+              <span>Operations</span>
+              <span>{organizationName || "EASA"}</span>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-6 text-[19px]">
+            <section>
+              <div className="flex items-center justify-between font-medium">
+                <span className="flex items-center gap-2"><span className="text-xs">▾</span> Compliance</span>
+                <span>Live</span>
+              </div>
+              <div className="mt-4 space-y-3 pl-6 text-[16px] text-[var(--easa-color-text-secondary)]">
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/updates"><span>Update Queue</span><span>Review</span></Link>
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/changes"><span>Change List</span><span>Active</span></Link>
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/results"><span>AI Results</span><span>Drafts</span></Link>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between font-medium">
+                <span className="flex items-center gap-2"><span className="text-xs">▾</span> Manuals</span>
+                <span>Library</span>
+              </div>
+              <div className="mt-4 space-y-3 pl-6 text-[16px] text-[var(--easa-color-text-secondary)]">
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/flightbooks"><span>Flight Books</span><span>Controlled</span></Link>
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/flightbooks/upload"><span>Upload</span><span>New</span></Link>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center justify-between font-medium">
+                <span className="flex items-center gap-2"><span className="text-xs">▾</span> Training</span>
+                <span>School</span>
+              </div>
+              <div className="mt-4 space-y-3 pl-6 text-[16px] text-[var(--easa-color-text-secondary)]">
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/training/programmes"><span>Programmes</span><span>Core</span></Link>
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/training/assignments"><span>Assignments</span><span>Open</span></Link>
+                <Link className="flex justify-between hover:text-[var(--easa-color-brand-primary)]" href="/training/signoffs"><span>Sign-offs</span><span>Pending</span></Link>
+              </div>
+            </section>
+          </div>
+
+          <div className="mt-6 rounded-[14px] border border-[var(--easa-color-border)] p-5">
+            <p className="text-[20px] font-medium">Settings</p>
+            <Link className="mt-2 block text-[16px] font-medium text-[var(--easa-color-brand-primary)]" href="/settings">
+              + Admin settings
+            </Link>
+          </div>
+        </div>
+      </aside>
+
+      <header className="z-40 w-full px-0 py-0 lg:hidden">
+        <div className="w-full overflow-hidden border-b border-[var(--easa-color-border)] bg-white shadow-[var(--easa-shadow-1)]">
+          <div className="flex min-h-[72px] w-full items-center gap-3 px-4 py-3 sm:px-5">
             <Link
-              href="/"
+              href="/dashboard"
               className="flex min-w-0 flex-1 items-center gap-2.5 rounded-2xl pr-2 transition-opacity hover:opacity-85"
             >
               {logoUrl ? (
@@ -263,29 +400,13 @@ export default function AppShell({
               </div>
             </Link>
 
-            <nav className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-1.5 lg:flex">
-              {NAV.map((item) => renderNavLink(item))}
-            </nav>
-
-            <div className="hidden rounded-full border border-[var(--easa-color-border)] bg-white/60 px-3 py-2 text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)] lg:block">
-              Role · {role}
-            </div>
-
             <button
-              className="easa-btn secondary hidden shrink-0 lg:inline-flex"
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)]"
               type="button"
-              onClick={signOut}
+              onClick={() => setMenuOpen((o) => !o)}
             >
-              <LogOut size={15} strokeWidth={2} /> Sign out
-            </button>
-
-                <button
-                  aria-expanded={menuOpen}
-                  aria-label={menuOpen ? "Close menu" : "Open menu"}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-none border-0 bg-transparent p-0 text-[var(--easa-color-text-secondary)] transition-colors hover:text-[var(--easa-color-brand-primary)] lg:hidden"
-                  type="button"
-                  onClick={() => setMenuOpen((o) => !o)}
-                >
               {menuOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
             </button>
           </div>
@@ -354,19 +475,13 @@ export default function AppShell({
         </div>
       </header>
 
-      <main className="easa-shell min-w-0 px-4 pb-8 pt-4 lg:px-6">
+      <main className="min-w-0 px-4 pb-8 pt-4 lg:ml-[72px] lg:px-8 lg:py-12 xl:ml-[560px]">
         <div className="easa-page-enter min-w-0">{children}</div>
       </main>
 
-      <div className="easa-shell hidden px-4 lg:block lg:px-6">
-        <div className="overflow-hidden rounded-[28px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.72)] shadow-[var(--easa-shadow-1)] backdrop-blur-md">
-          <Footer className="border-t-0 py-0" innerClassName="p-5 md:p-6" />
-        </div>
-      </div>
-
       <nav
         aria-label="Mobile app navigation"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-2 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1.5 shadow-[0_-10px_28px_rgba(24,36,33,0.12)] backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--easa-color-border)] bg-white px-2 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1.5 shadow-[0_-10px_28px_rgba(15,23,42,0.12)] lg:hidden"
       >
         <div className="flex w-full items-center gap-1">
           {MOBILE_NAV.map((item) => {

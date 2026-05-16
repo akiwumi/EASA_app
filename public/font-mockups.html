@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Font Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Serif:ital@0;1&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #d0cfc8;
+    padding: 24px;
+    font-family: system-ui, sans-serif;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  .card {
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+
+  .label {
+    background: #1e1f24;
+    color: #a9adb8;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 10px 16px;
+  }
+
+  .label strong {
+    color: #f4f1e8;
+    font-weight: 700;
+  }
+
+  /* ── Shared hero layout ── */
+  .hero {
+    position: relative;
+    height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute;
+    inset: 0;
+    background-image: url('/images/hero-cessna.jpg');
+    background-size: cover;
+    background-position: center 40%;
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── Option 1: DM Serif Display + text-shadow on photo ── */
+  .opt1 .hero-bg {
+    filter: brightness(0.55) saturate(0.8);
+  }
+
+  .opt1 h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    text-shadow: 0 2px 24px rgba(0,0,0,0.5);
+    max-width: 380px;
+  }
+
+  /* ── Option 2: Instrument Serif + gradient text on cream panel ── */
+  .opt2 .hero-bg {
+    filter: brightness(0.3) saturate(0.6);
+    opacity: 0.4;
+  }
+
+  .opt2 .hero {
+    background: #f7f4ec;
+  }
+
+  .opt2 h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #1f3434 0%, #2a5a5b 60%, #3d7a7b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    max-width: 380px;
+  }
+
+  /* ── Option 3: Space Grotesk Bold on dark ── */
+  .opt3 .hero-bg {
+    filter: brightness(0.2) saturate(0.5);
+  }
+
+  .opt3 .hero {
+    background: #0f1a1a;
+  }
+
+  .opt3 h1 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 38px;
+    font-weight: 700;
+    line-height: 1.0;
+    letter-spacing: -0.04em;
+    color: #ffffff;
+    max-width: 380px;
+  }
+
+  /* ── Option 4: DM Serif + orange accent on photo ── */
+  .opt4 .hero-bg {
+    filter: brightness(0.5) saturate(0.75);
+  }
+
+  .opt4 h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 38px;
+    font-weight: 400;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.45);
+    max-width: 380px;
+  }
+
+  .opt4 h1 .accent {
+    color: #f29b3f;
+    -webkit-text-fill-color: #f29b3f;
+  }
+</style>
+</head>
+<body>
+  <div class="grid">
+
+    <!-- Option 1 -->
+    <div class="card">
+      <div class="label">Option 1 — <strong>DM Serif Display</strong> + text shadow on photo</div>
+      <div class="hero opt1">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+          <h1>Keep your flight school aligned and audit-ready.</h1>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 2 -->
+    <div class="card">
+      <div class="label">Option 2 — <strong>Instrument Serif</strong> + gradient text on cream</div>
+      <div class="hero opt2">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+          <h1>Keep your flight school aligned and audit-ready.</h1>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 3 -->
+    <div class="card">
+      <div class="label">Option 3 — <strong>Space Grotesk Bold</strong> on dark background</div>
+      <div class="hero opt3">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+          <h1>Keep your flight school aligned and audit-ready.</h1>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 4 -->
+    <div class="card">
+      <div class="label">Option 4 — <strong>DM Serif Display</strong> + orange accent word</div>
+      <div class="hero opt4">
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+          <h1>Keep your flight school aligned and <span class="accent">audit-ready.</span></h1>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

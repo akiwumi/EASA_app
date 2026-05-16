@@ -19,7 +19,7 @@ export default async function SubscriptionLockedPage() {
   }
 
   return (
-    <>
+    <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
       <main className="easa-shell flex min-h-screen items-center justify-center py-12">
         <section className="easa-card-glass w-full max-w-2xl p-8">
           <span className="easa-eyebrow">Workspace locked</span>
@@ -47,6 +47,6 @@ export default async function SubscriptionLockedPage() {
         </section>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

@@ -2,7 +2,7 @@
 
 This app now expects Stripe to manage school subscriptions with:
 
-- a `3` day free trial at signup
+- a `7` day free trial at signup
 - admin-controlled billing only
 - cancel-at-period-end support
 - app lock when payment fails or the subscription ends
@@ -25,7 +25,9 @@ Add these to `.env.local`, your production host, and any server deployment envir
 ```env
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRICE_ID=price_...
+STRIPE_PRICE_ID_MONTHLY=price_...
+STRIPE_PRICE_ID_QUARTERLY=price_...
+STRIPE_PRICE_ID_ANNUAL=price_...
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
@@ -39,8 +41,8 @@ SUPABASE_SERVICE_ROLE_KEY=...
 
 ## 3. Stripe dashboard manual steps
 
-1. Create a recurring Stripe product and price.
-2. Copy the recurring price ID into `STRIPE_PRICE_ID`.
+1. Create recurring Stripe products/prices for monthly, quarterly, and annual billing.
+2. Copy the recurring price IDs into `STRIPE_PRICE_ID_MONTHLY`, `STRIPE_PRICE_ID_QUARTERLY`, and `STRIPE_PRICE_ID_ANNUAL`.
 3. In Stripe Billing, enable the customer portal.
 4. In the customer portal settings, allow:
    - payment method updates
@@ -62,7 +64,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 
 ## 4. Trial behavior
 
-The checkout flow now creates subscriptions with a `3` day Stripe trial:
+The checkout flow now creates subscriptions with a `7` day Stripe trial:
 
 - during the trial the subscription state is `trialing`
 - when the trial ends, Stripe attempts the first subscription payment
@@ -80,8 +82,8 @@ The app uses `organization_subscriptions.billing_state` to control access.
 
 ## 6. Manual test checklist
 
-1. Start a new checkout from `Settings > School profile`.
-2. Confirm the Stripe checkout shows a `3` day trial before billing starts.
+1. Start a new checkout from `/pricing` while logged in as a school admin.
+2. Confirm the Stripe checkout shows a `7` day trial before billing starts.
 3. Complete checkout and confirm a row appears in `organization_subscriptions`.
 4. Cancel at period end and confirm:
    - `cancel_at_period_end` becomes `true`
