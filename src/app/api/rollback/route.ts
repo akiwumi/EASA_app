@@ -22,10 +22,11 @@ export async function POST(request: Request) {
 
   const admin = getSupabaseAdminClient();
 
-  // 1. Get the target version body
+  // 1. Get the target version body (scoped by org)
   const { data: targetVersion, error: tvErr } = await admin
     .from("flightbook_section_versions")
-    .select("body, version_number")
+    .select("body, version_number, organization_id")
+    .eq("organization_id", ctx.orgId)
     .eq("flightbook_section_id", sectionId)
     .eq("version_number", targetVersionNumber)
     .maybeSingle();
@@ -37,13 +38,18 @@ export async function POST(request: Request) {
   // 2. Get current section body
   const { data: section, error: secErr } = await admin
     .from("flightbook_sections")
-    .select("body, organization_id, flightbook_id")
+    .select("body, organization_id, flightbook_id, section_number, title")
     .eq("id", sectionId)
     .eq("organization_id", ctx.orgId)
     .maybeSingle();
 
   if (secErr || !section) {
     return NextResponse.json({ error: "Section not found" }, { status: 404 });
+  }
+
+  // No-op guard: don't roll back if already at that version's content
+  if ((section.body as string) === (targetVersion.body as string)) {
+    return NextResponse.json({ error: "Section already matches that version." }, { status: 409 });
   }
 
   // 3. Get max version number
@@ -72,14 +78,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: snapErr.message }, { status: 400 });
   }
 
-  // 5. UPDATE flightbook_sections.body to target version body
+  // 5. UPDATE flightbook_sections.body to target version body (scoped by org)
   const { error: updateErr } = await admin
     .from("flightbook_sections")
-    .update({ body: targetVersion.body })
-    .eq("id", sectionId);
+    .update({ body: targetVersion.body, updated_at: new Date().toISOString() })
+    .eq("id", sectionId)
+    .eq("organization_id", ctx.orgId);
 
   if (updateErr) {
     return NextResponse.json({ error: updateErr.message }, { status: 400 });
+  }
+
+  // 5b. Refresh embeddings after rollback (best-effort)
+  try {
+    const { enrichFlightbookSectionEmbeddings } = await import("@/lib/ai/embeddings");
+    await enrichFlightbookSectionEmbeddings(admin, [{
+      id: sectionId,
+      organization_id: ctx.orgId,
+      section_number: (section.section_number as string | null) ?? null,
+      title: (section.title as string | null) ?? null,
+      body: targetVersion.body as string,
+    }]);
+  } catch {
+    // best-effort — embedding refresh must never block rollback
   }
 
   // 6. INSERT audit_log record
@@ -121,15 +142,19 @@ export async function POST(request: Request) {
     // best-effort — notification delivery must never block rollback
   }
 
+  let exportWarning: string | undefined;
   if (section.flightbook_id) {
-    await createFlightbookExport(admin, {
+    const exportResult = await createFlightbookExport(admin, {
       organizationId: ctx.orgId,
       flightbookId: section.flightbook_id as string,
       changeSource: "rollback",
       createdBy: ctx.userId,
       note: reason ? `Generated automatically after rollback. Reason: ${reason}` : "Generated automatically after rollback.",
     });
+    if (!exportResult.ok) {
+      exportWarning = exportResult.error;
+    }
   }
 
-  return NextResponse.json({ ok: true, newVersionNumber });
+  return NextResponse.json({ ok: true, newVersionNumber, ...(exportWarning ? { exportWarning } : {}) });
 }

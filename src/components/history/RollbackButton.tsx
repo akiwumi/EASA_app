@@ -14,6 +14,7 @@ interface Props {
 export default function RollbackButton({ sectionId, versionNumber, sectionLabel }: Props) {
   const [state, setState] = useState<State>("idle");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [exportWarning, setExportWarning] = useState<string | null>(null);
 
   async function doRollback() {
     setState("rolling_back");
@@ -32,15 +33,25 @@ export default function RollbackButton({ sectionId, versionNumber, sectionLabel 
       setErrorMsg(json.error ?? "Rollback failed");
       setState("error");
     } else {
+      if (json.exportWarning) {
+        setExportWarning(json.exportWarning as string);
+      }
       setState("done");
     }
   }
 
   if (state === "done") {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-[var(--easa-color-accent-green)]">
-        <CheckCircle size={14} strokeWidth={1.75} />
-        Rolled back to v{versionNumber}
+      <span className="inline-flex flex-col items-start gap-1 text-xs text-[var(--easa-color-accent-green)]">
+        <span className="inline-flex items-center gap-1.5">
+          <CheckCircle size={14} strokeWidth={1.75} />
+          Rolled back to v{versionNumber}
+        </span>
+        {exportWarning && (
+          <span className="mt-1 text-xs text-[var(--easa-color-accent-orange)]">
+            Export not generated: {exportWarning}
+          </span>
+        )}
       </span>
     );
   }
