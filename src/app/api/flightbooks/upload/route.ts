@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getOrgAccessContext } from "@/lib/supabase/access";
+import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 import {
   embedTexts,
   estimateTokenCount,
@@ -8,14 +7,6 @@ import {
 } from "@/lib/ai/embeddings";
 
 export const runtime = "nodejs";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
 
 interface ParsedSection {
   sectionNumber: string | null;
@@ -176,7 +167,7 @@ export async function POST(request: Request) {
   const ctx = await getOrgAccessContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   const flightbookId = formData.get("flightbookId") as string | null;
@@ -225,6 +216,31 @@ export async function POST(request: Request) {
 
   else {
     return NextResponse.json({ error: "Unsupported file type. Upload PDF, TXT, MD, or JSON." }, { status: 400 });
+  }
+
+  // ── Upload limits ────────────────────────────────────────────────────────────
+  const MAX_SECTIONS_PER_UPLOAD = 500;
+  const MAX_SECTION_BODY_CHARS = 20_000;
+
+  for (const doc of documents) {
+    if (doc.sections.length > MAX_SECTIONS_PER_UPLOAD) {
+      return NextResponse.json(
+        {
+          error: `Document "${doc.docName}" has ${doc.sections.length} sections, which exceeds the limit of ${MAX_SECTIONS_PER_UPLOAD}. Split the document or reduce its length.`,
+        },
+        { status: 400 },
+      );
+    }
+    for (const section of doc.sections) {
+      if (section.body.length > MAX_SECTION_BODY_CHARS) {
+        return NextResponse.json(
+          {
+            error: `A section in "${doc.docName}" has ${section.body.length} characters, which exceeds the limit of ${MAX_SECTION_BODY_CHARS}. The document may need manual splitting.`,
+          },
+          { status: 400 },
+        );
+      }
+    }
   }
 
   const originalStoragePath = `${orgId}/originals/${new Date().toISOString().replace(/[:.]/g, "-")}-${crypto.randomUUID()}-${sanitizeStorageFilename(file.name)}`;
@@ -278,9 +294,13 @@ export async function POST(request: Request) {
           })
           .select("id")
           .single();
-        if (fallbackBook.error) return NextResponse.json({ error: fallbackBook.error.message }, { status: 400 });
+        if (fallbackBook.error) {
+          await admin.storage.from("flightbooks").remove([originalStoragePath]);
+          return NextResponse.json({ error: fallbackBook.error.message }, { status: 400 });
+        }
         bookId = fallbackBook.data.id;
       } else if (bookErr) {
+        await admin.storage.from("flightbooks").remove([originalStoragePath]);
         return NextResponse.json({ error: bookErr.message }, { status: 400 });
       } else {
         bookId = book.id;
@@ -318,9 +338,11 @@ export async function POST(request: Request) {
           .eq("id", bookId)
           .eq("organization_id", orgId);
         if (fallbackUpdate.error) {
+          await admin.storage.from("flightbooks").remove([originalStoragePath]);
           return NextResponse.json({ error: fallbackUpdate.error.message }, { status: 400 });
         }
       } else if (updateResult.error) {
+        await admin.storage.from("flightbooks").remove([originalStoragePath]);
         return NextResponse.json({ error: updateResult.error.message }, { status: 400 });
       }
     }
@@ -349,19 +371,31 @@ export async function POST(request: Request) {
     };
     });
 
-    const { data: insertedSections, error: secErr } = await admin
-      .from("flightbook_sections")
-      .insert(rows)
-      .select("id, section_number, title, body, organization_id");
-    if (secErr) return NextResponse.json({ error: secErr.message }, { status: 400 });
+    const BATCH_SIZE = 250;
+    const allInsertedSections: { id: string; section_number: string | null; title: string | null; body: string; organization_id: string }[] = [];
+
+    for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
+      const batch = rows.slice(batchStart, batchStart + BATCH_SIZE);
+      const { data: batchInserted, error: secErr } = await admin
+        .from("flightbook_sections")
+        .insert(batch)
+        .select("id, section_number, title, body, organization_id");
+
+      if (secErr) {
+        await admin.storage.from("flightbooks").remove([originalStoragePath]);
+        return NextResponse.json({ error: secErr.message }, { status: 400 });
+      }
+
+      allInsertedSections.push(...(batchInserted ?? []));
+    }
 
     try {
-      const texts = (insertedSections ?? []).map((row) =>
+      const texts = allInsertedSections.map((row) =>
         [row.section_number, row.title, row.body].filter(Boolean).join("\n"),
       );
       const embeddings = await embedTexts(admin, orgId, texts);
       if (embeddings && embeddings.length > 0) {
-        for (let i = 0; i < insertedSections.length; i += 1) {
+        for (let i = 0; i < allInsertedSections.length; i += 1) {
           const embedding = embeddings[i];
           if (!embedding?.length) continue;
           await admin
@@ -370,7 +404,7 @@ export async function POST(request: Request) {
               embedding,
               updated_at: new Date().toISOString(),
             })
-            .eq("id", insertedSections[i].id);
+            .eq("id", allInsertedSections[i].id);
         }
       }
     } catch {
