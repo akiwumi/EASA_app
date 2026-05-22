@@ -210,6 +210,16 @@ export default function FlightbooksBrowser({ books }: Props) {
                   <span>{new Date(book.created_at).toLocaleDateString()}</span>
                 </div>
 
+                {(book.pendingUpdateCount ?? 0) > 0 && (
+                  <Link
+                    href={`/updates?flightbook=${book.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_12%,transparent)] px-2.5 py-0.5 text-xs font-medium text-[var(--easa-color-accent-orange)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_20%,transparent)]"
+                  >
+                    {book.pendingUpdateCount} pending update{(book.pendingUpdateCount ?? 0) !== 1 ? "s" : ""}
+                  </Link>
+                )}
+
                 {(book.linkedLessonCount || book.pendingAssignmentCount) && (
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
                     <span className="easa-badge is-blue">

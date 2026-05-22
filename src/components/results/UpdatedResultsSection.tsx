@@ -239,7 +239,7 @@ export default function UpdatedResultsSection({
             </button>
             {queuedCount > 0 ? (
               <Link href="/updates" className="easa-btn secondary text-sm">
-                View update queue
+                View review queue
               </Link>
             ) : null}
           </div>

@@ -476,7 +476,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "action required" }, { status: 400 });
   }
 
-  const validActions = ["approved", "rejected", "watchlist", "pending", "boneyard", "revision_requested"];
+  const validActions = ["approved", "rejected", "watchlist", "pending", "boneyard", "delete", "revision_requested"];
   if (!validActions.includes(action)) {
     return NextResponse.json({ error: "invalid action" }, { status: 400 });
   }
@@ -484,7 +484,7 @@ export async function PATCH(request: Request) {
   const admin = getSupabaseAdminClient();
   let targetIds = ids?.filter((id): id is string => typeof id === "string" && id.length > 0) ?? [];
 
-  if (targetIds.length === 0 && action === "boneyard" && regulation) {
+  if (targetIds.length === 0 && (action === "boneyard" || action === "delete") && regulation) {
     const matchResult = await loadMatchingQueueIds(admin, {
       organizationId: ctx.orgId,
       status,
@@ -517,6 +517,41 @@ export async function PATCH(request: Request) {
     }
   }
 
+  if (action === "delete") {
+    try {
+      const auditRows = targetIds.map((id) => ({
+        organization_id: ctx.orgId ?? undefined,
+        actor_id: ctx.userId,
+        action: "proposed_update_delete",
+        entity_type: "proposed_update",
+        entity_id: id,
+        payload: { status: status ?? null, permanent: true },
+      }));
+      await admin.from("audit_log").insert(auditRows);
+    } catch {
+      // best-effort — audit must never block the main response
+    }
+
+    let deleteQ = admin
+      .from("proposed_updates")
+      .delete()
+      .eq("organization_id", ctx.orgId)
+      .in("id", targetIds);
+
+    if (status) deleteQ = deleteQ.eq("status", status);
+
+    const { error: deleteErr } = await deleteQ;
+    if (deleteErr && isMissingSchemaError(deleteErr)) {
+      return NextResponse.json({
+        error:
+          "The updates tables are not set up yet. Run the later Supabase migrations before deleting updates.",
+      }, { status: 400 });
+    }
+    if (deleteErr) return NextResponse.json({ error: deleteErr.message }, { status: 400 });
+
+    return NextResponse.json({ ok: true, affected: targetIds.length, status: "deleted" });
+  }
+
   // Update proposed_updates status
   const nextStatus = action === "approved" && clearAfterApproval ? "boneyard" : action;
   const updateQ = admin
@@ -524,9 +559,9 @@ export async function PATCH(request: Request) {
     .update({ status: nextStatus, updated_at: new Date().toISOString() })
     .in("id", targetIds);
 
-  if (ctx.orgId) updateQ.eq("organization_id", ctx.orgId);
+  const finalUpdateQ = ctx.orgId ? updateQ.eq("organization_id", ctx.orgId) : updateQ;
 
-  const { error: updateErr } = await updateQ;
+  const { error: updateErr } = await finalUpdateQ;
   if (updateErr && isMissingSchemaError(updateErr)) {
     return NextResponse.json({
       error:

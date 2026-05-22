@@ -75,7 +75,7 @@ export async function applyApprovedUpdates(
         ok: false as const,
         conflict: true,
         error:
-          "Conflict: a flight book section was modified after an update was proposed. Review the current section body before approving.",
+          "The flight book has been updated since this AI update was proposed. Review the current section text, then regenerate or revise the proposed update before approving.",
       };
     }
   }

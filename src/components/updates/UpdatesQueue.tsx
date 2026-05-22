@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Archive, CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw, FileText } from "lucide-react";
+import { Archive, CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw, FileText, Sparkles, Eye, Trash2 } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
 
-const STATUS_OPTIONS = [
-  { value: "", label: "All active statuses" },
-  { value: "pending", label: "Pending" },
-  { value: "approved", label: "Approved" },
-  { value: "rejected", label: "Rejected" },
+const TABS = [
+  { value: "pending",   label: "Pending" },
   { value: "watchlist", label: "Watchlist" },
-  { value: "boneyard", label: "Boneyard (erased)" },
-];
+  { value: "approved",  label: "Approved" },
+  { value: "boneyard",  label: "Archived" },
+] as const;
 
 const RISK_OPTIONS = [
   { value: "", label: "All risk levels" },
@@ -90,6 +88,10 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [bulkMsg, setBulkMsg] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftMsg, setDraftMsg] = useState<string | null>(null);
+  const [quickMsg, setQuickMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   function updateFilter(
     setter: React.Dispatch<React.SetStateAction<string>>,
@@ -145,9 +147,12 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     setSelected(next);
   }
 
+  const isBoneyardView = filterStatus === "boneyard";
+
   async function bulkAction(action: string) {
+    const requestedAction = action === "boneyard" && isBoneyardView ? "delete" : action;
     if (!selected.size) {
-      if (action === "boneyard" && filterRegulation) {
+      if ((requestedAction === "boneyard" || requestedAction === "delete") && filterRegulation) {
         await eraseSelectedRegulation();
         return;
       }
@@ -161,22 +166,31 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ids: Array.from(selected),
-        action,
+        action: requestedAction,
+        status: requestedAction === "delete" ? "boneyard" : undefined,
         clearAfterApproval: action === "approved",
       }),
     });
     const json = await res.json();
     if (!res.ok) {
-      setBulkMsg(`Error: ${json.error}`);
+      setBulkMsg(
+        json.conflict
+          ? (json.error ?? "The flight book has been updated since this AI update was proposed. Review the current section text before approving.")
+          : `Error: ${json.error}`,
+      );
     } else {
       setBulkMsg(
         action === "approved"
           ? `${json.affected} item${json.affected !== 1 ? "s" : ""} approved and removed from the active queue.`
-          : action === "boneyard"
-            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} erased from the active queue.`
+          : requestedAction === "delete"
+            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} permanently deleted.`
+          : requestedAction === "boneyard"
+            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} archived.`
           : `${json.affected} item${json.affected !== 1 ? "s" : ""} ${action}.`,
       );
-      if (action === "approved" || action === "boneyard") {
+      if (requestedAction === "delete") {
+        await load({ page, status: "boneyard" });
+      } else if (action === "approved" || action === "boneyard") {
         setFilterStatus("pending");
         setPage(1);
         await load({ page: 1, status: "pending" });
@@ -199,7 +213,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "boneyard",
+        action: isBoneyardView ? "delete" : "boneyard",
         status: filterStatus || undefined,
         risk: filterRisk || undefined,
         classification: filterClass || undefined,
@@ -211,12 +225,19 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       setBulkMsg(`Error: ${json.error}`);
     } else {
       setBulkMsg(
-        `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} erased from the active queue.`,
+        isBoneyardView
+          ? `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} permanently deleted.`
+          : `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} archived.`,
       );
-      setFilterStatus("pending");
-      setFilterRegulation("");
-      setPage(1);
-      await load({ page: 1, status: "pending", regulation: "" });
+      if (isBoneyardView) {
+        setPage(1);
+        await load({ page: 1, status: "boneyard" });
+      } else {
+        setFilterStatus("pending");
+        setFilterRegulation("");
+        setPage(1);
+        await load({ page: 1, status: "pending", regulation: "" });
+      }
     }
     setBulkLoading(false);
   }
@@ -247,6 +268,53 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     setExportLoading(false);
   }
 
+  async function generateDrafts() {
+    setDraftLoading(true);
+    setDraftMsg(null);
+    const res = await fetch("/api/updates/generate-drafts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ limit: 20 }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setDraftMsg(`Error: ${json.error}`);
+    } else {
+      const { generated, attempted } = json as { generated: number; attempted: number };
+      if (attempted === 0) {
+        setDraftMsg("No pending items without drafts found.");
+      } else {
+        setDraftMsg(`${generated} of ${attempted} draft${attempted !== 1 ? "s" : ""} generated.`);
+        await load();
+      }
+    }
+    setDraftLoading(false);
+  }
+
+  async function quickAction(id: string, action: string) {
+    setQuickMsg(null);
+    const res = await fetch("/api/updates", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [id], action }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setQuickMsg({ text: json.error ?? "Action failed", ok: false });
+      return;
+    }
+    const labels: Record<string, string> = {
+      approved: "Approved",
+      watchlist: "Moved to watchlist",
+      boneyard: "Archived",
+      delete: "Erased permanently",
+      pending: "Reset to pending",
+    };
+    setQuickMsg({ text: labels[action] ?? "Done", ok: true });
+    setTimeout(() => setQuickMsg(null), 3000);
+    await load();
+  }
+
   const totalPages = Math.ceil(total / limit);
   const allSelected = displayedItems.length > 0 && selected.size === displayedItems.length;
 
@@ -255,17 +323,28 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Update queue</h1>
+          <h1 className="text-xl font-semibold">Review queue</h1>
           <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-            {total} proposed update{total !== 1 ? "s" : ""} · review and approve changes to your flight books
+            {total} update{total !== 1 ? "s" : ""} · review and approve changes to your flight books
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {canManage && (
+            <button
+              className="easa-btn secondary flex items-center gap-2 text-sm"
+              disabled={draftLoading}
+              onClick={() => void generateDrafts()}
+              title="Generate AI revision drafts for pending items that don't have one yet"
+            >
+              <Sparkles size={15} strokeWidth={1.75} />
+              {draftLoading ? "Generating…" : "Generate AI drafts"}
+            </button>
+          )}
           {canManage && (
             <button
               className="easa-btn primary flex items-center gap-2 text-sm"
               disabled={exportLoading}
-              onClick={createUpdatedFlightbooks}
+              onClick={() => setConfirmOpen(true)}
             >
               <FileText size={15} strokeWidth={1.75} />
               {exportLoading ? "Completing..." : "Approve pending & create flight books"}
@@ -296,12 +375,44 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
         </p>
       )}
 
+      {draftMsg && (
+        <p className={`rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-sm ${
+          draftMsg.startsWith("Error") ? "text-[var(--easa-color-accent-pink)]" : "text-[var(--easa-color-text-secondary)]"
+        }`}>
+          {draftMsg}
+        </p>
+      )}
+
+      {quickMsg && (
+        <p className={`rounded-[10px] border px-3 py-2 text-sm ${
+          quickMsg.ok
+            ? "border-[var(--easa-color-accent-green)] bg-[color-mix(in_srgb,var(--easa-color-accent-green)_8%,transparent)] text-[var(--easa-color-accent-green)]"
+            : "border-[var(--easa-color-accent-pink)] bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_8%,transparent)] text-[var(--easa-color-accent-pink)]"
+        }`}>
+          {quickMsg.text}
+        </p>
+      )}
+
+      {/* Status tabs */}
+      <div className="flex gap-1 border-b border-[var(--easa-color-border)]">
+        {TABS.map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => { updateFilter(setFilterStatus, tab.value); }}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              filterStatus === tab.value
+                ? "border-[var(--easa-color-brand-primary)] text-[var(--easa-color-brand-primary)]"
+                : "border-transparent text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)]"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Filters */}
       <div className="easa-card flex flex-wrap gap-3 p-4">
         <Filter size={15} strokeWidth={1.75} className="mt-2 shrink-0 text-[var(--easa-color-text-muted)]" />
-        <select className="easa-input flex-1 min-w-[140px]" value={filterStatus} onChange={(e) => updateFilter(setFilterStatus, e.target.value)}>
-          {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
         <select className="easa-input flex-1 min-w-[140px]" value={filterRisk} onChange={(e) => updateFilter(setFilterRisk, e.target.value)}>
           {RISK_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
@@ -323,25 +434,28 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
             className="easa-btn secondary flex items-center gap-1.5 px-3 py-2 text-xs"
             disabled={bulkLoading || !filterRegulation}
             onClick={eraseSelectedRegulation}
-            title="Remove every queue item matching the selected regulation and current filters from the active queue"
+            title={
+              isBoneyardView
+                ? "Permanently delete every archived item matching the selected regulation and current filters"
+                : "Archive every queue item matching the selected regulation and current filters"
+            }
             type="button"
           >
             <Archive size={14} strokeWidth={1.75} />
-            Erase regulation
+            {isBoneyardView ? "Delete regulation" : "Archive regulation"}
           </button>
         )}
-        {(filterStatus || filterRisk || filterClass || filterRegulation) && (
+        {(filterRisk || filterClass || filterRegulation) && (
           <button
             className="text-xs text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)]"
             onClick={() => {
-              setFilterStatus("");
               setFilterRisk("");
               setFilterClass("");
               setFilterRegulation("");
               setPage(1);
             }}
           >
-            Clear
+            Clear filters
           </button>
         )}
       </div>
@@ -379,10 +493,14 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
               className="easa-btn secondary flex items-center gap-1.5 text-xs"
               disabled={bulkLoading}
               onClick={() => bulkAction("boneyard")}
-              title="Remove selected updates from the active queue without approving them"
+              title={
+                isBoneyardView
+                  ? "Permanently delete selected archived updates"
+                  : "Archive selected updates without approving them"
+              }
             >
               <Archive size={14} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
-              Erase selected
+              {isBoneyardView ? "Delete permanently" : "Archive selected"}
             </button>
             <button
               className="easa-btn secondary flex items-center gap-1.5 text-xs"
@@ -485,19 +603,59 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
                   </td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusColor(item.status)}`}>
-                      {item.status}
+                      {item.status === "boneyard" ? "archived" : item.status}
                     </span>
                   </td>
                   <td className="hidden px-4 py-3 text-xs text-[var(--easa-color-text-muted)] lg:table-cell">
                     {new Date(item.created_at).toLocaleDateString()}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/updates/${item.id}`}
-                      className="easa-btn secondary px-3 py-1.5 text-xs"
-                    >
-                      Review
-                    </Link>
+                    <div className="flex items-center justify-end gap-1.5">
+                      {canManage && (
+                        <>
+                          {filterStatus !== "approved" && (
+                            <button
+                              title="Approve"
+                              onClick={() => void quickAction(item.id, "approved")}
+                              className="rounded-md p-1.5 text-[var(--easa-color-accent-green)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-green)_12%,transparent)]"
+                            >
+                              <CheckCircle size={15} strokeWidth={1.75} />
+                            </button>
+                          )}
+                          {filterStatus !== "watchlist" && filterStatus !== "boneyard" && (
+                            <button
+                              title="Move to watchlist"
+                              onClick={() => void quickAction(item.id, "watchlist")}
+                              className="rounded-md p-1.5 text-[var(--easa-color-accent-blue)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_12%,transparent)]"
+                            >
+                              <Eye size={15} strokeWidth={1.75} />
+                            </button>
+                          )}
+                          {filterStatus !== "boneyard" && (
+                            <button
+                              title="Archive"
+                              onClick={() => void quickAction(item.id, "boneyard")}
+                              className="rounded-md p-1.5 text-[var(--easa-color-text-muted)] hover:bg-[var(--easa-color-surface-2)]"
+                            >
+                              <Archive size={15} strokeWidth={1.75} />
+                            </button>
+                          )}
+                          <button
+                            title="Erase permanently"
+                            onClick={() => void quickAction(item.id, "delete")}
+                            className="rounded-md p-1.5 text-[var(--easa-color-accent-pink)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_12%,transparent)]"
+                          >
+                            <Trash2 size={15} strokeWidth={1.75} />
+                          </button>
+                        </>
+                      )}
+                      <Link
+                        href={`/updates/${item.id}`}
+                        className="easa-btn secondary px-3 py-1.5 text-xs"
+                      >
+                        Review
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -505,6 +663,39 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           </table>
         )}
       </div>
+
+      {/* Confirm modal — Approve pending & create flight books */}
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setConfirmOpen(false)}>
+          <div
+            className="w-full max-w-md rounded-2xl border border-[var(--easa-color-border)] bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-base font-semibold">Approve pending updates?</h2>
+            <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">
+              This will approve <strong>all {total} pending</strong> update{total !== 1 ? "s" : ""} and write new versions of the affected flight book sections.
+            </p>
+            <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">
+              Approved sections are saved to the version history. You can restore any section from the Time machine at any time.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                className="easa-btn secondary text-sm"
+                onClick={() => setConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="easa-btn primary text-sm"
+                disabled={exportLoading}
+                onClick={() => { setConfirmOpen(false); void createUpdatedFlightbooks(); }}
+              >
+                {exportLoading ? "Completing…" : "Approve & create flight books"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

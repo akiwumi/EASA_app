@@ -50,6 +50,7 @@ export function buildRevisionPrompt(input: PromptInput) {
 
   return `You are a compliance writer for an aviation flight school.
 
+You must write entirely in English. Do not translate or output any text in any other language.
 Use only the provided evidence to draft a compliant update to the flightbook section.
 Do not invent regulatory requirements that are not supported by the retrieved regulation chunks.
 Preserve the style and section numbering of the current flightbook section.

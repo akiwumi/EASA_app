@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle, XCircle, RotateCcw, Copy, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw, Copy, ExternalLink, Loader2, GitCompare } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { diffLines, hasChanges } from "@/lib/utils/text-diff";
 
 interface Note {
   id: string;
@@ -146,6 +147,9 @@ export default function DiffViewer({
   // Copied state for suggested text
   const [copied, setCopied] = useState(false);
 
+  // Inline diff toggle
+  const [showDiff, setShowDiff] = useState(false);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const realtimeRef = useRef<any>(null);
 
@@ -258,14 +262,14 @@ export default function DiffViewer({
     if (!res.ok) {
       setActionError(
         json.conflict
-          ? "Conflict detected: the flight book section was edited after this update was proposed. Open the flight book to review the current text before approving."
+          ? (json.error ?? "The flight book has been updated since this AI update was proposed. Review the current section text before approving.")
           : (json.error ?? "Action failed"),
       );
     } else {
       setStatus(typeof json.status === "string" ? json.status : action);
       const messages: Record<string, string> = {
         approved: "Update approved — flight book section updated.",
-        boneyard: "Update approved, flight book section updated, and queue item moved to boneyard.",
+        boneyard: "Update approved, flight book section updated, and queue item archived.",
         rejected: "Update rejected.",
         revision_requested: "Revision requested.",
         watchlist: "Moved to watchlist.",
@@ -324,7 +328,7 @@ export default function DiffViewer({
       <div className="flex flex-wrap items-center gap-2">
         <span className={riskBadgeClass(riskLevel)}>{riskLevel} risk</span>
         <span className="easa-badge is-blue capitalize">{classification.replace(/_/g, " ")}</span>
-        <span className={statusBadgeClass(status)}>{status.replace(/_/g, " ")}</span>
+        <span className={statusBadgeClass(status)}>{(status === "boneyard" ? "archived" : status).replace(/_/g, " ")}</span>
         {confidenceScore != null && (
           <span className="easa-badge is-muted">
             {Math.round(Number(confidenceScore))}% confidence
@@ -462,26 +466,62 @@ export default function DiffViewer({
 
           {/* AI suggested revision */}
           {suggestedText ? (
-            <div>
-              <div className="mb-1 flex items-center justify-between">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-accent-green)]">
                   AI suggested revision
                 </p>
-                <button
-                  type="button"
-                  className="easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs"
-                  onClick={() => copyText(suggestedText)}
-                >
-                  <Copy size={13} strokeWidth={1.75} />
-                  {copied ? "Copied!" : "Copy"}
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {sectionBody && hasChanges(diffLines(sectionBody, suggestedText)) && (
+                    <button
+                      type="button"
+                      className={`easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs ${showDiff ? "ring-1 ring-[var(--easa-color-brand-primary)]" : ""}`}
+                      onClick={() => setShowDiff((v) => !v)}
+                      title="Toggle inline diff"
+                    >
+                      <GitCompare size={13} strokeWidth={1.75} />
+                      {showDiff ? "Hide diff" : "Show diff"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs"
+                    onClick={() => copyText(suggestedText)}
+                  >
+                    <Copy size={13} strokeWidth={1.75} />
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                </div>
               </div>
-              <pre
-                className="max-h-60 overflow-auto rounded-xl border border-[var(--easa-color-accent-green)] p-3 text-xs leading-relaxed whitespace-pre-wrap"
-                style={{ background: "color-mix(in srgb, var(--easa-color-accent-green) 8%, transparent)" }}
-              >
-                {suggestedText}
-              </pre>
+
+              {showDiff && sectionBody ? (
+                <div className="max-h-72 overflow-auto rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3 font-mono text-xs leading-relaxed">
+                  {diffLines(sectionBody, suggestedText).map((token, i) => (
+                    <div
+                      key={i}
+                      className={
+                        token.type === "delete"
+                          ? "bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_15%,transparent)] text-[var(--easa-color-accent-pink)] line-through"
+                          : token.type === "insert"
+                          ? "bg-[color-mix(in_srgb,var(--easa-color-accent-green)_15%,transparent)] text-[var(--easa-color-accent-green)]"
+                          : "text-[var(--easa-color-text-secondary)]"
+                      }
+                    >
+                      <span className="mr-2 select-none text-[var(--easa-color-text-muted)] opacity-50">
+                        {token.type === "delete" ? "−" : token.type === "insert" ? "+" : " "}
+                      </span>
+                      {token.text || <span className="opacity-0">_</span>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <pre
+                  className="max-h-60 overflow-auto rounded-xl border border-[var(--easa-color-accent-green)] p-3 text-xs leading-relaxed whitespace-pre-wrap"
+                  style={{ background: "color-mix(in srgb, var(--easa-color-accent-green) 8%, transparent)" }}
+                >
+                  {suggestedText}
+                </pre>
+              )}
             </div>
           ) : (
             <div>

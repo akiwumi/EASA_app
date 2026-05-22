@@ -131,7 +131,7 @@ export function OperationsPanel({
               <Siren size={18} />
             </div>
             <div>
-              <h2 className="text-lg font-semibold">Critical update queue</h2>
+              <h2 className="text-lg font-semibold">Critical review queue</h2>
               <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
                 {operationalStats.unreadCriticalUpdates} unread notification{operationalStats.unreadCriticalUpdates !== 1 ? "s" : ""} still need attention.
               </p>

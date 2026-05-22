@@ -111,6 +111,22 @@ async function loadBook(id: string) {
     .eq("organization_id", ctx.orgId)
     .order("created_at", { ascending: false });
 
+  const sectionIds = (sections ?? []).map((s) => s.id as string);
+  const pendingUpdatesResult = sectionIds.length
+    ? await admin
+        .from("proposed_updates")
+        .select("flightbook_section_id")
+        .eq("organization_id", ctx.orgId)
+        .eq("status", "pending")
+        .in("flightbook_section_id", sectionIds)
+    : { data: [], error: null };
+
+  const pendingUpdatesBySection = new Map<string, number>();
+  for (const row of pendingUpdatesResult.data ?? []) {
+    const sid = row.flightbook_section_id as string;
+    if (sid) pendingUpdatesBySection.set(sid, (pendingUpdatesBySection.get(sid) ?? 0) + 1);
+  }
+
   const commentsReady = !(
     commentsResult.error &&
     (isMissingSchemaError(commentsResult.error) || /column .* does not exist/i.test(commentsResult.error.message ?? ""))
@@ -210,6 +226,7 @@ async function loadBook(id: string) {
       linkedLessons,
       assignmentCount,
       pendingAssignmentCount,
+      pendingUpdateCount: pendingUpdatesBySection.get(section.id as string) ?? 0,
       comments: commentsBySection.get(section.id as string) ?? [],
     };
   });

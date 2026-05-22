@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type SectionComment = {
@@ -17,6 +18,7 @@ type SectionUsage = {
   linkedLessons: { id: string; title: string; lesson_code: string | null; required: boolean }[];
   assignmentCount: number;
   pendingAssignmentCount: number;
+  pendingUpdateCount: number;
   comments: SectionComment[];
 };
 
@@ -180,6 +182,15 @@ export default function FlightbookDetailClient({
                 <h2 className="mt-2 text-lg font-semibold">{section.title || "Untitled section"}</h2>
               </div>
               <div className="flex flex-wrap gap-2">
+                {section.pendingUpdateCount > 0 && (
+                  <Link
+                    href={`/updates?section=${section.id}`}
+                    className="easa-badge is-orange hover:opacity-80"
+                    title="View pending regulatory updates for this section"
+                  >
+                    {section.pendingUpdateCount} pending update{section.pendingUpdateCount !== 1 ? "s" : ""}
+                  </Link>
+                )}
                 <span className="easa-badge is-blue">
                   {section.linkedLessons.length} linked lesson{section.linkedLessons.length !== 1 ? "s" : ""}
                 </span>

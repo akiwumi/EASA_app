@@ -1,10 +1,16 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
+import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
+import PipelineStatusCard from "@/components/dashboard/PipelineStatusCard";
 import { buildDashboardSetupTasks } from "@/components/dashboard/DashboardSectionPanels";
 import {
   loadDashboardSetupSummary,
+  loadDashboardStats,
   loadOrgContext,
+  loadRecentPipelineRun,
 } from "@/services/dashboard";
+import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 
 export default async function DashboardPage() {
   const org = await loadOrgContext();
@@ -13,129 +19,159 @@ export default async function DashboardPage() {
     redirect("/settings?tab=setup");
   }
 
-  const setupSummary = await loadDashboardSetupSummary(org.organizationId);
+  const [setupSummary, stats, lastRun] = await Promise.all([
+    loadDashboardSetupSummary(org.organizationId),
+    loadDashboardStats(org.organizationId),
+    loadRecentPipelineRun(org.organizationId),
+  ]);
+
   const setupTasks = buildDashboardSetupTasks(setupSummary);
   const setupDoneCount = setupTasks.filter((task) => task.done).length;
-  const hasIncompleteSetup = setupDoneCount < setupTasks.length;
-  const hasActiveFeeds = setupSummary.activeRssCount > 0;
 
   return (
-    <div id="top" className="grid gap-8 xl:grid-cols-[minmax(0,1.08fr)_minmax(380px,0.92fr)]">
-      <div className="xl:col-span-2">
-        <DashboardHeaderActions />
+    <div className="space-y-6">
+
+      {/* Workflow pipeline banner */}
+      <WorkflowBanner
+        activeFeeds={setupSummary.activeRssCount}
+        totalFeeds={setupSummary.rssSourceCount}
+        pendingReview={stats.pendingApprovals}
+        flightbookCount={setupSummary.flightbookCount}
+        newAlertsThisWeek={stats.newChanges7d}
+      />
+
+      {/* Pipeline trigger + quick links */}
+      <DashboardHeaderActions />
+
+      {/* Two-column grid below */}
+      <div className="grid gap-6 lg:grid-cols-2">
+
+        {/* Setup checklist */}
+        <section className="easa-card overflow-hidden p-0">
+          <div className="flex items-center justify-between border-b border-[var(--easa-color-border)] px-5 py-4">
+            <div>
+              <h2 className="text-base font-semibold">Setup checklist</h2>
+              <p className="mt-0.5 text-xs text-[var(--easa-color-text-muted)]">
+                {setupDoneCount} of {setupTasks.length} complete
+              </p>
+            </div>
+            <span className={`easa-badge ${setupDoneCount === setupTasks.length ? "is-green" : "is-orange"}`}>
+              {setupDoneCount === setupTasks.length ? "Ready" : `${setupTasks.length - setupDoneCount} remaining`}
+            </span>
+          </div>
+
+          <div className="divide-y divide-[var(--easa-color-border)]">
+            {setupTasks.map((task) => (
+              <Link
+                key={task.label}
+                href={task.href}
+                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--easa-color-surface-2)]"
+              >
+                {task.done
+                  ? <CheckCircle2 size={18} strokeWidth={2} className="shrink-0 text-[var(--easa-color-accent-green)]" />
+                  : <Circle size={18} strokeWidth={1.75} className="shrink-0 text-[var(--easa-color-text-muted)]" />
+                }
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-[var(--easa-color-text-primary)]">{task.label}</p>
+                  <p className="mt-0.5 text-xs text-[var(--easa-color-text-muted)]">{task.hint}</p>
+                </div>
+                {!task.done && (
+                  <span className="shrink-0 text-xs font-medium text-[var(--easa-color-brand-primary)]">
+                    {task.action}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* Status snapshot */}
+        <section className="space-y-4">
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3">
+            <Link
+              href="/results"
+              className="easa-card flex flex-col gap-1 p-4 transition hover:bg-[var(--easa-color-surface-2)]"
+            >
+              <p className="text-xs text-[var(--easa-color-text-muted)]">New alerts</p>
+              <p className="text-2xl font-semibold">{stats.newChanges7d}</p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">last 7 days</p>
+            </Link>
+
+            <Link
+              href="/updates"
+              className="easa-card flex flex-col gap-1 p-4 transition hover:bg-[var(--easa-color-surface-2)]"
+            >
+              <p className="text-xs text-[var(--easa-color-text-muted)]">Pending review</p>
+              <p className={`text-2xl font-semibold ${stats.pendingApprovals > 0 ? "text-[var(--easa-color-accent-orange)]" : ""}`}>
+                {stats.pendingApprovals}
+              </p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">updates</p>
+            </Link>
+
+            <Link
+              href="/flightbooks"
+              className="easa-card flex flex-col gap-1 p-4 transition hover:bg-[var(--easa-color-surface-2)]"
+            >
+              <p className="text-xs text-[var(--easa-color-text-muted)]">Flight books</p>
+              <p className="text-2xl font-semibold">{setupSummary.flightbookCount}</p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">controlled docs</p>
+            </Link>
+          </div>
+
+          {/* Pipeline status */}
+          <PipelineStatusCard lastRun={lastRun} />
+
+          {/* Quick actions */}
+          <div className="easa-card divide-y divide-[var(--easa-color-border)] p-0 overflow-hidden">
+            <div className="px-5 py-3 border-b border-[var(--easa-color-border)]">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">Quick actions</p>
+            </div>
+            {[
+              {
+                label: "Review pending updates",
+                sub: stats.pendingApprovals > 0 ? `${stats.pendingApprovals} item${stats.pendingApprovals !== 1 ? "s" : ""} waiting` : "Queue is clear",
+                href: "/updates",
+                highlight: stats.pendingApprovals > 0,
+              },
+              {
+                label: "View flight books",
+                sub: setupSummary.flightbookCount > 0 ? `${setupSummary.flightbookCount} document${setupSummary.flightbookCount !== 1 ? "s" : ""}` : "None uploaded yet",
+                href: "/flightbooks",
+                highlight: false,
+              },
+              {
+                label: "Upload a flight book",
+                sub: "Add or replace a controlled manual",
+                href: "/flightbooks/upload",
+                highlight: false,
+              },
+              {
+                label: "Manage feeds & settings",
+                sub: `${setupSummary.activeRssCount} active feed${setupSummary.activeRssCount !== 1 ? "s" : ""}`,
+                href: "/settings",
+                highlight: false,
+              },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="flex items-center gap-4 px-5 py-3.5 transition hover:bg-[var(--easa-color-surface-2)]"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm font-medium ${item.highlight ? "text-[var(--easa-color-accent-orange)]" : "text-[var(--easa-color-text-primary)]"}`}>
+                    {item.label}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[var(--easa-color-text-muted)]">{item.sub}</p>
+                </div>
+                <ArrowRight size={15} strokeWidth={1.75} className="shrink-0 text-[var(--easa-color-text-muted)]" />
+              </Link>
+            ))}
+          </div>
+        </section>
+
       </div>
-
-      <section className="easa-card xl:col-span-2 min-h-[458px] p-8">
-        <div className="grid h-full gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(520px,0.92fr)]">
-          <div>
-            <h1 className="easa-h1-mobile-app text-[32px] font-medium leading-none text-[var(--easa-color-text-primary)]">
-              Compliance Plan
-            </h1>
-            <p className="mt-2 text-[18px] text-[var(--easa-color-text-muted)]">
-              {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            </p>
-
-            <div className="mt-12 flex flex-col items-center gap-7 sm:flex-row sm:items-start sm:justify-center">
-              <div className="quicken-donut shrink-0" aria-hidden="true" />
-              <div className="pt-11 text-center sm:text-left">
-                <p className="text-[34px] font-medium leading-none">{setupDoneCount}/{setupTasks.length}</p>
-                <p className="mt-3 text-[18px]">Setup complete</p>
-                <p className="mt-2 text-[15px] text-[var(--easa-color-text-secondary)]">
-                  {hasIncompleteSetup ? "Finish the remaining controls" : "Workspace ready"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mx-auto mt-5 grid max-w-[340px] gap-2 text-[18px] text-[var(--easa-color-text-secondary)]">
-              <div className="flex items-center gap-4"><span className="h-5 w-5 rounded-full bg-[#78c5d4]" /> Planned monitoring</div>
-              <div className="flex items-center gap-4"><span className="h-5 w-5 rounded-full bg-[#6550d1]" /> Review workload</div>
-              <div className="flex items-center gap-4"><span className="h-5 w-5 rounded-full bg-[#aee4bd]" /> Available controls</div>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <h2 className="text-center text-[22px] font-medium">Planned Monitoring</h2>
-              <div className="flex items-center gap-8 text-[32px] text-[var(--easa-color-text-disabled)]">
-                <span>‹</span>
-                <span>›</span>
-              </div>
-            </div>
-
-            <div className="mt-14 grid gap-3 md:grid-cols-2">
-              <article className="rounded-[8px] border border-[var(--easa-color-border)] bg-white p-4 shadow-[var(--easa-shadow-1)]">
-                <div className="flex items-center justify-between text-[18px]">
-                  <span>Feeds</span>
-                  <span className="text-[var(--easa-color-text-muted)]">↕</span>
-                </div>
-                <p className="mt-4 text-[20px]">{setupSummary.activeRssCount} active</p>
-                <div className="quicken-progress mt-2"><span style={{ width: hasActiveFeeds ? "72%" : "12%" }} /></div>
-                <p className="mt-1 text-right text-[15px]">out of monitoring plan</p>
-              </article>
-              <article className="rounded-[8px] border border-[var(--easa-color-border)] bg-white p-4 shadow-[var(--easa-shadow-1)]">
-                <div className="flex items-center justify-between text-[18px]">
-                  <span>Manuals</span>
-                  <span className="text-[var(--easa-color-text-muted)]">↕</span>
-                </div>
-                <p className="mt-4 text-[20px]">{setupSummary.flightbookCount} uploaded</p>
-                <div className="quicken-progress mt-2"><span style={{ width: setupSummary.hasFlightbooks ? "86%" : "18%" }} /></div>
-                <p className="mt-1 text-right text-[15px]">out of controlled library</p>
-              </article>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="easa-card overflow-hidden p-0">
-        <div className="bg-[#eef6ff] px-8 py-6">
-          <h2 className="text-[32px] font-medium leading-none">{setupDoneCount} Tasks Ready</h2>
-          <p className="mt-2 text-[18px] text-[var(--easa-color-text-muted)]">from setup to today</p>
-        </div>
-        <div className="divide-y divide-[var(--easa-color-border)] px-8">
-          {setupTasks.map((task) => (
-            <div key={task.label} className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-4">
-              <div>
-                <p className="text-[22px] leading-tight">{task.label}</p>
-                <p className="mt-1 text-[18px] text-[var(--easa-color-text-secondary)]">{task.done ? "Ready" : "Needs setup"}</p>
-              </div>
-              <div className={`text-right text-[22px] font-medium ${task.done ? "text-[var(--easa-color-accent-green)]" : ""}`}>
-                {task.done ? "+Done" : "Open"}
-                <p className="text-[18px] font-normal text-[var(--easa-color-text-muted)]">Now</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="easa-card p-8">
-        <div className="flex items-center justify-between">
-          <h2 className="text-[32px] font-medium leading-none">Schedule Settings</h2>
-          <div className="flex items-center gap-8 text-[32px] text-[var(--easa-color-text-disabled)]">
-            <span>‹</span>
-            <span className="text-[var(--easa-color-text-primary)]">›</span>
-          </div>
-        </div>
-        <div className="mt-7 grid gap-3 sm:grid-cols-2">
-          {[
-            ["F", "Feeds", hasActiveFeeds ? "+Connected" : "No feeds", "is-green"],
-            ["M", "Manuals", setupSummary.hasFlightbooks ? "+Ready" : "Missing", setupSummary.hasFlightbooks ? "is-green" : "is-orange"],
-            ["A", "Automation", setupSummary.hasSchedule ? "+Scheduled" : "Manual", setupSummary.hasSchedule ? "is-green" : "is-orange"],
-            ["R", "Role", org.role, "is-purple"],
-          ].map(([letter, title, value, badge]) => (
-            <article key={title} className="rounded-[8px] border border-[var(--easa-color-border)] bg-white p-3 shadow-[var(--easa-shadow-1)]">
-              <div className="flex items-center justify-between border-b border-[var(--easa-color-border)] pb-3">
-                <div className="flex items-center gap-3">
-                  <span className={`easa-badge ${badge} h-8 w-8 justify-center p-0 text-base`}>{letter}</span>
-                  <span>today</span>
-                </div>
-                <span className="text-[var(--easa-color-text-muted)]">⋮</span>
-              </div>
-              <p className="mt-4 text-[20px]">{title}</p>
-              <p className={`mt-2 text-[20px] font-bold ${badge === "is-green" ? "text-[var(--easa-color-accent-green)]" : ""}`}>{value}</p>
-            </article>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

@@ -53,7 +53,7 @@ export default function DashboardHeaderActions() {
           View AI results
         </Link>
         <Link className="easa-btn secondary w-full justify-center text-lg md:text-xl" href="/updates">
-          Open update queue
+          Open review queue
         </Link>
       </div>
 

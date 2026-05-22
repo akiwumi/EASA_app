@@ -93,6 +93,27 @@ async function enrichBooks(
     .in("flightbook_id", books.map((b) => b.id))
     .order("created_at", { ascending: false });
 
+  // Pending proposed_updates per flightbook (via flightbook_sections join)
+  const bookIds = books.map((b) => b.id);
+  const pendingUpdatesResult = await admin
+    .from("proposed_updates")
+    .select("flightbook_section_id, flightbook_sections!inner(flightbook_id)")
+    .eq("organization_id", orgId)
+    .eq("status", "pending")
+    .in("flightbook_sections.flightbook_id", bookIds);
+
+  const pendingUpdatesByBook = new Map<string, number>();
+  if (!pendingUpdatesResult.error) {
+    for (const row of pendingUpdatesResult.data ?? []) {
+      const sections = Array.isArray(row.flightbook_sections) ? row.flightbook_sections : [row.flightbook_sections];
+      for (const sec of sections) {
+        if (!sec) continue;
+        const fbId = (sec as { flightbook_id: string }).flightbook_id;
+        pendingUpdatesByBook.set(fbId, (pendingUpdatesByBook.get(fbId) ?? 0) + 1);
+      }
+    }
+  }
+
   const countMap = new Map<string, number>();
   for (const row of counts ?? []) {
     countMap.set(row.flightbook_id, (countMap.get(row.flightbook_id) ?? 0) + 1);
@@ -149,6 +170,7 @@ async function enrichBooks(
       sectionCount: countMap.get(book.id) ?? 0,
       linkedLessonCount: lessonIds.length,
       pendingAssignmentCount,
+      pendingUpdateCount: pendingUpdatesByBook.get(book.id) ?? 0,
       generatedCopies: (exportsByBook.get(book.id) ?? []).slice(0, 3),
     };
   });

@@ -678,7 +678,7 @@ export default function ReviewPanel({
               View flight books <ChevronRight size={13} strokeWidth={2} />
             </Link>
             <Link href="/updates" className="easa-btn secondary flex items-center gap-1.5">
-              View update queue <ChevronRight size={13} strokeWidth={2} />
+              View review queue <ChevronRight size={13} strokeWidth={2} />
             </Link>
           </div>
         </div>
