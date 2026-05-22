@@ -151,30 +151,26 @@ export default function AppShell({
       {/* ─── Desktop sidebar ─────────────────────────────────────── */}
       <aside className="fixed inset-y-0 left-0 z-50 hidden w-[220px] flex-col border-r border-[var(--easa-color-border)] bg-white shadow-[1px_0_4px_rgba(15,23,42,0.08)] lg:flex">
 
+        {/* Gradient accent bar — matches landing page header */}
+        <div className="easa-gradient-bar shrink-0" />
+
         {/* Brand / org header */}
-        <div className="border-b border-[var(--easa-color-border)] px-4 py-4">
-          <Link href="/dashboard" className="flex items-center gap-3 rounded-xl p-1 transition-opacity hover:opacity-80">
-            {logoUrl ? (
-              <Image
-                alt={organizationName || "Organisation"}
-                className="h-9 w-9 rounded-[10px] border border-[var(--easa-color-border)] object-cover"
-                height={36}
-                src={logoUrl}
-                unoptimized
-                width={36}
-              />
-            ) : (
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--easa-color-brand-primary)] shadow-[0_4px_12px_rgba(67,38,232,0.22)]">
-                <span className="relative block h-[18px] w-[18px] rounded-full border-[3.5px] border-white">
-                  <span className="absolute -bottom-[3px] right-0 h-[3.5px] w-[9px] rotate-45 rounded-full bg-white" />
-                </span>
-              </div>
-            )}
+        <div className="border-b border-[var(--easa-color-border)] px-4 py-3">
+          <Link href="/dashboard" className="flex items-center gap-2.5 rounded-xl p-1 transition-opacity hover:opacity-80">
+            <Image
+              alt="Flight Lyceum logo"
+              className="object-contain"
+              height={28}
+              priority
+              src="/images/flight-lyceum-logo.png"
+              style={{ width: 52, height: 28 }}
+              width={52}
+            />
             <div className="min-w-0">
-              <p className="truncate text-[13px] font-semibold leading-tight text-[var(--easa-color-text-primary)]">
-                EASA Console
+              <p className="easa-display truncate text-[13px] leading-tight text-[var(--easa-color-text-primary)]">
+                Flight Lyceum
               </p>
-              <p className="mt-0.5 truncate text-[11px] text-[var(--easa-color-text-muted)]">
+              <p className="mt-0.5 truncate text-[10px] text-[var(--easa-color-text-muted)]">
                 {organizationName || "Your organisation"}
               </p>
             </div>
@@ -258,39 +254,30 @@ export default function AppShell({
 
       {/* ─── Mobile / tablet top header ──────────────────────────── */}
       <header className="z-40 w-full lg:hidden">
-        <div className="w-full border-b border-[var(--easa-color-border)] bg-white shadow-[var(--easa-shadow-1)]">
-          <div className="flex min-h-[64px] w-full items-center gap-3 px-4 py-3 sm:px-5">
+        <div className="w-full border-b border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.94)] shadow-[var(--easa-shadow-1)] backdrop-blur-xl">
+          {/* Gradient accent bar — matches landing page */}
+          <div className="easa-gradient-bar" />
+          <div className="flex min-h-[60px] w-full items-center gap-3 px-4 py-3 sm:px-5">
 
             {/* Logo + title */}
             <Link
               href="/dashboard"
-              className="flex min-w-0 flex-1 items-center gap-3 transition-opacity hover:opacity-80"
+              className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-80"
             >
-              {logoUrl ? (
-                <Image
-                  alt={organizationName || "Organisation"}
-                  className="h-9 w-9 rounded-[10px] border border-[var(--easa-color-border)] object-cover"
-                  height={36}
-                  src={logoUrl}
-                  unoptimized
-                  width={36}
-                />
-              ) : (
-                <Image
-                  alt="Flight Lyceum logo"
-                  className="object-contain"
-                  height={36}
-                  priority
-                  src="/images/flight-lyceum-logo.png"
-                  style={{ width: 66, height: 36 }}
-                  width={66}
-                />
-              )}
+              <Image
+                alt="Flight Lyceum logo"
+                className="object-contain"
+                height={32}
+                priority
+                src="/images/flight-lyceum-logo.png"
+                style={{ width: 58, height: 32 }}
+                width={58}
+              />
               <div className="min-w-0">
-                <p className="text-[14px] font-semibold leading-tight text-[var(--easa-color-text-primary)]">
-                  EASA Console
+                <p className="easa-display text-[13px] leading-tight text-[var(--easa-color-text-primary)]">
+                  Flight Lyceum
                 </p>
-                <p className="mt-0.5 truncate text-[11px] text-[var(--easa-color-text-muted)]">
+                <p className="mt-0.5 truncate text-[10px] text-[var(--easa-color-text-muted)]">
                   {organizationName || "Your organisation"}
                 </p>
               </div>
