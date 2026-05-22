@@ -1,27 +1,105 @@
 # EASA Regulation Compliance App — Comprehensive Build Roadmap
 
-> **Last updated:** 2026-03-23
+> **Last updated:** 2026-05-22
 > **Organisation:** South Sweden Aviation (Flight School)
 > **Stack:** Next.js 16 + React 19, Tailwind CSS v4, Supabase (Postgres + Auth + RLS + Edge Functions + Storage + Cron)
+> **Owner skill level:** Novice coder. Roadmap must favour copy/paste steps, small changes, visible checks, and rollback-safe work.
+
+---
+
+## 0. Novice-Coder Operating Mode
+
+This roadmap is now written for a non-expert builder. The app is important enough that changes should be made in small, checkable steps instead of large rewrites.
+
+### How to Work Safely
+
+Use this loop for every feature or fix:
+
+1. **Read the relevant plan first.**
+   - Current priority plan: `docs/superpowers/plans/2026-05-22-multi-school-db-time-machine-hardening.md`
+2. **Change one small thing.**
+   - One API route, one component, or one SQL migration at a time.
+3. **Run one check.**
+   - Prefer `npm run build` for app safety.
+   - Use Supabase SQL Editor for database migrations.
+4. **Open the page and click through it.**
+   - Do not trust code alone.
+5. **Only then move to the next item.**
+
+### What “Done” Means
+
+A task is not done until all four are true:
+
+- The app builds without errors.
+- The relevant page opens in the browser.
+- A normal user action works.
+- The database still contains the expected rows for the active school.
+
+### Do Not Do These Alone
+
+Ask for help before doing any of these:
+
+- Deleting production Supabase rows.
+- Running SQL that starts with `drop table`, `truncate`, or broad `delete from`.
+- Changing RLS policies without a test login.
+- Editing Stripe billing logic.
+- Replacing the full auth flow.
+
+### Beginner-Friendly Priority Order
+
+Do not work through this roadmap from top to bottom. Use this order:
+
+| Priority | Work | Why first |
+|----------|------|-----------|
+| 1 | Make school accounts and active-school switching robust | Prevents data from different schools mixing together |
+| 2 | Fix Time Machine compare and rollback | This protects manual history and restores |
+| 3 | Harden Supabase indexes, constraints, and storage paths | Needed before adding many schools and many books |
+| 4 | Make upload/import more reliable for large manuals | Needed before onboarding real schools at scale |
+| 5 | Improve tests and browser smoke checks | Makes future novice edits safer |
+| 6 | Add new AI/compliance features | Only after the foundation is stable |
+
+### Current Implementation Plan
+
+The next implementation plan is:
+
+`docs/superpowers/plans/2026-05-22-multi-school-db-time-machine-hardening.md`
+
+That plan covers:
+
+- school registration and sub-accounts
+- active school switching
+- Supabase DB hardening for expansion
+- uploaded flight book scale
+- Time Machine compare and rollback repair
+- verification steps
+
+Use that plan before adding new product features.
 
 ---
 
 ## 1. What We Have Today
 
-The initial scaffolding is live on the `main` branch. The following pieces are already built:
+The app is beyond initial scaffolding. It has a working product foundation, but some parts need hardening before more schools and manuals are added.
 
 | Layer | What exists |
 |-------|-------------|
-| **Frontend** | Next.js 16 app with Tailwind v4; design tokens in `globals.css`; dashboard UI (static mock data); results page (reads from Supabase); login page; middleware auth guard |
-| **Backend schema** | `organizations`, `org_users`, `sources`, `rss_items`, `ai_findings`, `permissions`, `role_permissions`, `schedules` |
-| **Edge Functions** | `rss-ingest` (fetches EASA RSS feeds → upserts `rss_items`); `ai-analyze` (heuristic + optional OpenAI → writes `ai_findings`) |
-| **Seed data** | Demo org + 3 EASA RSS source URLs |
-| **Roles** | `admin`, `editor`, `viewer` with permission codes in DB |
+| **Frontend** | Next.js app with dashboard, settings, flight book upload/viewer, search, updates, history/Time Machine, training pages, login/register |
+| **School accounts** | School registration creates an organization and first admin; admins can invite/create sub-accounts |
+| **Backend schema** | `organizations`, `org_users`, sources/RSS/findings, flightbooks, sections, mappings, proposed updates, version history, exports, training ops, billing |
+| **Storage** | Private Supabase buckets for `flightbooks`, `exports`, `snapshots`, and EASA source files |
+| **Edge/API functions** | RSS/regulation ingest, AI analysis, rollback/apply update, notifications, admin APIs |
+| **Roles** | `admin`, `editor`, `viewer`, `instructor`, `student`, `compliance_manager` |
 | **Design system** | Documented in `docs/DESIGN_SYS.md`; token naming convention `--easa-*` |
-| **Docs** | `CONTENT.md` (product scope), `DESIGN_SYS.md`, `SYSTEM.md` (file layout) |
-| **Source materials** | EASA Regulation Update Status List (PDF); ATPL flight books A, B, C, D, F, TM (Word docs) |
+| **Docs** | Product roadmap, deployment guide, Supabase novice guide, manual/RAG guides, hardening plan |
+| **Source materials** | PPL/ATO manuals in `books/`; fixture flightbook imports; EASA source configuration |
 
-**What the app does NOT yet do (the gap):** real regulation scraping beyond RSS, document diffing, flight-book database with the ATPL content, AI text generation, meaningful approval workflow, user profiles with notes, notifications, export to PDF/DOCX, and configurable schedules.
+**Main gap now:** the product foundation exists, but needs robustness work before scaling:
+
+- active school switching for users in multiple schools
+- stronger Supabase constraints and indexes
+- Time Machine compare/rollback fixes
+- large manual upload/import hardening
+- clearer novice-safe database repair and deployment checks
 
 ---
 
@@ -482,7 +560,36 @@ The six ATPL documents will be imported as the initial flight-book database. The
 
 ## 10. Implementation Phases
 
-### Phase 0 — Foundation & Data (Weeks 1–2) ✅ Partially done
+### Phase 0 — Stabilise What Exists (Do This Next)
+
+**Goal:** Make the current app safe for real schools before adding new AI or scraping features.
+
+**Novice rule:** Do these in order. After each item, run `npm run build` and open the affected page.
+
+- [ ] **Add active-school switching**
+  - Plan file: `docs/superpowers/plans/2026-05-22-multi-school-db-time-machine-hardening.md`
+  - Files likely touched: `src/lib/supabase/access.ts`, `src/lib/supabase/org-membership.ts`, `src/app/api/orgs/route.ts`, `src/components/navigation/AppShell.tsx`
+  - Done when: a user connected to two schools can switch schools and see school-specific data change.
+- [ ] **Fix Time Machine compare**
+  - Files likely touched: `src/app/api/history/compare/route.ts`, `src/components/history/HistoryClient.tsx`, `src/components/history/ComparePanel.tsx`
+  - Done when: only versions from the active school can be compared, and the UI blocks comparing unrelated sections.
+- [ ] **Fix Time Machine rollback**
+  - Files likely touched: `src/app/api/rollback/route.ts`, `src/components/history/RollbackButton.tsx`
+  - Done when: rollback only works for the active school, creates a new version snapshot, and clearly reports success/failure.
+- [ ] **Add Supabase scale indexes and constraints**
+  - New file planned: `supabase/migrations/schema/031_multi_school_scale_hardening.sql`
+  - Done when: migration runs in Supabase SQL Editor without errors.
+- [ ] **Make large flight-book uploads safer**
+  - File likely touched: `src/app/api/flightbooks/upload/route.ts`
+  - Done when: upload errors do not leave broken half-imported books.
+- [ ] **Add beginner smoke checks**
+  - Done when: there is a short checklist for `/settings`, `/flightbooks`, `/history`, `/updates`, and `/dashboard`.
+
+**Deliverable:** Existing app is safer for multiple schools, many users, many books, and working Time Machine history.
+
+---
+
+### Phase 1 — Foundation & Data (Already Mostly Built; Keep Healthy)
 
 **Goal:** All data structures in place; ATPL books imported; EASA sources confirmed.
 
@@ -490,19 +597,21 @@ The six ATPL documents will be imported as the initial flight-book database. The
 - [x] Organizations, org_users, sources, rss_items, ai_findings
 - [x] RSS ingest Edge Function
 - [x] Basic AI analysis Edge Function
-- [x] Dashboard UI scaffold
-- [ ] Run migrations 003–008 (flight books, reg docs, proposed updates, notes, history, settings)
-- [ ] Import all 6 ATPL documents into `flightbooks` + `flightbook_sections`
-- [ ] Seed `flightbook_mappings` with the known EASA section links
-- [ ] Extend `sources` with HTML scrape targets for each EASA regulation part page
-- [ ] Create `user_profiles` for existing org users
-- [ ] Wire dashboard stats to real Supabase queries (replace mock data)
+- [x] Dashboard UI
+- [x] Flight books, sections, mappings, uploads, version history, exports
+- [x] School registration and sub-account management
+- [x] User profiles and settings
+- [x] Training operations tables and screens
+- [ ] Confirm every production Supabase project has all migrations applied.
+- [ ] Confirm each school has at least one admin user.
+- [ ] Confirm each school can upload one small manual and view it in `/flightbooks`.
+- [ ] Confirm `/history` shows versions after approving or rolling back a section.
 
 **Deliverable:** Real data in DB; dashboard shows live numbers.
 
 ---
 
-### Phase 1 — Core Pipeline (Weeks 3–6)
+### Phase 2 — Core Pipeline
 
 **Goal:** The daily regulation monitoring pipeline runs end-to-end automatically.
 
@@ -528,7 +637,7 @@ The six ATPL documents will be imported as the initial flight-book database. The
 
 ---
 
-### Phase 2 — AI Analysis & Proposed Updates (Weeks 7–10)
+### Phase 3 — AI Analysis & Proposed Updates
 
 **Goal:** For every detected change, AI classifies relevance and drafts manual text.
 
@@ -552,7 +661,7 @@ The six ATPL documents will be imported as the initial flight-book database. The
 
 ---
 
-### Phase 3 — Approval Workflow & Notes (Weeks 11–13)
+### Phase 4 — Approval Workflow & Notes
 
 **Goal:** Users can review, annotate, and approve/reject each proposed update.
 
@@ -578,7 +687,7 @@ The six ATPL documents will be imported as the initial flight-book database. The
 
 ---
 
-### Phase 4 — Notifications & User Profiles (Weeks 14–15)
+### Phase 5 — Notifications & User Profiles
 
 **Goal:** Everyone is informed in real time; users can personalise their experience.
 
@@ -603,7 +712,7 @@ The six ATPL documents will be imported as the initial flight-book database. The
 
 ---
 
-### Phase 5 — Flight Book Viewer & Time Machine (Weeks 16–18)
+### Phase 6 — Flight Book Viewer & Time Machine
 
 **Goal:** Users can browse manuals and the admin can roll back any change.
 
@@ -632,7 +741,7 @@ The six ATPL documents will be imported as the initial flight-book database. The
 
 ---
 
-### Phase 6 — Export & Polish (Weeks 19–20)
+### Phase 7 — Export & Polish
 
 **Goal:** Export any content to PDF or DOCX; app is production-ready.
 
@@ -665,9 +774,11 @@ The six ATPL documents will be imported as the initial flight-book database. The
 
 ---
 
-### Phase 7 — Hardening & Multi-tenant (Post-launch)
+### Phase 8 — Hardening & Multi-tenant
 
-- [ ] Multi-org support (each flight school is a separate tenant, strict RLS isolation)
+- [ ] Active school switcher for users in multiple schools
+- [ ] Strict route-level org scoping for every service-role API
+- [ ] Strict RLS isolation for every school-owned table
 - [ ] SSO (SAML / Google via Supabase Auth providers)
 - [ ] Audit log export (compliance report for CAA / authority audits)
 - [ ] Scheduled compliance summary email (weekly digest for admin)

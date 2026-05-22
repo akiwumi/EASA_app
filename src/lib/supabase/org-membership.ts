@@ -7,8 +7,14 @@ type OrgMembershipLike = {
 
 export function pickPreferredOrgMembership<T extends OrgMembershipLike>(
   rows: T[] | null | undefined,
+  activeOrganizationId?: string | null,
 ): T | null {
   if (!rows?.length) return null;
+
+  if (activeOrganizationId) {
+    const active = rows.find((row) => row.organization_id === activeOrganizationId);
+    if (active) return active;
+  }
 
   return rows.find((row) => row.organization_id && row.organization_id !== DEFAULT_ORG_ID) ?? rows[0] ?? null;
 }

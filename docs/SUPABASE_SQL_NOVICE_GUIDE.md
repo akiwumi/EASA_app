@@ -792,6 +792,62 @@ delete from sources
 where organization_id = '00000000-0000-4000-8000-000000000001';
 ```
 
+## 12. Multi-School Diagnostics
+
+Run these queries in the Supabase SQL Editor to check data distribution across schools.
+
+### Membership counts per school
+
+```sql
+select organization_id, count(*) as users
+from org_users
+group by organization_id
+order by users desc;
+```
+
+### Books per school
+
+```sql
+select organization_id, count(*) as books
+from flightbooks
+group by organization_id
+order by books desc;
+```
+
+### Sections per school
+
+```sql
+select organization_id, count(*) as sections
+from flightbook_sections
+group by organization_id
+order by sections desc;
+```
+
+### Version history per school
+
+```sql
+select organization_id, count(*) as versions
+from flightbook_section_versions
+group by organization_id
+order by versions desc;
+```
+
+### Repair / backfill missing version history
+
+If Time Machine shows no history for existing sections, run the repair script from Supabase SQL Editor:
+
+```sql
+-- Copy contents of supabase/sql/repair_flightbook_section_versions.sql and run here
+```
+
+> **Before running migration 031:** check for duplicate org_users rows that would block the unique index:
+> ```sql
+> select organization_id, user_id, count(*) from org_users group by organization_id, user_id having count(*) > 1;
+> ```
+> Resolve any duplicates before applying the migration.
+
+---
+
 ## Final Advice
 
 If you are unsure what to run, do this:
