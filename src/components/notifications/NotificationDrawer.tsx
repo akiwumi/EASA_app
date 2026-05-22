@@ -11,6 +11,7 @@ import {
   Clock,
   AlertCircle,
   CheckCheck,
+  Trash2,
   X,
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -58,6 +59,7 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [markingAll, setMarkingAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   const realtimeRef = useRef<RealtimeChannel | null>(null);
 
   const load = useCallback(async () => {
@@ -176,6 +178,31 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
     setMarkingAll(false);
   }
 
+  async function deleteNotification(id: string) {
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setNotifications((prev) => {
+      const next = prev.filter((n) => n.id !== id);
+      onUnreadChange(next.filter((n) => !n.read).length);
+      return next;
+    });
+  }
+
+  async function deleteAll() {
+    setDeletingAll(true);
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deleteAll: true }),
+    });
+    setNotifications([]);
+    onUnreadChange(0);
+    setDeletingAll(false);
+  }
+
   function getRelatedHref(n: Notification) {
     if (n.related_entity_type === "proposed_update" && n.related_entity_id) {
       return `/updates/${n.related_entity_id}`;
@@ -230,6 +257,18 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
                 {markingAll ? "Marking…" : "Mark all read"}
               </button>
             )}
+            {notifications.length > 0 && (
+              <button
+                type="button"
+                className="easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs text-[var(--easa-color-accent-pink)]"
+                disabled={deletingAll}
+                onClick={deleteAll}
+                aria-label="Delete all notifications"
+              >
+                <Trash2 size={13} strokeWidth={1.75} />
+                {deletingAll ? "Deleting…" : "Delete all"}
+              </button>
+            )}
             <button
               type="button"
               className="easa-btn secondary p-1.5"
@@ -257,14 +296,17 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
             <ul className="divide-y divide-[var(--easa-color-border)]">
               {notifications.map((n) => {
                 return (
-                  <li key={n.id}>
+                  <li
+                    key={n.id}
+                    className={`group flex items-start gap-3 px-5 py-4 transition hover:bg-[var(--easa-color-surface-2)] ${
+                      !n.read
+                        ? "bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_5%,transparent)]"
+                        : ""
+                    }`}
+                  >
                     <button
                       type="button"
-                      className={`flex w-full items-start gap-3 px-5 py-4 text-left transition hover:bg-[var(--easa-color-surface-2)] ${
-                        !n.read
-                          ? "bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_5%,transparent)]"
-                          : ""
-                      }`}
+                      className="flex min-w-0 flex-1 items-start gap-3 text-left"
                       onClick={() => setSelectedId(n.id)}
                     >
                       <NotificationIcon type={n.type} />
@@ -281,10 +323,20 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
                           {relativeTime(n.created_at)}
                         </p>
                       </div>
-                      {!n.read && (
-                        <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--easa-color-accent-blue)]" />
-                      )}
                     </button>
+                    <div className="flex shrink-0 items-center gap-1 pt-0.5">
+                      {!n.read && (
+                        <span className="h-2 w-2 rounded-full bg-[var(--easa-color-accent-blue)]" />
+                      )}
+                      <button
+                        type="button"
+                        className="rounded p-1 text-[var(--easa-color-text-muted)] opacity-0 transition hover:text-[var(--easa-color-accent-pink)] group-hover:opacity-100"
+                        onClick={() => deleteNotification(n.id)}
+                        aria-label="Delete notification"
+                      >
+                        <Trash2 size={14} strokeWidth={1.75} />
+                      </button>
+                    </div>
                   </li>
                 );
               })}

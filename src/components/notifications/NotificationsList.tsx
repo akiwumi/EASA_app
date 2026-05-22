@@ -10,6 +10,7 @@ import {
   Clock,
   AlertCircle,
   CheckCheck,
+  Trash2,
 } from "lucide-react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
@@ -86,6 +87,7 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
   const realtimeRef = useRef<RealtimeChannel | null>(null);
 
   const load = useCallback(async () => {
@@ -188,6 +190,26 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
     setMarkingAll(false);
   }
 
+  async function deleteNotification(id: string) {
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }
+
+  async function deleteAll() {
+    setDeletingAll(true);
+    await fetch("/api/notifications", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deleteAll: true }),
+    });
+    setNotifications([]);
+    setDeletingAll(false);
+  }
+
   function getRelatedHref(n: Notification) {
     if (n.related_entity_type === "proposed_update" && n.related_entity_id) {
       return `/updates/${n.related_entity_id}`;
@@ -218,17 +240,31 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
             {copy.subtitle}
           </p>
         </div>
-        {unreadCount > 0 && (
-          <button
-            type="button"
-            className="easa-btn secondary flex items-center gap-2 text-sm"
-            disabled={markingAll}
-            onClick={markAllRead}
-          >
-            <CheckCheck size={15} strokeWidth={1.75} />
-            {markingAll ? "Marking…" : "Mark all as read"}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <button
+              type="button"
+              className="easa-btn secondary flex items-center gap-2 text-sm"
+              disabled={markingAll}
+              onClick={markAllRead}
+            >
+              <CheckCheck size={15} strokeWidth={1.75} />
+              {markingAll ? "Marking…" : "Mark all as read"}
+            </button>
+          )}
+          {notifications.length > 0 && (
+            <button
+              type="button"
+              className="easa-btn secondary flex items-center gap-2 text-sm text-[var(--easa-color-accent-pink)]"
+              disabled={deletingAll}
+              onClick={deleteAll}
+              aria-label="Delete all notifications"
+            >
+              <Trash2 size={15} strokeWidth={1.75} />
+              {deletingAll ? "Deleting…" : "Delete all"}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Body */}
@@ -258,7 +294,7 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
             return (
               <div
                 key={n.id}
-                className={`flex items-start gap-3 px-5 py-4 transition hover:bg-[var(--easa-color-surface-2)] ${
+                className={`group flex items-start gap-3 px-5 py-4 transition hover:bg-[var(--easa-color-surface-2)] ${
                   n.read
                     ? ""
                     : "bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_5%,transparent)]"
@@ -284,15 +320,25 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
                     </p>
                   </div>
                 </button>
-                {!n.read && (
+                <div className="flex shrink-0 items-center gap-1 pt-0.5">
+                  {!n.read && (
+                    <button
+                      type="button"
+                      className="easa-btn secondary px-2 py-1 text-xs"
+                      onClick={() => markRead([n.id])}
+                    >
+                      Mark read
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className="easa-btn secondary shrink-0 px-2 py-1 text-xs"
-                    onClick={() => markRead([n.id])}
+                    className="rounded p-1 text-[var(--easa-color-text-muted)] opacity-0 transition hover:text-[var(--easa-color-accent-pink)] group-hover:opacity-100"
+                    onClick={() => deleteNotification(n.id)}
+                    aria-label="Delete notification"
                   >
-                    Mark read
+                    <Trash2 size={15} strokeWidth={1.75} />
                   </button>
-                )}
+                </div>
               </div>
             );
           })}

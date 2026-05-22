@@ -97,3 +97,41 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ error: "ids or markAllRead required" }, { status: 400 });
 }
+
+// DELETE /api/notifications  body: { id?: string, deleteAll?: boolean }
+export async function DELETE(request: Request) {
+  const user = await getAuthUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id, deleteAll } = (await request.json()) as {
+    id?: string;
+    deleteAll?: boolean;
+  };
+
+  const admin = getAdminClient();
+
+  if (deleteAll) {
+    const { error } = await admin
+      .from("notifications")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (error && isMissingTableError(error)) return NextResponse.json({ ok: true });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  }
+
+  if (id) {
+    const { error } = await admin
+      .from("notifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (error && isMissingTableError(error)) return NextResponse.json({ ok: true });
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: "id or deleteAll required" }, { status: 400 });
+}
