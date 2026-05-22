@@ -6,12 +6,12 @@ import { Archive, CheckSquare, Square, Filter, Download, CheckCircle, XCircle, C
 import type { UpdateQueueItem } from "@/lib/types/domain";
 
 const STATUS_OPTIONS = [
-  { value: "", label: "All statuses" },
+  { value: "", label: "All active statuses" },
   { value: "pending", label: "Pending" },
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
   { value: "watchlist", label: "Watchlist" },
-  { value: "boneyard", label: "Boneyard" },
+  { value: "boneyard", label: "Boneyard (erased)" },
 ];
 
 const RISK_OPTIONS = [
@@ -171,9 +171,9 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     } else {
       setBulkMsg(
         action === "approved"
-          ? `${json.affected} item${json.affected !== 1 ? "s" : ""} approved and moved to boneyard.`
+          ? `${json.affected} item${json.affected !== 1 ? "s" : ""} approved and removed from the active queue.`
           : action === "boneyard"
-            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} moved to boneyard.`
+            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} erased from the active queue.`
           : `${json.affected} item${json.affected !== 1 ? "s" : ""} ${action}.`,
       );
       if (action === "approved" || action === "boneyard") {
@@ -211,7 +211,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       setBulkMsg(`Error: ${json.error}`);
     } else {
       setBulkMsg(
-        `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} erased to boneyard.`,
+        `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} erased from the active queue.`,
       );
       setFilterStatus("pending");
       setFilterRegulation("");
@@ -323,7 +323,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
             className="easa-btn secondary flex items-center gap-1.5 px-3 py-2 text-xs"
             disabled={bulkLoading || !filterRegulation}
             onClick={eraseSelectedRegulation}
-            title="Erase every queue item matching the selected regulation and current filters"
+            title="Remove every queue item matching the selected regulation and current filters from the active queue"
             type="button"
           >
             <Archive size={14} strokeWidth={1.75} />
@@ -379,7 +379,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
               className="easa-btn secondary flex items-center gap-1.5 text-xs"
               disabled={bulkLoading}
               onClick={() => bulkAction("boneyard")}
-              title="Move selected updates out of the active queue without approving them"
+              title="Remove selected updates from the active queue without approving them"
             >
               <Archive size={14} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
               Erase selected

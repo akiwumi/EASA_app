@@ -57,6 +57,7 @@ type UpdateQueueFlatRow = UpdateQueueLegacyRow & {
 
 type FilterableQuery = {
   eq: (column: string, value: string) => FilterableQuery;
+  neq: (column: string, value: string) => FilterableQuery;
   in: (column: string, values: string[]) => FilterableQuery;
   order: (column: string, options: { ascending: boolean }) => FilterableQuery;
   range: (from: number, to: number) => FilterableQuery;
@@ -243,6 +244,7 @@ export async function GET(request: Request) {
       .range(offset, offset + limit - 1);
     if (ctx.orgId) next = next.eq("organization_id", ctx.orgId);
     if (status) next = next.eq("status", status);
+    else next = next.neq("status", "boneyard");
     if (risk) next = next.eq("risk_level", risk);
     if (classification) next = next.eq("classification", classification);
     if (includeRegulation && regulation) next = next.eq("reg_number", regulation);
@@ -255,6 +257,7 @@ export async function GET(request: Request) {
       .select("reg_number") as FilterableQuery;
     if (ctx.orgId) query = query.eq("organization_id", ctx.orgId);
     if (status) query = query.eq("status", status);
+    else query = query.neq("status", "boneyard");
     if (risk) query = query.eq("risk_level", risk);
     if (classification) query = query.eq("classification", classification);
     return query.order("reg_number", { ascending: true });
@@ -411,6 +414,7 @@ async function loadMatchingQueueIds(
 
   query = query.eq("organization_id", input.organizationId);
   if (input.status) query = query.eq("status", input.status);
+  else query = query.neq("status", "boneyard");
   if (input.risk) query = query.eq("risk_level", input.risk);
   if (input.classification) query = query.eq("classification", input.classification);
 
