@@ -28,3 +28,12 @@ export async function getSupabaseServerClient() {
     },
   });
 }
+
+export async function isUserSignedIn() {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) return false;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return Boolean(user);
+}

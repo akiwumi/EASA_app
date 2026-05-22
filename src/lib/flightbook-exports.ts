@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type ExportSection = {
+  id: string;
   section_number: string | null;
   title: string | null;
   body: string;
@@ -38,12 +39,25 @@ function revisionLabel(versionNumber: number, exportedAt: string) {
   return `Rev ${String(versionNumber).padStart(4, "0")} - ${formatRevisionTimestamp(exportedAt)} UTC`;
 }
 
-function buildMarkdown(input: {
+function sectionHeading(section: ExportSection, updatedSectionIds?: Set<string>) {
+  const heading = [section.section_number, section.title].filter(Boolean).join(" ") || "Untitled section";
+  return updatedSectionIds?.has(section.id) ? `${heading} [UPDATED]` : heading;
+}
+
+function updatedSectionNote(updated: boolean, markdown: boolean) {
+  if (!updated) return [];
+  return markdown
+    ? ["> Updated in this revision from approved EASA queue item(s).", ""]
+    : ["Updated in this revision from approved EASA queue item(s).", ""];
+}
+
+export function buildMarkdown(input: {
   book: ExportBook;
   sections: ExportSection[];
   exportedAt: string;
   versionNumber: number;
   revisionLabel: string;
+  updatedSectionIds?: Set<string>;
 }) {
   const lines = [
     `# ${input.book.name}`,
@@ -57,9 +71,10 @@ function buildMarkdown(input: {
   ];
 
   for (const section of input.sections) {
-    const heading = [section.section_number, section.title].filter(Boolean).join(" ");
-    lines.push(`## ${heading || "Untitled section"}`);
+    const updated = input.updatedSectionIds?.has(section.id) ?? false;
+    lines.push(`## ${sectionHeading(section, input.updatedSectionIds)}`);
     lines.push("");
+    lines.push(...updatedSectionNote(updated, true));
     lines.push(section.body);
     lines.push("");
   }
@@ -67,12 +82,13 @@ function buildMarkdown(input: {
   return lines.join("\n");
 }
 
-function buildText(input: {
+export function buildText(input: {
   book: ExportBook;
   sections: ExportSection[];
   exportedAt: string;
   versionNumber: number;
   revisionLabel: string;
+  updatedSectionIds?: Set<string>;
 }) {
   const title = input.book.name;
   const lines = [
@@ -88,10 +104,12 @@ function buildText(input: {
   ];
 
   for (const section of input.sections) {
-    const heading = [section.section_number, section.title].filter(Boolean).join(" ");
+    const heading = sectionHeading(section, input.updatedSectionIds);
+    const updated = input.updatedSectionIds?.has(section.id) ?? false;
     const safeHeading = heading || "Untitled section";
     lines.push(safeHeading);
     lines.push("-".repeat(Math.max(safeHeading.length, 16)));
+    lines.push(...updatedSectionNote(updated, false));
     lines.push(section.body);
     lines.push("");
   }
@@ -108,6 +126,7 @@ export async function createFlightbookExport(
     createdBy?: string | null;
     proposedUpdateId?: string | null;
     note?: string | null;
+    updatedSectionIds?: string[];
   },
 ) {
   const { data: book, error: bookError } = await admin
@@ -122,7 +141,7 @@ export async function createFlightbookExport(
 
   const { data: sections, error: sectionsError } = await admin
     .from("flightbook_sections")
-    .select("section_number, title, body")
+    .select("id, section_number, title, body")
     .eq("flightbook_id", input.flightbookId)
     .eq("organization_id", input.organizationId)
     .order("sort_order", { ascending: true });
@@ -151,6 +170,7 @@ export async function createFlightbookExport(
   const exportInput = {
     book: book as ExportBook,
     sections: (sections ?? []).map((section) => ({
+      id: section.id as string,
       section_number: (section.section_number as string | null) ?? null,
       title: (section.title as string | null) ?? null,
       body: (section.body as string) ?? "",
@@ -158,6 +178,7 @@ export async function createFlightbookExport(
     exportedAt,
     versionNumber: nextVersion,
     revisionLabel: nextRevisionLabel,
+    updatedSectionIds: new Set(input.updatedSectionIds ?? []),
   };
 
   const markdown = buildMarkdown(exportInput);

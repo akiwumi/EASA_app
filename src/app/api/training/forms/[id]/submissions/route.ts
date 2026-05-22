@@ -30,7 +30,7 @@ export async function GET(
     ),
   ];
 
-  let profileMap: Record<string, string> = {};
+  const profileMap: Record<string, string> = {};
   if (userIds.length > 0) {
     const { data: profiles } = await admin
       .from("user_profiles")

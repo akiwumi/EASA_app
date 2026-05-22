@@ -5,6 +5,7 @@ import Footer from "@/components/home/Footer";
 import HeroSection from "@/components/home/HeroSection";
 import Nav from "@/components/home/Nav";
 import PersonasSection from "@/components/home/PersonasSection";
+import { isUserSignedIn } from "@/lib/supabase/server";
 import ProblemSection from "@/components/home/ProblemSection";
 import WorkflowSection from "@/components/home/WorkflowSection";
 
@@ -74,7 +75,9 @@ const websiteSchema = {
   },
 };
 
-export default function Home() {
+export default async function Home() {
+  const signedIn = await isUserSignedIn();
+
   return (
     <>
       <script
@@ -89,7 +92,7 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
-      <Nav />
+      <Nav signedIn={signedIn} />
       <main>
         <HeroSection />
         <ProblemSection />

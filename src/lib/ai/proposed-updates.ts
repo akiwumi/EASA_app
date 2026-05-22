@@ -96,7 +96,8 @@ async function updateProposedDraftWithFallback(
     const missingColumn = optionalColumns.find((column) => isMissingColumnError(result.error, column));
     if (!missingColumn) return result;
 
-    const { [missingColumn]: _omitted, ...rest } = nextPayload;
+    const rest = { ...nextPayload };
+    delete rest[missingColumn];
     nextPayload = rest;
   }
 }
@@ -125,7 +126,8 @@ export async function insertProposedUpdateWithFallback(
     return attempt;
   }
 
-  const { reg_change_id: _regChangeId, ...fallbackRow } = row;
+  const fallbackRow = { ...row };
+  delete fallbackRow.reg_change_id;
   return admin.from("proposed_updates").insert(fallbackRow).select("id").single();
 }
 
@@ -511,7 +513,11 @@ export async function ensureQueuedUpdatesForOrg(
         return { ok: false as const, error: insertError.message };
       }
 
-      const fallbackRows = rowsToInsert.map(({ reg_change_id: _regChangeId, ...row }) => row);
+      const fallbackRows = rowsToInsert.map((row) => {
+        const fallbackRow = { ...row };
+        delete fallbackRow.reg_change_id;
+        return fallbackRow;
+      });
       const { error: fallbackInsertError } = await admin.from("proposed_updates").insert(fallbackRows);
       if (fallbackInsertError) {
         return { ok: false as const, error: fallbackInsertError.message };

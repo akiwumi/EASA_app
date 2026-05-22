@@ -13,12 +13,19 @@ const NAV_LINKS = [
   { href: "/register", label: "Register" },
 ] as const;
 
+type MarketingShellProps = {
+  children: React.ReactNode;
+  signedIn?: boolean;
+};
+
 export default function MarketingShell({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+  signedIn = false,
+}: MarketingShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const visibleNavLinks = signedIn
+    ? NAV_LINKS.filter((item) => item.href !== "/register")
+    : NAV_LINKS;
 
   return (
     <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
@@ -45,7 +52,7 @@ export default function MarketingShell({
             </Link>
 
             <div className="hidden items-center gap-1.5 text-sm lg:flex">
-              {NAV_LINKS.map((item) => (
+              {visibleNavLinks.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
@@ -54,12 +61,20 @@ export default function MarketingShell({
                   {item.label}
                 </Link>
               ))}
-              <Link className="easa-btn secondary ml-1" href="/login">
-                Login
-              </Link>
-              <Link className="easa-btn primary" href="/register">
-                Register school
-              </Link>
+              {signedIn ? (
+                <Link className="easa-btn primary ml-1" href="/dashboard">
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link className="easa-btn secondary ml-1" href="/login">
+                    Login
+                  </Link>
+                  <Link className="easa-btn primary" href="/register">
+                    Register school
+                  </Link>
+                </>
+              )}
             </div>
 
             <button
@@ -77,7 +92,7 @@ export default function MarketingShell({
           {menuOpen && (
             <div id="marketing-mobile-nav" className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 lg:hidden">
               <div className="flex flex-col gap-2">
-                {NAV_LINKS.map((item) => (
+                {visibleNavLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
@@ -88,12 +103,32 @@ export default function MarketingShell({
                   </Link>
                 ))}
                 <div className="mt-2 flex flex-col gap-2">
-                  <Link className="easa-btn secondary w-full" href="/login" onClick={() => setMenuOpen(false)}>
-                    Login
-                  </Link>
-                  <Link className="easa-btn primary w-full" href="/register" onClick={() => setMenuOpen(false)}>
-                    Register school
-                  </Link>
+                  {signedIn ? (
+                    <Link
+                      className="easa-btn primary w-full"
+                      href="/dashboard"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        className="easa-btn secondary w-full"
+                        href="/login"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        className="easa-btn primary w-full"
+                        href="/register"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Register school
+                      </Link>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

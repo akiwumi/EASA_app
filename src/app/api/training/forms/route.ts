@@ -18,7 +18,7 @@ export async function GET() {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const ids = (data ?? []).map((f) => f.id as string);
-  let submissionCounts: Record<string, number> = {};
+  const submissionCounts: Record<string, number> = {};
 
   if (ids.length > 0) {
     const { data: counts } = await admin

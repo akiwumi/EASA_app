@@ -3,7 +3,7 @@ import Link from "next/link";
 import Footer from "@/components/home/Footer";
 import Nav from "@/components/home/Nav";
 import PricingPlans from "@/components/pricing/PricingPlans";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { isUserSignedIn } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Pricing — Flight Lyceum",
@@ -26,14 +26,11 @@ export default async function PricingPage({
   searchParams?: Promise<{ registered?: string; school?: string }>;
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
-  const supabase = await getSupabaseServerClient();
-  const {
-    data: { user },
-  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+  const signedIn = await isUserSignedIn();
 
   return (
     <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
-      <Nav />
+      <Nav signedIn={signedIn} />
       <main>
         <div className="pricing-page mx-auto max-w-7xl px-6">
           <section className="pricing-hero">
@@ -48,7 +45,7 @@ export default async function PricingPage({
           </section>
 
           <PricingPlans
-            signedIn={Boolean(user)}
+            signedIn={signedIn}
             schoolName={resolvedSearchParams.registered === "1" ? resolvedSearchParams.school : undefined}
           />
 
@@ -70,8 +67,14 @@ export default async function PricingPage({
                 schools register first, then choose the plan from the same pricing screen.
               </p>
               <div className="pricing-support-actions">
-                <Link href="/register">Register school</Link>
-                <Link href="/login">Login to pay</Link>
+                {signedIn ? (
+                  <Link href="/dashboard">Open dashboard</Link>
+                ) : (
+                  <>
+                    <Link href="/register">Register school</Link>
+                    <Link href="/login">Login to pay</Link>
+                  </>
+                )}
               </div>
             </article>
           </section>

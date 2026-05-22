@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import MarketingShell from "@/components/landing/MarketingShell";
+import { isUserSignedIn } from "@/lib/supabase/server";
 import LandingWorkflow from "@/components/landing/LandingWorkflow";
 import { featureProof } from "@/components/landing/site-content";
 
@@ -19,9 +20,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HowItWorksPage() {
+export default async function HowItWorksPage() {
+  const signedIn = await isUserSignedIn();
+
   return (
-    <MarketingShell>
+    <MarketingShell signedIn={signedIn}>
       <div className="space-y-6">
         <section className="easa-panel overflow-hidden">
           <div className="easa-gradient-bar" />

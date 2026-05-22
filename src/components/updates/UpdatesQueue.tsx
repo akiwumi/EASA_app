@@ -156,14 +156,10 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   async function createUpdatedFlightbooks() {
     setExportLoading(true);
     setExportMsg(null);
-    const approvedSelectedIds = items
-      .filter((item) => selected.has(item.id) && item.status === "approved")
-      .map((item) => item.id);
-
     const res = await fetch("/api/flightbooks/exports/updated", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: approvedSelectedIds.length > 0 ? approvedSelectedIds : undefined }),
+      body: JSON.stringify({ approvePending: true }),
     });
     const json = await res.json();
     if (!res.ok) {
@@ -171,7 +167,12 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     } else if (json.exported === 0) {
       setExportMsg(json.message ?? "No approved mapped updates found.");
     } else {
-      setExportMsg(`${json.exported} updated flight book${json.exported === 1 ? "" : "s"} created.`);
+      setExportMsg(
+        json.message ??
+          `${json.approved ?? 0} update${json.approved === 1 ? "" : "s"} approved. ` +
+            `${json.exported} updated flight book${json.exported === 1 ? "" : "s"} created.`,
+      );
+      void load();
     }
     setExportLoading(false);
   }
@@ -197,7 +198,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
               onClick={createUpdatedFlightbooks}
             >
               <FileText size={15} strokeWidth={1.75} />
-              {exportLoading ? "Creating..." : "Create flight books"}
+              {exportLoading ? "Completing..." : "Approve pending & create flight books"}
             </button>
           )}
           <button

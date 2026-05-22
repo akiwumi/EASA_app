@@ -13,8 +13,15 @@ const navLinks = [
   { label: "Register", href: "/register" },
 ] as const;
 
-export default function Nav() {
+type NavProps = {
+  signedIn?: boolean;
+};
+
+export default function Nav({ signedIn = false }: NavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const visibleNavLinks = signedIn
+    ? navLinks.filter((link) => link.href !== "/register")
+    : navLinks;
 
   return (
     <header className="z-40 w-full px-0 py-0">
@@ -46,7 +53,7 @@ export default function Nav() {
           </Link>
 
           <nav className="hidden items-center gap-1.5 lg:flex">
-            {navLinks.map((link) => (
+            {visibleNavLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -58,18 +65,20 @@ export default function Nav() {
           </nav>
 
           <div className="hidden items-center gap-2 lg:flex">
-            <Link
-              href="/login"
-              className="easa-btn secondary text-sm"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="easa-btn primary text-sm"
-            >
-              Register school
-            </Link>
+            {signedIn ? (
+              <Link href="/dashboard" className="easa-btn primary text-sm">
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="easa-btn secondary text-sm">
+                  Login
+                </Link>
+                <Link href="/register" className="easa-btn primary text-sm">
+                  Register school
+                </Link>
+              </>
+            )}
           </div>
 
           <button
@@ -87,7 +96,7 @@ export default function Nav() {
         {menuOpen ? (
           <div id="mobile-nav" className="border-t border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.96)] px-4 py-4 sm:px-5 lg:hidden">
             <div className="flex flex-col gap-2">
-              {navLinks.map((link) => (
+              {visibleNavLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -98,12 +107,32 @@ export default function Nav() {
                 </Link>
               ))}
               <div className="mt-2 flex flex-col gap-2 lg:hidden">
-                <Link className="easa-btn secondary w-full" href="/login" onClick={() => setMenuOpen(false)}>
-                  Login
-                </Link>
-                <Link className="easa-btn primary w-full" href="/register" onClick={() => setMenuOpen(false)}>
-                  Register school
-                </Link>
+                {signedIn ? (
+                  <Link
+                    className="easa-btn primary w-full"
+                    href="/dashboard"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      className="easa-btn secondary w-full"
+                      href="/login"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Login
+                    </Link>
+                    <Link
+                      className="easa-btn primary w-full"
+                      href="/register"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Register school
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>

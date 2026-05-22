@@ -10,7 +10,10 @@ export default function NoFeedsWarning() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
+    const timer = window.setTimeout(() => {
+      if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function dismiss() {

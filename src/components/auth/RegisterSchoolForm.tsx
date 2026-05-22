@@ -5,7 +5,7 @@ import { useState } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 export default function RegisterSchoolForm({
-  selectedPlan: _selectedPlan,
+  selectedPlan,
 }: {
   selectedPlan?: string;
 }) {
@@ -81,6 +81,11 @@ export default function RegisterSchoolForm({
         <p className="mt-3 text-sm leading-7 text-[var(--easa-color-text-muted)]">
           Create the first admin account for your flight school and open the workspace immediately.
         </p>
+        {selectedPlan ? (
+          <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
+            Selected plan: {selectedPlan}
+          </p>
+        ) : null}
 
         <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
           <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)] md:col-span-2">
