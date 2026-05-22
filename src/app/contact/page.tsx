@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import Nav from "@/components/home/Nav";
 import Footer from "@/components/home/Footer";
+import ContactForm from "@/components/contact/ContactForm";
 import { isUserSignedIn } from "@/lib/supabase/server";
-import { Mail, MapPin, Phone, Send } from "lucide-react";
+import { Mail, MapPin, Phone } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -106,74 +107,9 @@ export default async function ContactPage() {
             <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
               We typically respond within one business day.
             </p>
-
-            <form
-              action={`mailto:hello@flightlyceum.com`}
-              method="get"
-              encType="text/plain"
-              className="mt-6 space-y-4"
-            >
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--easa-color-text-muted)]">
-                    Name
-                  </span>
-                  <input
-                    name="name"
-                    type="text"
-                    required
-                    placeholder="Your name"
-                    className="easa-input mt-2 w-full"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-[var(--easa-color-text-muted)]">
-                    Email
-                  </span>
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="you@school.com"
-                    className="easa-input mt-2 w-full"
-                  />
-                </label>
-              </div>
-
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--easa-color-text-muted)]">
-                  Subject
-                </span>
-                <select name="subject" className="easa-input mt-2 w-full">
-                  <option value="General enquiry">General enquiry</option>
-                  <option value="Demo request">Demo request</option>
-                  <option value="Technical support">Technical support</option>
-                  <option value="Billing">Billing</option>
-                  <option value="Partnership">Partnership</option>
-                </select>
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--easa-color-text-muted)]">
-                  Message
-                </span>
-                <textarea
-                  name="body"
-                  required
-                  rows={5}
-                  placeholder="Tell us how we can help..."
-                  className="easa-input mt-2 w-full resize-none"
-                />
-              </label>
-
-              <button
-                type="submit"
-                className="easa-btn primary flex w-full items-center justify-center gap-2 text-sm"
-              >
-                <Send size={15} strokeWidth={1.75} />
-                Send message
-              </button>
-            </form>
+            <div className="mt-6">
+              <ContactForm />
+            </div>
           </div>
         </div>
       </main>
