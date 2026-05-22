@@ -8,9 +8,12 @@ import {
   Bell,
   BookOpen,
   GraduationCap,
+  HelpCircle,
+  Home,
   LayoutDashboard,
   ListChecks,
   LogOut,
+  Mail,
   Menu,
   Search,
   Settings,
@@ -234,6 +237,34 @@ export default function AppShell({
             Profile
           </Link>
 
+          <div className="my-1 border-t border-[var(--easa-color-border)]" />
+
+          <Link
+            href="/"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
+          >
+            <Home size={17} strokeWidth={1.85} className="shrink-0" />
+            Home
+          </Link>
+
+          <Link
+            href="/faq"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
+          >
+            <HelpCircle size={17} strokeWidth={1.85} className="shrink-0" />
+            FAQ
+          </Link>
+
+          <Link
+            href="/contact"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
+          >
+            <Mail size={17} strokeWidth={1.85} className="shrink-0" />
+            Contact
+          </Link>
+
+          <div className="my-1 border-t border-[var(--easa-color-border)]" />
+
           <button
             type="button"
             onClick={signOut}
@@ -358,6 +389,15 @@ export default function AppShell({
                   )}
                 </div>
                 <div className="flex shrink-0 gap-1">
+                  <Link href="/" title="Home" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
+                    <Home size={16} strokeWidth={1.85} />
+                  </Link>
+                  <Link href="/faq" title="FAQ" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
+                    <HelpCircle size={16} strokeWidth={1.85} />
+                  </Link>
+                  <Link href="/contact" title="Contact" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
+                    <Mail size={16} strokeWidth={1.85} />
+                  </Link>
                   <Link href="/profile" title="Profile" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
                     <User size={16} strokeWidth={1.85} />
                   </Link>
