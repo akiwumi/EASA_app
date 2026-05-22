@@ -18,7 +18,9 @@ async function runPublicAudit() {
     "/changes",
     "/flightbooks",
     "/settings",
+    "/settings?tab=users",
     "/history",
+    "/dashboard/time-machine",
     "/notifications",
     "/profile",
   ];

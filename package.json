@@ -6,7 +6,9 @@
     "dev": "NEXT_DISABLE_TURBOPACK=1 next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:unit": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:build": "npm run build"
   },
   "dependencies": {
     "@mendable/firecrawl-js": "^4.23.0",
