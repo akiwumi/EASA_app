@@ -1,22 +1,11 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
-
-function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { autoRefreshToken: false, persistSession: false } },
-  );
-}
+import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 // GET /api/history/compare?v1=uuid&v2=uuid
 // Returns the body + metadata for two flightbook_section_versions
 export async function GET(request: Request) {
-  const supabase = await getSupabaseServerClient();
-  if (!supabase) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const ctx = await getOrgAccessContext();
+  if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
   const v1 = searchParams.get("v1");
@@ -26,7 +15,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "v1 and v2 version IDs required" }, { status: 400 });
   }
 
-  const admin = getAdminClient();
+  const admin = getSupabaseAdminClient();
 
   const { data, error } = await admin
     .from("flightbook_section_versions")
@@ -43,7 +32,8 @@ export async function GET(request: Request) {
         flightbooks ( name )
       )
     `)
-    .in("id", [v1, v2]);
+    .in("id", [v1, v2])
+    .eq("organization_id", ctx.orgId);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!data || data.length < 2) {
@@ -78,6 +68,13 @@ export async function GET(request: Request) {
     versions.find((v) => v.id === v1)!,
     versions.find((v) => v.id === v2)!,
   ];
+
+  if (ordered[0].flightbookSectionId !== ordered[1].flightbookSectionId) {
+    return NextResponse.json(
+      { error: "Select two versions of the same section to compare." },
+      { status: 400 },
+    );
+  }
 
   return NextResponse.json({ versions: ordered });
 }

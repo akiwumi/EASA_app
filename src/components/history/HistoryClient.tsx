@@ -256,7 +256,13 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
                   .filter(Boolean)
                   .join(" — ");
                 const isSelected = selected.some((s) => s.id === v.id);
-                const isDisabled = compareMode && !isSelected && selected.length >= 2;
+                const firstSelected = selected[0] ?? null;
+                const crossSection =
+                  compareMode &&
+                  !isSelected &&
+                  firstSelected !== null &&
+                  v.flightbook_section_id !== firstSelected.flightbook_section_id;
+                const isDisabled = compareMode && !isSelected && (selected.length >= 2 || crossSection);
 
                 return (
                   <div
@@ -270,6 +276,7 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
                             : "cursor-pointer hover:bg-[var(--easa-color-surface-3)]"
                         : ""
                     }`}
+                    title={isDisabled && crossSection ? "Select another version of the same section." : undefined}
                     onClick={compareMode && !isDisabled ? () => toggleSelect(v) : undefined}
                   >
                     {/* Compare checkbox */}
