@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import NotificationDrawer from "@/components/notifications/NotificationDrawer";
+import SchoolSwitcher from "@/components/navigation/SchoolSwitcher";
 
 type NavItem = {
   href: string;
@@ -178,6 +179,7 @@ export default function AppShell({
               </p>
             </div>
           </Link>
+          <SchoolSwitcher />
         </div>
 
         {/* Primary navigation */}
