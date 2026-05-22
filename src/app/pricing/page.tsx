@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import Footer from "@/components/home/Footer";
 import Nav from "@/components/home/Nav";
 import PricingPlans from "@/components/pricing/PricingPlans";
@@ -48,36 +47,6 @@ export default async function PricingPage({
             signedIn={signedIn}
             schoolName={resolvedSearchParams.registered === "1" ? resolvedSearchParams.school : undefined}
           />
-
-          <section className="pricing-support">
-            <article>
-              <p className="pricing-kicker">Included</p>
-              <h2>One workspace for compliance, manuals, and training records.</h2>
-              <p>
-                Every paid plan opens the same operational platform: EASA source monitoring,
-                proposed manual updates, acknowledgement tracking, flightbook workflows,
-                user management, and school branding controls.
-              </p>
-            </article>
-            <article>
-              <p className="pricing-kicker">Checkout</p>
-              <h2>Stripe handles payment and subscription billing.</h2>
-              <p>
-                Signed-in school admins can start checkout directly from this page. New
-                schools register first, then choose the plan from the same pricing screen.
-              </p>
-              <div className="pricing-support-actions">
-                {signedIn ? (
-                  <Link href="/dashboard">Open dashboard</Link>
-                ) : (
-                  <>
-                    <Link href="/register">Register school</Link>
-                    <Link href="/login">Login to pay</Link>
-                  </>
-                )}
-              </div>
-            </article>
-          </section>
         </div>
       </main>
       <Footer />
