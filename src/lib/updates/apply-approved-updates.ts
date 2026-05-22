@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { enrichFlightbookSectionEmbeddings } from "@/lib/ai/embeddings";
 import { createFlightbookExport } from "@/lib/flightbook-exports";
 
 type ApprovedUpdateApplication = {
@@ -13,6 +14,8 @@ type SectionForUpdate = {
   body: string | null;
   organization_id: string | null;
   flightbook_id: string | null;
+  section_number: string | null;
+  title: string | null;
   updated_at: string | null;
 };
 
@@ -49,7 +52,7 @@ export async function applyApprovedUpdates(
   const sectionIds = Array.from(new Set(updateRows.map((row) => row.flightbook_section_id as string)));
   const { data: sections, error: sectionsError } = await admin
     .from("flightbook_sections")
-    .select("id, body, organization_id, flightbook_id, updated_at")
+    .select("id, body, organization_id, flightbook_id, section_number, title, updated_at")
     .eq("organization_id", input.organizationId)
     .in("id", sectionIds);
 
@@ -79,6 +82,13 @@ export async function applyApprovedUpdates(
 
   const appliedBookIds = new Set<string>();
   const updatedSectionIdsByBook = new Map<string, Set<string>>();
+  const embeddingRefreshRows: Array<{
+    id: string;
+    organization_id: string;
+    section_number: string | null;
+    title: string | null;
+    body: string;
+  }> = [];
   let applied = 0;
 
   for (const update of updateRows) {
@@ -119,8 +129,17 @@ export async function applyApprovedUpdates(
       sectionIdsForBook.add(sectionId);
       updatedSectionIdsByBook.set(section.flightbook_id, sectionIdsForBook);
     }
+    embeddingRefreshRows.push({
+      id: sectionId,
+      organization_id: input.organizationId,
+      section_number: section.section_number,
+      title: section.title,
+      body: update.ai_suggested_text as string,
+    });
     applied += 1;
   }
+
+  await enrichFlightbookSectionEmbeddings(admin, embeddingRefreshRows);
 
   let exported = 0;
   for (const flightbookId of appliedBookIds) {

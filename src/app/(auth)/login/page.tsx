@@ -22,8 +22,12 @@ export default function LoginPage() {
       return;
     }
 
+    const normalizedEmail = email.trim().toLowerCase() === "admin"
+      ? "admin@easa.local"
+      : email.trim();
+
     const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: normalizedEmail,
       password,
     });
 
@@ -55,8 +59,8 @@ export default function LoginPage() {
               <input
                 className="easa-input mt-2 w-full"
                 autoComplete="username"
-                placeholder="name@school.org"
-                type="email"
+                placeholder="admin or name@school.org"
+                type="text"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 required

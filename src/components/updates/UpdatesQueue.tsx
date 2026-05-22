@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw, FileText } from "lucide-react";
+import { Archive, CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw, FileText } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
 
 const STATUS_OPTIONS = [
@@ -11,6 +11,7 @@ const STATUS_OPTIONS = [
   { value: "approved", label: "Approved" },
   { value: "rejected", label: "Rejected" },
   { value: "watchlist", label: "Watchlist" },
+  { value: "boneyard", label: "Boneyard" },
 ];
 
 const RISK_OPTIONS = [
@@ -38,6 +39,7 @@ function statusColor(status: string) {
   if (status === "approved") return "text-[var(--easa-color-accent-green)] bg-[color-mix(in_srgb,var(--easa-color-accent-green)_12%,transparent)]";
   if (status === "rejected") return "text-[var(--easa-color-accent-pink)] bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_12%,transparent)]";
   if (status === "watchlist") return "text-[var(--easa-color-accent-blue)] bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_12%,transparent)]";
+  if (status === "boneyard") return "text-[var(--easa-color-text-muted)] bg-[var(--easa-color-surface-2)]";
   return "text-[var(--easa-color-accent-orange)] bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_12%,transparent)]";
 }
 
@@ -75,9 +77,11 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState("pending");
   const [filterRisk, setFilterRisk] = useState("");
   const [filterClass, setFilterClass] = useState("");
+  const [filterRegulation, setFilterRegulation] = useState("");
+  const [regulationOptions, setRegulationOptions] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const limit = 50;
 
@@ -95,22 +99,29 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     setPage(1);
   }
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (overrides?: { page?: number; status?: string; regulation?: string }) => {
     setLoading(true);
     setError(null);
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (filterStatus) params.set("status", filterStatus);
+    const nextPage = overrides?.page ?? page;
+    const nextStatus = overrides?.status ?? filterStatus;
+    const nextRegulation = overrides?.regulation ?? filterRegulation;
+    const params = new URLSearchParams({ page: String(nextPage), limit: String(limit) });
+    if (nextStatus) params.set("status", nextStatus);
     if (filterRisk) params.set("risk", filterRisk);
     if (filterClass) params.set("classification", filterClass);
+    if (nextRegulation) params.set("regulation", nextRegulation);
 
     const res = await fetch(`/api/updates?${params}`);
     if (!res.ok) { setError("Failed to load updates"); setLoading(false); return; }
     const json = await res.json();
     setItems(json.items ?? []);
     setTotal(json.total ?? 0);
+    setRegulationOptions(json.regulations ?? []);
     setSelected(new Set());
     setLoading(false);
-  }, [page, filterStatus, filterRisk, filterClass]);
+  }, [page, filterStatus, filterRisk, filterClass, filterRegulation]);
+
+  const displayedItems = items;
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -120,10 +131,10 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   }, [load]);
 
   function toggleAll() {
-    if (selected.size === items.length) {
+    if (selected.size === displayedItems.length) {
       setSelected(new Set());
     } else {
-      setSelected(new Set(items.map((i) => i.id)));
+      setSelected(new Set(displayedItems.map((i) => i.id)));
     }
   }
 
@@ -135,20 +146,77 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   }
 
   async function bulkAction(action: string) {
-    if (!selected.size) return;
+    if (!selected.size) {
+      if (action === "boneyard" && filterRegulation) {
+        await eraseSelectedRegulation();
+        return;
+      }
+      setBulkMsg("Select one or more updates first.");
+      return;
+    }
     setBulkLoading(true);
     setBulkMsg(null);
     const res = await fetch("/api/updates", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: Array.from(selected), action }),
+      body: JSON.stringify({
+        ids: Array.from(selected),
+        action,
+        clearAfterApproval: action === "approved",
+      }),
     });
     const json = await res.json();
     if (!res.ok) {
       setBulkMsg(`Error: ${json.error}`);
     } else {
-      setBulkMsg(`${json.affected} item${json.affected !== 1 ? "s" : ""} ${action}.`);
-      load();
+      setBulkMsg(
+        action === "approved"
+          ? `${json.affected} item${json.affected !== 1 ? "s" : ""} approved and moved to boneyard.`
+          : action === "boneyard"
+            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} moved to boneyard.`
+          : `${json.affected} item${json.affected !== 1 ? "s" : ""} ${action}.`,
+      );
+      if (action === "approved" || action === "boneyard") {
+        setFilterStatus("pending");
+        setPage(1);
+        await load({ page: 1, status: "pending" });
+      } else {
+        await load();
+      }
+    }
+    setBulkLoading(false);
+  }
+
+  async function eraseSelectedRegulation() {
+    if (!filterRegulation) {
+      setBulkMsg("Choose a regulation before erasing it from the queue.");
+      return;
+    }
+
+    setBulkLoading(true);
+    setBulkMsg(null);
+    const res = await fetch("/api/updates", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "boneyard",
+        status: filterStatus || undefined,
+        risk: filterRisk || undefined,
+        classification: filterClass || undefined,
+        regulation: filterRegulation,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setBulkMsg(`Error: ${json.error}`);
+    } else {
+      setBulkMsg(
+        `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} erased to boneyard.`,
+      );
+      setFilterStatus("pending");
+      setFilterRegulation("");
+      setPage(1);
+      await load({ page: 1, status: "pending", regulation: "" });
     }
     setBulkLoading(false);
   }
@@ -172,13 +240,15 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           `${json.approved ?? 0} update${json.approved === 1 ? "" : "s"} approved. ` +
             `${json.exported} updated flight book${json.exported === 1 ? "" : "s"} created.`,
       );
-      void load();
+      setFilterStatus("pending");
+      setPage(1);
+      await load({ page: 1, status: "pending" });
     }
     setExportLoading(false);
   }
 
   const totalPages = Math.ceil(total / limit);
-  const allSelected = items.length > 0 && selected.size === items.length;
+  const allSelected = displayedItems.length > 0 && selected.size === displayedItems.length;
 
   return (
     <div className="space-y-4">
@@ -210,7 +280,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           </button>
           <button
             className="easa-btn secondary flex items-center gap-2 text-sm"
-            onClick={load}
+            onClick={() => void load()}
           >
             <RefreshCw size={15} strokeWidth={1.75} />
             Refresh
@@ -238,13 +308,36 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
         <select className="easa-input flex-1 min-w-[160px]" value={filterClass} onChange={(e) => updateFilter(setFilterClass, e.target.value)}>
           {CLASS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        {(filterStatus || filterRisk || filterClass) && (
+        <select
+          className="easa-input flex-1 min-w-[170px]"
+          value={filterRegulation}
+          onChange={(e) => updateFilter(setFilterRegulation, e.target.value)}
+        >
+          <option value="">All regulations</option>
+          {regulationOptions.map((regulation) => (
+            <option key={regulation} value={regulation}>{regulation}</option>
+          ))}
+        </select>
+        {canManage && (
+          <button
+            className="easa-btn secondary flex items-center gap-1.5 px-3 py-2 text-xs"
+            disabled={bulkLoading || !filterRegulation}
+            onClick={eraseSelectedRegulation}
+            title="Erase every queue item matching the selected regulation and current filters"
+            type="button"
+          >
+            <Archive size={14} strokeWidth={1.75} />
+            Erase regulation
+          </button>
+        )}
+        {(filterStatus || filterRisk || filterClass || filterRegulation) && (
           <button
             className="text-xs text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)]"
             onClick={() => {
               setFilterStatus("");
               setFilterRisk("");
               setFilterClass("");
+              setFilterRegulation("");
               setPage(1);
             }}
           >
@@ -285,6 +378,15 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
             <button
               className="easa-btn secondary flex items-center gap-1.5 text-xs"
               disabled={bulkLoading}
+              onClick={() => bulkAction("boneyard")}
+              title="Move selected updates out of the active queue without approving them"
+            >
+              <Archive size={14} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+              Erase selected
+            </button>
+            <button
+              className="easa-btn secondary flex items-center gap-1.5 text-xs"
+              disabled={bulkLoading}
               onClick={() => bulkAction("pending")}
             >
               Reset to pending
@@ -309,7 +411,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           <p className="p-6 text-sm text-[var(--easa-color-text-muted)]">Loading…</p>
         ) : error ? (
           <p className="p-6 text-sm text-[var(--easa-color-accent-pink)]">{error}</p>
-        ) : items.length === 0 ? (
+        ) : displayedItems.length === 0 ? (
           <div className="p-10 text-center">
             <p className="text-sm font-medium">No updates found</p>
             <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
@@ -340,7 +442,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
+              {displayedItems.map((item) => (
                 <tr
                   key={item.id}
                   className={`border-b border-[var(--easa-color-border)] last:border-0 transition hover:bg-[var(--easa-color-surface-2)] ${selected.has(item.id) ? "bg-[color-mix(in_srgb,var(--easa-color-brand-primary)_5%,transparent)]" : ""}`}

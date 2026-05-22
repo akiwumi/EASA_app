@@ -15,7 +15,7 @@ function buildMarkdown(input: {
   docType: string;
   versionLabel: string | null;
   exportedAt: string;
-  sections: { section_number: string | null; title: string | null; body: string }[];
+  sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[];
 }) {
   const lines = [
     `# ${input.name}`,
@@ -50,7 +50,7 @@ function buildWordDoc(input: {
   docType: string;
   versionLabel: string | null;
   exportedAt: string;
-  sections: { section_number: string | null; title: string | null; body: string }[];
+  sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[];
 }) {
   const sectionHtml = input.sections
     .map((section) => {
@@ -59,7 +59,9 @@ function buildWordDoc(input: {
         .split(/\n{2,}/)
         .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`)
         .join("");
-      return `<h2>${escapeHtml(heading)}</h2>${body}`;
+      const updatedClass = section.updated ? " updated-section" : "";
+      const updatedBadge = section.updated ? `<div class="updated-badge">UPDATED SECTION</div>` : "";
+      return `<section class="flightbook-section${updatedClass}">${updatedBadge}<h2>${escapeHtml(heading)}</h2>${body}</section>`;
     })
     .join("");
 
@@ -73,6 +75,10 @@ function buildWordDoc(input: {
     h1 { font-size: 22pt; margin-bottom: 8pt; }
     h2 { font-size: 14pt; margin-top: 20pt; border-bottom: 1px solid #d1d5db; padding-bottom: 4pt; }
     .meta { color: #4b5563; margin-bottom: 18pt; }
+    .flightbook-section { margin-bottom: 14pt; padding: 0 0 8pt; }
+    .updated-section { border: 2px solid #dc2626; background: #fef2f2; padding: 10pt 12pt; }
+    .updated-section h2 { color: #b91c1c; border-bottom-color: #fca5a5; margin-top: 0; }
+    .updated-badge { color: #991b1b; font-size: 9pt; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 6pt; text-transform: uppercase; }
     p { margin: 0 0 10pt; }
   </style>
 </head>
@@ -119,7 +125,7 @@ function buildPdf(input: {
   docType: string;
   versionLabel: string | null;
   exportedAt: string;
-  sections: { section_number: string | null; title: string | null; body: string }[];
+  sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[];
 }) {
   const contentLines = [
     input.name,
@@ -186,7 +192,7 @@ function buildText(input: {
   docType: string;
   versionLabel: string | null;
   exportedAt: string;
-  sections: { section_number: string | null; title: string | null; body: string }[];
+  sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[];
 }) {
   const lines = [
     input.name,
@@ -207,6 +213,61 @@ function buildText(input: {
   }
 
   return lines.join("\n");
+}
+
+function parseRetainedMarkdownExport(markdown: string) {
+  const lines = markdown.split(/\r?\n/);
+  const titleLine = lines.find((line) => line.startsWith("# "));
+  const name = titleLine?.replace(/^#\s+/, "").trim() || "Retained export";
+  const sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[] = [];
+  let current:
+    | { section_number: string | null; title: string | null; bodyLines: string[]; updated?: boolean }
+    | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      if (current) {
+        sections.push({
+          section_number: current.section_number,
+          title: current.title,
+          body: current.bodyLines.join("\n").trim(),
+          updated: current.updated,
+        });
+      }
+
+      const rawHeading = line.replace(/^##\s+/, "").trim();
+      const updated = /\s+\[UPDATED\]$/.test(rawHeading);
+      const heading = rawHeading.replace(/\s+\[UPDATED\]$/, "");
+      const sectionMatch = heading.match(/^(\S+)\s+(.+)$/);
+      current = {
+        section_number: sectionMatch?.[1] ?? null,
+        title: sectionMatch?.[2] ?? heading,
+        bodyLines: [],
+        updated,
+      };
+    } else if (current) {
+      if (current.updated && line === "> Updated in this revision from approved EASA queue item(s).") {
+        continue;
+      }
+      current.bodyLines.push(line);
+    }
+  }
+
+  if (current) {
+    sections.push({
+      section_number: current.section_number,
+      title: current.title,
+      body: current.bodyLines.join("\n").trim(),
+      updated: current.updated,
+    });
+  }
+
+  return {
+    name,
+    sections: sections.length > 0
+      ? sections
+      : [{ section_number: null, title: "Retained export", body: markdown }],
+  };
 }
 
 export async function GET(
@@ -238,7 +299,7 @@ export async function GET(
     }
 
     const objectPath =
-      format === "txt" || format === "doc" || format === "pdf"
+      format === "txt" || format === "pdf"
         ? (exportRow.text_storage_path as string)
         : (exportRow.markdown_storage_path as string);
 
@@ -257,12 +318,13 @@ export async function GET(
     const filenameBase = sanitizeFilename(objectPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "flightbook");
 
     if (format === "doc") {
+      const parsedExport = parseRetainedMarkdownExport(text);
       const content = buildWordDoc({
-        name: filenameBase,
+        name: parsedExport.name,
         docType: "flightbook",
         versionLabel: "Retained export",
         exportedAt: new Date().toISOString(),
-        sections: [{ section_number: null, title: "Retained export", body: text }],
+        sections: parsedExport.sections,
       });
       return new Response(content, {
         status: 200,

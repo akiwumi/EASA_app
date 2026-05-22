@@ -70,7 +70,7 @@ export async function POST(request: Request) {
   const approvedAt = new Date().toISOString();
   const updateQ = admin
     .from("proposed_updates")
-    .update({ status: "approved", updated_at: approvedAt })
+    .update({ status: "boneyard", updated_at: approvedAt })
     .eq("organization_id", ctx.orgId)
     .in("id", updateIds);
 
@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     applied: application.applied,
     exported: application.exported,
     message:
-      `${updateIds.length} pending mapped update${updateIds.length === 1 ? "" : "s"} approved. ` +
+      `${updateIds.length} pending mapped update${updateIds.length === 1 ? "" : "s"} approved and moved to boneyard. ` +
       `${application.exported} updated flight book${application.exported === 1 ? "" : "s"} created.`,
   });
 }

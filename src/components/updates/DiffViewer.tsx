@@ -68,6 +68,7 @@ function statusBadgeClass(status: string) {
   if (status === "approved") return "easa-badge is-green";
   if (status === "rejected") return "easa-badge is-red";
   if (status === "watchlist") return "easa-badge is-blue";
+  if (status === "boneyard") return "easa-badge is-muted";
   return "easa-badge is-orange";
 }
 
@@ -245,6 +246,7 @@ export default function DiffViewer({
     if (action === "approved" && flightbookSectionId && suggestedText) {
       body.flightbookSectionId = flightbookSectionId;
       body.aiSuggestedText = suggestedText;
+      body.clearAfterApproval = true;
     }
 
     const res = await fetch("/api/updates", {
@@ -260,9 +262,10 @@ export default function DiffViewer({
           : (json.error ?? "Action failed"),
       );
     } else {
-      setStatus(action);
+      setStatus(typeof json.status === "string" ? json.status : action);
       const messages: Record<string, string> = {
         approved: "Update approved — flight book section updated.",
+        boneyard: "Update approved, flight book section updated, and queue item moved to boneyard.",
         rejected: "Update rejected.",
         revision_requested: "Revision requested.",
         watchlist: "Moved to watchlist.",
@@ -313,7 +316,7 @@ export default function DiffViewer({
     setTimeout(() => setCopied(false), 1500);
   }
 
-  const actionsDone = status === "approved" || status === "rejected";
+  const actionsDone = status === "approved" || status === "boneyard" || status === "rejected";
 
   return (
     <div className="space-y-6">

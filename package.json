@@ -9,15 +9,19 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@mendable/firecrawl-js": "^4.23.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.91.1",
+    "fastmcp": "^4.0.1",
     "lucide-react": "^0.544.0",
     "next": "16.1.4",
+    "openai": "^6.38.0",
     "pdf-parse": "^1.1.1",
     "pg": "^8.20.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "stripe": "^18.5.0"
+    "stripe": "^18.5.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
