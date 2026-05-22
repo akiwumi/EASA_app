@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { DEFAULT_ORG_ID, DEFAULT_ORG_NAME, pickPreferredOrgMembership } from "@/lib/supabase/org-membership";
@@ -94,10 +95,13 @@ export async function getOrgAccessContext(): Promise<OrgAccessContext | null> {
     .select("organization_id, role")
     .eq("user_id", user.id);
 
+  const jar = await cookies();
+  const activeOrgId = jar.get("active_org_id")?.value ?? null;
+
   // Prefer the user's real org over the default fallback org.
   // Using maybeSingle() without a limit breaks when a user is in multiple orgs
   // (Supabase returns PGRST116 and data=null, silently falling through to ensureDefaultOrgMembership).
-  const orgUser = pickPreferredOrgMembership(orgUsers);
+  const orgUser = pickPreferredOrgMembership(orgUsers, activeOrgId);
 
   if (!orgUser?.organization_id || !orgUser.role) {
     return ensureDefaultOrgMembership(user.id);
