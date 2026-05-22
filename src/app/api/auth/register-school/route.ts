@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  buildEmailVerificationRedirectUrl,
+  buildSignupVerificationLinkParams,
+  sendAccountVerificationEmail,
+} from "@/lib/auth/verification-email";
 import { getSupabaseAdminClient } from "@/lib/supabase/access";
 import { ensureOrganizationPipelineDefaults, seedDefaultSources } from "@/lib/seed-default-sources";
 
@@ -13,13 +18,13 @@ function normalizeSchoolName(value: string) {
   return value.trim().replace(/\s+/g, " ");
 }
 
-async function ensureLifetimeAccess(organizationId: string) {
+async function ensurePendingSubscription(organizationId: string) {
   const admin = getSupabaseAdminClient();
   const { error } = await admin.from("organization_subscriptions").upsert(
     {
       organization_id: organizationId,
-      subscription_status: "active",
-      billing_state: "active",
+      subscription_status: "inactive",
+      billing_state: "inactive",
       cancel_at_period_end: false,
       access_expires_at: null,
       locked_at: null,
@@ -57,15 +62,16 @@ export async function POST(request: Request) {
   const admin = getSupabaseAdminClient();
   await seedDefaultSources();
 
-  const { data: createdUser, error: createUserError } = await admin.auth.admin.createUser({
+  const redirectTo = buildEmailVerificationRedirectUrl();
+  const { data: createdUser, error: createUserError } = await admin.auth.admin.generateLink(buildSignupVerificationLinkParams({
     email,
     password,
-    email_confirm: true,
-    user_metadata: {
+    redirectTo,
+    metadata: {
       display_name: adminName,
       school_name: schoolName,
     },
-  });
+  }));
 
   if (createUserError || !createdUser.user) {
     return NextResponse.json(
@@ -100,7 +106,7 @@ export async function POST(request: Request) {
       throw new Error(membershipError.message);
     }
 
-    await ensureLifetimeAccess(organizationId);
+    await ensurePendingSubscription(organizationId);
     await ensureOrganizationPipelineDefaults(organizationId);
 
     const { error: profileError } = await admin.from("user_profiles").upsert({
@@ -126,10 +132,18 @@ export async function POST(request: Request) {
       throw new Error(brandingError.message);
     }
 
+    await sendAccountVerificationEmail({
+      to: email,
+      actionLink: createdUser.properties.action_link,
+      adminName,
+      schoolName,
+    });
+
     return NextResponse.json({
       ok: true,
       organizationId,
       schoolName,
+      verificationEmailSent: true,
     });
   } catch (error) {
     if (organizationId) {

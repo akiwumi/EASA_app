@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
-import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import {
+  buildEmailVerificationRedirectUrl,
+  buildSignupVerificationLinkParams,
+  sendAccountVerificationEmail,
+} from "@/lib/auth/verification-email";
 import { resolveIncludedExtraUserLimit } from "@/lib/billing/subscription";
+import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { CurrentOrgRole } from "@/lib/types/domain";
 
 function toOrgRole(role?: string): CurrentOrgRole {
@@ -142,16 +147,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Student password must be at least 8 characters long." }, { status: 400 });
     }
 
-    const { data: createdUser, error: createUserError } = await admin.auth.admin.createUser({
+    const redirectTo = buildEmailVerificationRedirectUrl(undefined, "/login");
+    const { data: createdUser, error: createUserError } = await admin.auth.admin.generateLink(buildSignupVerificationLinkParams({
       email: normalizedEmail,
       password,
-      email_confirm: true,
-      user_metadata: {
+      redirectTo,
+      metadata: {
         display_name: normalizedDisplayName,
         organization_id: ctx.orgId,
         app_role: validRole,
       },
-    });
+    }));
 
     if (createUserError || !createdUser.user) {
       return NextResponse.json(
@@ -183,6 +189,23 @@ export async function POST(request: Request) {
         await admin.auth.admin.deleteUser(userId);
         return NextResponse.json({ error: profileError.message }, { status: 400 });
       }
+    }
+
+    try {
+      await sendAccountVerificationEmail({
+        to: normalizedEmail,
+        actionLink: createdUser.properties.action_link,
+        adminName: normalizedDisplayName,
+      });
+    } catch (error) {
+      await admin.from("user_profiles").delete().eq("id", userId);
+      await admin.from("org_users").delete().eq("user_id", userId).eq("organization_id", ctx.orgId);
+      await admin.auth.admin.deleteUser(userId);
+
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Unable to send verification email." },
+        { status: 400 },
+      );
     }
 
     return NextResponse.json({ ok: true, userId, mode: "create" });

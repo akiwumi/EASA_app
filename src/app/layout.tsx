@@ -68,10 +68,10 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.webmanifest",
   icons: {
-    apple: "/images/mobile-icon.png",
+    apple: "/images/flight-lyceum-logo.png",
     icon: [
+      { url: "/images/flight-lyceum-logo.png", type: "image/png" },
       { url: "/favicon.ico" },
-      { url: "/images/mobile-icon.png", type: "image/png" },
     ],
   },
   appleWebApp: {

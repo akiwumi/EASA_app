@@ -29,6 +29,8 @@ STRIPE_PRICE_ID_MONTHLY=price_...
 STRIPE_PRICE_ID_QUARTERLY=price_...
 STRIPE_PRICE_ID_ANNUAL=price_...
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL="Flight Lyceum <verified-domain@example.com>"
 ```
 
 Keep these existing Supabase values in place:
@@ -62,7 +64,17 @@ SUPABASE_SERVICE_ROLE_KEY=...
    - `invoice.paid`
 8. Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
 
-## 4. Trial behavior
+## 4. Email verification manual steps
+
+1. In Resend, verify the sending domain used by `RESEND_FROM_EMAIL`.
+2. Add `RESEND_API_KEY` and `RESEND_FROM_EMAIL` to local and production environments.
+3. In Supabase Auth URL Configuration, add these redirect URLs:
+   - local: `http://localhost:3000/auth/callback`
+   - production: `https://your-domain/auth/callback`
+4. Keep Supabase email confirmations enabled. New school admins are created unconfirmed and receive a Flight Lyceum verification email.
+5. The verification link lands at `/auth/callback?next=/welcome`, signs the admin in, then redirects to `/welcome`.
+
+## 5. Trial behavior
 
 The checkout flow now creates subscriptions with a `7` day Stripe trial:
 
@@ -71,32 +83,36 @@ The checkout flow now creates subscriptions with a `7` day Stripe trial:
 - if that payment succeeds, the workspace remains active
 - if it fails, the workspace is suspended until payment is fixed
 
-## 5. Lock behavior
+## 6. Lock behavior
 
 The app uses `organization_subscriptions.billing_state` to control access.
 
 - `trialing`, `active`, and `cancel_scheduled` keep access open
-- `suspended` locks the app for non-admins
+- `inactive`, `suspended`, and `canceled` lock the app until billing is started or recovered
 - admins can still reach billing settings to recover payment
 - cancellation uses Stripe `cancel_at_period_end=true`, so access continues until the paid period ends
 
-## 6. Manual test checklist
+## 7. Manual test checklist
 
-1. Start a new checkout from `/pricing` while logged in as a school admin.
-2. Confirm the Stripe checkout shows a `7` day trial before billing starts.
-3. Complete checkout and confirm a row appears in `organization_subscriptions`.
-4. Cancel at period end and confirm:
+1. Register a school from `/register`.
+2. Confirm the admin receives a verification email.
+3. Click the verification link and confirm it lands on `/welcome`.
+4. Continue to `/pricing` and start checkout as the signed-in school admin.
+5. Confirm the Stripe checkout shows a `7` day trial before billing starts.
+6. Complete checkout and confirm the `organization_subscriptions` row becomes `trialing` or `active`.
+7. Cancel at period end and confirm:
    - `cancel_at_period_end` becomes `true`
    - access still works until `current_period_end`
-5. Resume the subscription and confirm the cancel flag is removed.
-6. Trigger `invoice.upcoming` from Stripe test mode and confirm an in-app billing reminder notification is created.
-7. Trigger `invoice.payment_failed` and confirm:
+8. Resume the subscription and confirm the cancel flag is removed.
+9. Trigger `invoice.upcoming` from Stripe test mode and confirm an in-app billing reminder notification is created.
+10. Trigger `invoice.payment_failed` and confirm:
    - `billing_state` becomes `suspended`
    - users are redirected to `/subscription-locked`
-8. Trigger `invoice.paid` and confirm access is restored.
+11. Trigger `invoice.paid` and confirm access is restored.
 
-## 7. Notes
+## 8. Notes
 
+- New registration creates an `inactive` subscription row. The admin must verify email and start Stripe checkout before protected app access opens.
 - The app stores Stripe subscription state locally so it can enforce locking without calling Stripe on every page load.
 - In-app notifications are written to the existing `notifications` table.
 - If you want email delivery for reminders and suspensions as well, add Stripe customer emails and/or connect this billing flow to your existing email-notification pipeline.

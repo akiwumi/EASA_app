@@ -16,14 +16,14 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "en-GB",
     icons: [
       {
-        src: "/images/mobile-icon.png",
-        sizes: "192x192",
+        src: "/images/flight-lyceum-logo.png",
+        sizes: "968x514",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/images/mobile-icon.png",
-        sizes: "512x512",
+        src: "/images/flight-lyceum-logo.png",
+        sizes: "968x514",
         type: "image/png",
         purpose: "maskable",
       },

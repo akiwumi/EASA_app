@@ -109,7 +109,12 @@ export async function proxy(request: NextRequest) {
         (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
       );
 
-      if (subscription?.billing_state === "suspended" && !(orgUser.role === "admin" && allowedDuringSuspension)) {
+      const lockedBillingState =
+        subscription?.billing_state === "inactive" ||
+        subscription?.billing_state === "suspended" ||
+        subscription?.billing_state === "canceled";
+
+      if (lockedBillingState && !(orgUser.role === "admin" && allowedDuringSuspension)) {
         const lockedUrl = new URL("/subscription-locked", request.url);
         const redirect = NextResponse.redirect(lockedUrl);
         copyCookies(response, redirect);
