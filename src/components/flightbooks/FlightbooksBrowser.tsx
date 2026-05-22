@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BookOpen, Upload, CheckCircle, XCircle, FileText, ArrowDownUp } from "lucide-react";
 import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
 import DownloadFlightbookButton from "@/components/flightbooks/DownloadFlightbookButton";
@@ -27,6 +28,7 @@ function sortByDate<T>(items: T[], order: SortOrder, getDate: (item: T) => strin
 }
 
 export default function FlightbooksBrowser({ books }: Props) {
+  const router = useRouter();
   const [originalSort, setOriginalSort] = useState<SortOrder>("newest");
   const [generatedSort, setGeneratedSort] = useState<SortOrder>("newest");
 
@@ -163,13 +165,15 @@ export default function FlightbooksBrowser({ books }: Props) {
         {sortedBooks.map((book) => (
           <div
             key={book.id}
-            className="easa-card p-5 transition hover:shadow-[var(--easa-shadow-2)]"
+            role="link"
+            tabIndex={0}
+            aria-label={`Open ${book.name}`}
+            className="easa-card cursor-pointer p-5 transition hover:shadow-[var(--easa-shadow-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--easa-color-brand-primary)]"
+            onClick={() => router.push(`/flightbooks/${book.id}`)}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") router.push(`/flightbooks/${book.id}`); }}
           >
             <div className="flex items-start justify-between gap-2">
-              <Link
-                href={`/flightbooks/${book.id}`}
-                className="min-w-0 flex-1"
-              >
+              <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--easa-color-surface-2)]">
                     <BookOpen size={18} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
@@ -236,8 +240,11 @@ export default function FlightbooksBrowser({ books }: Props) {
                     No sections — upload content so the AI can compare
                   </p>
                 )}
-              </Link>
-              <DeleteFlightbookButton id={book.id} name={book.name} compact />
+              </div>
+              {/* stopPropagation so delete click doesn't navigate to the book */}
+              <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                <DeleteFlightbookButton id={book.id} name={book.name} compact />
+              </div>
             </div>
           </div>
         ))}
