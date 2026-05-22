@@ -32,6 +32,7 @@
   --easa-color-accent-pink: #f35b7f;
   --easa-color-accent-green: #22c55e;
   --easa-color-accent-cyan: #21b4f3;
+  --easa-color-accent-yellow: #f6b34d;
   --easa-color-warning: #f6b34d;
   --easa-radius-xs: 8px;
   --easa-radius-sm: 12px;
@@ -217,6 +218,64 @@ h1 {
 
 .easa-btn:hover {
   transform: translateY(-1px);
+}
+
+.easa-btn.primary:not(:disabled):hover {
+  filter: brightness(1.08);
+  box-shadow: 0 28px 56px rgba(24, 40, 40, 0.28);
+}
+
+.easa-btn.secondary:not(:disabled):hover {
+  background: rgba(226, 220, 207, 0.94);
+  border-color: rgba(82, 74, 58, 0.22);
+}
+
+.easa-btn:not(:disabled):active {
+  transform: translateY(0) scale(0.95) !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transition-duration: 0.06s !important;
+}
+
+.easa-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Icon-only button — used for compact actions in headers/rows */
+.easa-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--easa-radius-xs);
+  color: var(--easa-color-text-muted);
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+  cursor: pointer;
+}
+
+.easa-icon-btn:not(:disabled):hover {
+  background: var(--easa-color-surface-2);
+  color: var(--easa-color-text-secondary);
+}
+
+.easa-icon-btn:not(:disabled):active {
+  transform: scale(0.88);
+  background: var(--easa-color-surface-3);
+  transition-duration: 0.06s;
+}
+
+.easa-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Universal press feedback for all plain buttons not using easa-btn/easa-icon-btn */
+button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):active {
+  opacity: 0.72;
+  transform: scale(0.95);
+  transition: opacity 0.06s ease, transform 0.06s ease;
 }
 
 .easa-input {

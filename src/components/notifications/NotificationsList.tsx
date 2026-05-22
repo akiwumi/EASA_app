@@ -240,28 +240,29 @@ export default function NotificationsList({ role = "viewer" }: { role?: ViewerRo
             {copy.subtitle}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-0.5">
           {unreadCount > 0 && (
             <button
               type="button"
-              className="easa-btn secondary flex items-center gap-2 text-sm"
+              title="Mark all as read"
+              aria-label="Mark all notifications as read"
+              className="easa-icon-btn"
               disabled={markingAll}
               onClick={markAllRead}
             >
-              <CheckCheck size={15} strokeWidth={1.75} />
-              {markingAll ? "Marking…" : "Mark all as read"}
+              <CheckCheck size={16} strokeWidth={1.75} />
             </button>
           )}
           {notifications.length > 0 && (
             <button
               type="button"
-              className="easa-btn secondary flex items-center gap-2 text-sm text-[var(--easa-color-accent-pink)]"
+              title="Delete all"
+              aria-label="Delete all notifications"
+              className="easa-icon-btn text-[var(--easa-color-accent-pink)] hover:text-[var(--easa-color-accent-pink)]"
               disabled={deletingAll}
               onClick={deleteAll}
-              aria-label="Delete all notifications"
             >
-              <Trash2 size={15} strokeWidth={1.75} />
-              {deletingAll ? "Deleting…" : "Delete all"}
+              <Trash2 size={16} strokeWidth={1.75} />
             </button>
           )}
         </div>

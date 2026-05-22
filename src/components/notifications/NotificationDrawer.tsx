@@ -245,37 +245,39 @@ export default function NotificationDrawer({ open, onClose, onUnreadChange }: Pr
               )}
             </h2>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
             {unreadCount > 0 && (
               <button
                 type="button"
-                className="easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs"
+                title="Mark all as read"
+                aria-label="Mark all notifications as read"
+                className="easa-icon-btn"
                 disabled={markingAll}
                 onClick={markAllRead}
               >
-                <CheckCheck size={13} strokeWidth={1.75} />
-                {markingAll ? "Marking…" : "Mark all read"}
+                <CheckCheck size={15} strokeWidth={1.75} />
               </button>
             )}
             {notifications.length > 0 && (
               <button
                 type="button"
-                className="easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs text-[var(--easa-color-accent-pink)]"
+                title="Delete all"
+                aria-label="Delete all notifications"
+                className="easa-icon-btn text-[var(--easa-color-accent-pink)] hover:text-[var(--easa-color-accent-pink)]"
                 disabled={deletingAll}
                 onClick={deleteAll}
-                aria-label="Delete all notifications"
               >
-                <Trash2 size={13} strokeWidth={1.75} />
-                {deletingAll ? "Deleting…" : "Delete all"}
+                <Trash2 size={15} strokeWidth={1.75} />
               </button>
             )}
             <button
               type="button"
-              className="easa-btn secondary p-1.5"
-              onClick={onClose}
+              title="Close"
               aria-label="Close notifications"
+              className="easa-icon-btn ml-1"
+              onClick={onClose}
             >
-              <X size={16} strokeWidth={1.75} />
+              <X size={15} strokeWidth={1.75} />
             </button>
           </div>
         </div>
