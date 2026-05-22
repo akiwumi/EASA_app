@@ -840,6 +840,8 @@ If Time Machine shows no history for existing sections, run the repair script fr
 -- Copy contents of supabase/sql/repair_flightbook_section_versions.sql and run here
 ```
 
+> **Repair script location:** `supabase/sql/repair_flightbook_section_versions.sql` — copy its contents into the Supabase SQL Editor and run it to backfill missing version snapshots for sections that were edited before the version trigger was added.
+
 > **Before running migration 031:** check for duplicate org_users rows that would block the unique index:
 > ```sql
 > select organization_id, user_id, count(*) from org_users group by organization_id, user_id having count(*) > 1;

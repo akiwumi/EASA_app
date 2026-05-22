@@ -133,6 +133,21 @@ export default async function HistoryPage() {
     };
   });
 
+  let bookCount: number | null = 0;
+  let sectionCount: number | null = 0;
+
+  if (!loadError && versions.length === 0) {
+    const { count: bc } = orgId
+      ? await admin.from("flightbooks").select("id", { count: "exact", head: true }).eq("organization_id", orgId)
+      : { count: 0 };
+    bookCount = bc;
+
+    const { count: sc } = (bookCount ?? 0) > 0 && orgId
+      ? await admin.from("flightbook_sections").select("id", { count: "exact", head: true }).eq("organization_id", orgId)
+      : { count: 0 };
+    sectionCount = sc;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -159,11 +174,31 @@ export default async function HistoryPage() {
       )}
 
       {!loadError && versions.length === 0 && (
-        <div className="easa-card p-10 text-center">
-          <p className="text-sm font-medium">No version history found</p>
-          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-            Versions are created when flight book sections are edited or AI updates are approved.
-          </p>
+        <div className="easa-card p-10 text-center space-y-2">
+          {(bookCount ?? 0) === 0 ? (
+            <>
+              <p className="text-sm font-medium">No flight books uploaded yet</p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">
+                Upload a flight book to start tracking version history.
+              </p>
+            </>
+          ) : (sectionCount ?? 0) === 0 ? (
+            <>
+              <p className="text-sm font-medium">Flight books found but no sections</p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">
+                Sections are created when a flight book is parsed during upload. Try re-uploading.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-medium">No version history yet</p>
+              <p className="text-xs text-[var(--easa-color-text-muted)]">
+                Versions are created when sections are edited or AI updates are approved.
+                If you expect history here, run the repair script from the Supabase SQL Editor —
+                see the Multi-School Diagnostics section in SUPABASE_SQL_NOVICE_GUIDE.md.
+              </p>
+            </>
+          )}
         </div>
       )}
 
