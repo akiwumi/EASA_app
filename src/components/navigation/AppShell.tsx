@@ -9,6 +9,7 @@ import {
   BookOpen,
   GraduationCap,
   HelpCircle,
+  History,
   Home,
   LayoutDashboard,
   ListChecks,
@@ -34,6 +35,7 @@ type NavItem = {
 const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard",           label: "Dashboard",    icon: LayoutDashboard },
   { href: "/updates",             label: "Review queue", icon: ListChecks },
+  { href: "/history",             label: "Time machine", icon: History },
   { href: "/flightbooks",         label: "Flight books", icon: BookOpen },
   { href: "/training/programmes", label: "Training",     icon: GraduationCap },
   { href: "/settings",            label: "Settings",     icon: Settings, adminOnly: true },
@@ -42,6 +44,7 @@ const PRIMARY_NAV: NavItem[] = [
 const MOBILE_NAV: NavItem[] = [
   { href: "/dashboard",           label: "Home",         icon: LayoutDashboard },
   { href: "/updates",             label: "Review",       icon: ListChecks },
+  { href: "/history",             label: "Time",         icon: History },
   { href: "/flightbooks",         label: "Books",        icon: BookOpen },
   { href: "/training/programmes", label: "Training",     icon: GraduationCap },
   { href: "/settings",            label: "Settings",     icon: Settings, adminOnly: true },

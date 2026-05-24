@@ -202,8 +202,8 @@ export function SetupPanel({ setupSummary }: { setupSummary: DashboardSetupSumma
     {
       title: "Regulation monitoring",
       body: hasActiveFeeds
-        ? "Your EASA sources are connected and ready for manual or scheduled ingest runs."
-        : "Connect EASA feeds first so monitoring can begin.",
+        ? "Your EASA sources are connected and ready for AI-assisted manual or scheduled ingest runs."
+        : "Connect EASA feeds first so AI-assisted monitoring can begin.",
       href: "/settings?tab=sources",
       cta: hasActiveFeeds ? "Review feeds" : "Connect feeds",
       icon: Newspaper,
@@ -211,8 +211,8 @@ export function SetupPanel({ setupSummary }: { setupSummary: DashboardSetupSumma
     {
       title: "Manual comparison",
       body: setupSummary.hasFlightbooks
-        ? "Flight books are available for automatic comparison, retrieval, and update drafting."
-        : "Bring in your manuals so the app can compare them against EASA changes and draft updates.",
+        ? "Flight books are available for AI-assisted comparison, retrieval, and update drafting."
+        : "Bring in your manuals so AI can compare them against EASA changes and draft updates for review.",
       href: "/flightbooks",
       cta: setupSummary.hasFlightbooks ? "Browse flight books" : "Import manuals",
       icon: BookOpen,
@@ -220,7 +220,7 @@ export function SetupPanel({ setupSummary }: { setupSummary: DashboardSetupSumma
     {
       title: "Human approval",
       body:
-        "Every proposed amendment stays in review until someone approves, rejects, or sends it back.",
+        "Every proposed amendment stays in review until an authorised human approves, rejects, or sends it back.",
       href: "/updates",
       cta: "Open queue",
       icon: ShieldCheck,
@@ -242,8 +242,8 @@ export function SetupPanel({ setupSummary }: { setupSummary: DashboardSetupSumma
               <h2 className="text-lg font-semibold">Start here</h2>
               <p className="text-sm text-[var(--easa-color-text-muted)]">
                 This dashboard walks through the full workflow: collect EASA
-                updates, compare them to your flight books, review suggestions,
-                then approve changes with an audit trail.
+                updates, compare them to your flight books, review AI suggestions,
+                then approve changes with an audit trail and Time machine rollback.
               </p>
             </div>
             <Link className="easa-btn secondary text-sm" href="/settings?tab=setup">

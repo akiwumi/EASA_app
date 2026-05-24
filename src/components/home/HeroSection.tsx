@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 
 const proofPoints = [
-  "Monitors Part-FCL, Part-ORA, Part-NCO, and 40+ EASA regulatory families automatically.",
-  "AI flags affected manual sections and drafts a plain-language update — seconds after a change is published.",
-  "Every approval, rollback, and acknowledgement logged. Print your audit pack before any authority visit.",
+  "AI does the monitoring, matching, and first draft. Humans make the compliance decisions.",
+  "Manual update tedium drops away: affected sections are flagged and drafted for human review in minutes.",
+  "Every approval, rollback, and acknowledgement is logged. Time machine can restore retained versions by date.",
 ];
 
 export default function HeroSection() {
@@ -23,27 +23,27 @@ export default function HeroSection() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(13,24,23,0.16)_0%,rgba(13,24,23,0.03)_48%,rgba(255,253,248,0.42)_100%)]" />
         <div className="absolute inset-0 z-10 flex translate-y-[10%] items-center justify-center px-6 text-center sm:translate-y-[30%]">
           <h1
-            className="easa-h1-mobile-hero max-w-5xl text-4xl font-bold text-white sm:text-6xl md:text-7xl"
+            className="max-w-5xl font-bold text-white"
             style={{
               fontFamily: "var(--font-display)",
-              lineHeight: 1.05,
+              fontSize: "clamp(1.2rem, 6.4vw, 4.5rem)",
+              lineHeight: 1.08,
               letterSpacing: "0",
               textShadow: "0 4px 18px rgba(0, 0, 0, 0.72), 0 1px 3px rgba(0, 0, 0, 0.9)",
             }}
           >
-            <span className="block md:inline">EASA changes — detected,</span>{" "}
-            <span className="block md:inline">assessed, and ready</span>{" "}
-            <span className="block md:inline">for your approval.</span>
+            AI-driven compliance intelligence.
+            Human-approved control.
           </h1>
         </div>
       </div>
 
       <div className="mx-auto max-w-7xl px-6 text-center">
         <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-muted-foreground">
-          Flight Lyceum monitors 40+ EASA regulatory families, flags exactly which
-          manual sections are affected, and drafts plain-language updates for your
-          approval — in minutes. Approved changes route automatically to instructors
-          and students for reading and acknowledgement before the next lesson.
+          Flight Lyceum monitors 40+ EASA regulatory families, flags affected
+          manual sections, and drafts plain-language updates for review. AI removes
+          the tedious manual tracking work, while your compliance team always
+          reviews, edits, approves, or rejects every controlled change.
         </p>
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-4">

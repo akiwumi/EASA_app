@@ -327,6 +327,10 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
             {total} update{total !== 1 ? "s" : ""} · review and approve changes to your flight books
           </p>
+          <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--easa-color-text-muted)]">
+            AI-generated recommendations are never applied automatically. Review, edit, approve,
+            reject, or archive each item before it changes a controlled manual.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {canManage && (
@@ -677,6 +681,9 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
             </p>
             <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">
               Approved sections are saved to the version history. You can restore any section from the Time machine at any time.
+            </p>
+            <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">
+              Final human approval is required before AI-drafted text becomes controlled manual content.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button

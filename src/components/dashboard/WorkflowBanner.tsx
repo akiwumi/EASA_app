@@ -121,6 +121,9 @@ export default function WorkflowBanner({
         <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
           Compliance pipeline
         </p>
+        <p className="mt-1 text-xs leading-5 text-[var(--easa-color-text-muted)]">
+          AI handles tedious detection, matching, and draft work. Compliance approval remains human-led.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 divide-x divide-y divide-[var(--easa-color-border)] lg:grid-cols-4 lg:divide-y-0">

@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 
 const proofPoints = [
-  "Keep instructors and students on the latest approved procedures, automatically.",
-  "Turn every EASA change into a training action with a full approval trail.",
-  "Stay audit ready without chasing PDFs, emails, or spreadsheets.",
+  "AI handles detection and drafting. Humans approve what becomes controlled content.",
+  "Turn every EASA change into a training action with a full approval and rollback trail.",
+  "Use Time machine to compare versions and restore retained manual states by date.",
 ];
 
 export default function LandingHero() {
@@ -13,15 +13,15 @@ export default function LandingHero() {
       <div className="easa-gradient-bar" />
       <div className="px-6 pb-0 pt-14 text-center md:px-10 md:pt-18">
         <span className="easa-eyebrow justify-center">
-          Training operations and compliance
+          AI-driven compliance intelligence with human oversight
         </span>
         <h1 className="easa-display easa-h1-mobile-hero mx-auto mt-5 max-w-5xl text-5xl leading-[0.98] md:text-7xl">
           Keep your flight school aligned and audit-ready.
         </h1>
         <p className="mx-auto mt-6 max-w-3xl text-base leading-7 text-[var(--easa-color-text-muted)] md:text-lg">
           The compliance and training platform built for Approved Training Organisations.
-          Monitor EASA changes, control your manuals, assign reading by lesson, and track
-          every acknowledgement in one system your whole school actually uses.
+          Monitor EASA changes, draft manual updates, assign reading by lesson, and track
+          every acknowledgement while humans keep the final say.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3 pb-10">
           <Link className="easa-btn primary" href="/register">

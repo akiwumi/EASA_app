@@ -41,7 +41,7 @@ export const workflowSteps = [
   {
     step: "02",
     title: "Review and approve manual impact",
-    body: "Keep compliance-sensitive decisions under human control with rollback history and notes.",
+    body: "AI drafts the impact assessment, while humans review the evidence, edit the wording, and make the final decision.",
   },
   {
     step: "03",
@@ -72,8 +72,13 @@ export const featureCards = [
   },
   {
     title: "AI impact assessment",
-    body: "When a regulation changes, the app flags affected manual sections and drafts plain-language updates for approval.",
+    body: "When a regulation changes, AI flags affected manual sections and drafts plain-language updates for human approval.",
     image: "/images/change-impact-review.jpg",
+  },
+  {
+    title: "Time machine rollback",
+    body: "Compare versions and restore any manual section to a specific retained date without losing the audit trail.",
+    image: "/images/dashboard-overview.jpg",
   },
   {
     title: "Read and acknowledge",
@@ -137,7 +142,7 @@ export const pricingTiers = [
 export const addOns = [
   {
     title: "AI Copilot",
-    body: "Plain-language manual search, change summaries, and suggested draft updates.",
+    body: "Plain-language manual search, change summaries, and suggested draft updates with human approval controls.",
     price: "From EUR 99/month",
   },
   {

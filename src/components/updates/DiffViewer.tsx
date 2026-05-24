@@ -268,7 +268,7 @@ export default function DiffViewer({
     } else {
       setStatus(typeof json.status === "string" ? json.status : action);
       const messages: Record<string, string> = {
-        approved: "Update approved — flight book section updated.",
+        approved: "Update approved. Flight book section updated.",
         boneyard: "Update approved, flight book section updated, and queue item archived.",
         rejected: "Update rejected.",
         revision_requested: "Revision requested.",
@@ -493,6 +493,10 @@ export default function DiffViewer({
                   </button>
                 </div>
               </div>
+              <p className="text-xs leading-5 text-[var(--easa-color-text-muted)]">
+                AI draft only. Check the source evidence and manual wording before approval.
+                Your approval creates the controlled version.
+              </p>
 
               {showDiff && sectionBody ? (
                 <div className="max-h-72 overflow-auto rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3 font-mono text-xs leading-relaxed">
@@ -543,7 +547,7 @@ export default function DiffViewer({
               </button>
               {!findingId && (
                 <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-                  No AI finding linked — cannot generate draft.
+                  No AI finding linked. Cannot generate draft.
                 </p>
               )}
             </div>
@@ -618,6 +622,12 @@ export default function DiffViewer({
         )}
         {actionError && (
           <p className="mb-3 text-sm text-[var(--easa-color-accent-pink)]">{actionError}</p>
+        )}
+        {!actionsDone && canManage && (
+          <p className="mb-3 text-sm leading-6 text-[var(--easa-color-text-muted)]">
+            Final human review required. Approving applies the reviewed text to the flight book,
+            records the decision, and keeps the previous version available in Time machine.
+          </p>
         )}
 
         <div className="flex flex-wrap items-start gap-3">
@@ -718,7 +728,7 @@ export default function DiffViewer({
 
         {actionsDone && (
           <p className="mt-3 text-xs text-[var(--easa-color-text-muted)]">
-            Actions are disabled — update is already {status}.
+            Actions are disabled. Update is already {status}. Version history remains available in Time machine.
           </p>
         )}
       </div>

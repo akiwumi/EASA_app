@@ -7,7 +7,7 @@ const steps = [
   {
     num: "Step 02",
     title: "Review and approve",
-    body: "Your team reviews the AI's recommended changes side-by-side with your existing manual text. Approve, edit, or reject.",
+    body: "AI recommends the change. Your compliance team reviews the evidence, edits the wording, and approves or rejects the update.",
   },
   {
     num: "Step 03",
@@ -17,7 +17,12 @@ const steps = [
   {
     num: "Step 04",
     title: "Track acknowledgements",
-    body: "See exactly who has read, acknowledged, and completed required action — before the next lesson or audit.",
+    body: "See exactly who has read, acknowledged, and completed required action, before the next lesson or audit.",
+  },
+  {
+    num: "Step 05",
+    title: "Roll back by date",
+    body: "Use Time machine to compare versions and restore a section to a specific earlier state whenever needed.",
   },
 ];
 
@@ -43,7 +48,7 @@ export default function WorkflowSection() {
           </h2>
         </div>
 
-        <div className="easa-mobile-carousel mt-12 grid gap-0 md:grid-cols-4">
+        <div className="easa-mobile-carousel mt-12 grid gap-0 md:grid-cols-5">
           {steps.map((step, i) => (
             <div key={step.num} className="relative flex items-stretch">
               <div className="h-full w-full rounded-2xl border border-border bg-card p-6">

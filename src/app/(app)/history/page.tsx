@@ -28,7 +28,10 @@ export default async function HistoryPage() {
             <div>
               <h1 className="text-xl font-semibold">Time machine</h1>
               <p className="mt-0.5 text-sm text-[var(--easa-color-text-muted)]">
-                Browse all version snapshots, compare any two, and roll back to any previous state.
+                Browse every retained version by date, compare changes, and roll back a manual section to a specific earlier state.
+              </p>
+              <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                Every AI-assisted update, manual edit, approval, and rollback remains traceable.
               </p>
             </div>
           </div>
@@ -159,7 +162,10 @@ export default async function HistoryPage() {
           <div>
             <h1 className="text-xl font-semibold">Time machine</h1>
             <p className="mt-0.5 text-sm text-[var(--easa-color-text-muted)]">
-              Browse all version snapshots, compare any two, and roll back to any previous state.
+              Browse every retained version by date, compare changes, and roll back a manual section to a specific earlier state.
+            </p>
+            <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+              Time machine protects human-approved compliance decisions: every AI-assisted update, manual edit, approval, and rollback remains traceable.
             </p>
           </div>
         </div>
@@ -194,8 +200,8 @@ export default async function HistoryPage() {
               <p className="text-sm font-medium">No version history yet</p>
               <p className="text-xs text-[var(--easa-color-text-muted)]">
                 Versions are created when sections are edited or AI updates are approved.
-                If you expect history here, run the repair script from the Supabase SQL Editor —
-                see the Multi-School Diagnostics section in SUPABASE_SQL_NOVICE_GUIDE.md.
+                If you expect history here, run the repair script from the Supabase SQL Editor.
+                See the Multi-School Diagnostics section in SUPABASE_SQL_NOVICE_GUIDE.md.
               </p>
             </>
           )}

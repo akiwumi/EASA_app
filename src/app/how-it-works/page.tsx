@@ -14,14 +14,14 @@ import {
 } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "How It Works — Flight Lyceum",
+  title: "How It Works | Flight Lyceum",
   description:
     "See how Flight Lyceum connects EASA regulation monitoring, manual control, reading assignments, and acknowledgement tracking in one controlled workflow for Approved Training Organisations.",
   alternates: {
     canonical: "/how-it-works",
   },
   openGraph: {
-    title: "How It Works — Flight Lyceum",
+    title: "How It Works | Flight Lyceum",
     description:
       "From regulation change to lesson action in one controlled workflow. See how Flight Lyceum ties together update monitoring, manual control, and completion evidence.",
     url: "/how-it-works",
@@ -55,7 +55,7 @@ const setupSteps = [
     icon: Users,
     title: "Invite your people",
     description:
-      "Add instructors and enrol students. Each person sees only what their role allows — students get their reading list, instructors manage assignments and sign-offs, admins control the full school.",
+      "Add instructors and enrol students. Each person sees only what their role allows: students get their reading list, instructors manage assignments and sign-offs, admins control the full school.",
   },
 ];
 
@@ -65,28 +65,28 @@ const operationalSteps = [
     icon: RadioTower,
     title: "Monitor EASA changes automatically",
     description:
-      "Flight Lyceum watches official EASA publications daily. When a change lands — Part-FCL, Part-ORA, new AMC/GM — it is flagged automatically and added to your review queue.",
+      "Flight Lyceum watches official EASA publications daily. When a change lands (Part-FCL, Part-ORA, new AMC/GM), it is flagged automatically and added to your review queue.",
   },
   {
     step: "06",
     icon: FileText,
     title: "Review the AI impact assessment",
     description:
-      "For each detected change, the AI compares the new regulation against your uploaded manuals, highlights the affected sections, and drafts a plain-language summary of what needs updating. You decide whether to approve, reject, or note it.",
+      "For each detected change, AI compares the new regulation against your uploaded manuals, highlights affected sections, and drafts a plain-language summary. Humans decide whether to approve, edit, reject, or note it.",
   },
   {
     step: "07",
     icon: ListChecks,
-    title: "Approve updates and publish",
+    title: "Approve updates with human oversight",
     description:
-      "Approved changes generate a new version of your manual automatically, stamped with date, version number, and the reviewer's name. The previous version stays in history for audit purposes. Nothing is ever lost.",
+      "Approved changes generate a new manual version stamped with date, version number, and reviewer. AI removes the tedium, but your authorised team has the final say before controlled content changes.",
   },
   {
     step: "08",
     icon: CheckCircle,
-    title: "Assign reading and collect acknowledgements",
+    title: "Assign reading, acknowledge, and roll back",
     description:
-      "Assign the updated sections to the relevant instructors or students. They receive a notification, read the material on any device, and mark it as acknowledged. You see exactly who has read, who hasn't, and when — ready for your next audit.",
+      "Assign approved sections to instructors or students, collect acknowledgements, and use Time machine to compare versions or roll back a section to a specific retained date. Ready for your next audit.",
   },
 ];
 
@@ -94,7 +94,7 @@ const roles = [
   {
     title: "Head of Training / Compliance Manager",
     description:
-      "You get the big picture. Pending EASA changes, manuals due for review, unacknowledged updates across instructors and students — everything in one dashboard. You set the workflow and approve what goes out.",
+      "You get the big picture. Pending EASA changes, manuals due for review, unacknowledged updates across instructors and students. Everything in one dashboard. You set the workflow and approve what goes out.",
   },
   {
     title: "Chief Flying Instructor",
@@ -109,7 +109,7 @@ const roles = [
   {
     title: "Students",
     description:
-      "You get a clean reading list on your phone. Your assigned sections, due dates, and acknowledgement buttons are right there. No digging through PDFs — just what you need before your next lesson.",
+      "You get a clean reading list on your phone. Your assigned sections, due dates, and acknowledgement buttons are right there. No digging through PDFs. Just what you need before your next lesson.",
   },
 ];
 
@@ -130,7 +130,7 @@ export default async function HowItWorksPage() {
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-8 text-[var(--easa-color-text-muted)]">
               Flight Lyceum is a compliance and training platform built for EASA Approved Training Organisations.
-              It connects four things that most schools manage in four separate places: regulation monitoring,
+              It uses AI-driven compliance intelligence with human oversight to connect four things that most schools manage in four separate places: regulation monitoring,
               manual control, training delivery, and acknowledgement tracking. When they work together, you
               stop chasing paper and start running a school you can actually audit.
             </p>
@@ -148,12 +148,12 @@ export default async function HowItWorksPage() {
               {
                 icon: RadioTower,
                 title: "Regulation monitoring",
-                body: "Automatic detection of EASA changes across Part-FCL, Part-ORA, and AMC/GM. No manual scanning.",
+                body: "AI-assisted detection of EASA changes across Part-FCL, Part-ORA, and AMC/GM. No manual scanning.",
               },
               {
                 icon: BookOpen,
                 title: "Manual control",
-                body: "Versioned flight books with full revision history. Every change is approved, logged, and auditable.",
+                body: "Versioned flight books with full revision history, human approval, and Time machine rollback by retained date.",
               },
               {
                 icon: GraduationCap,
@@ -163,7 +163,7 @@ export default async function HowItWorksPage() {
               {
                 icon: CheckCircle,
                 title: "Acknowledgement tracking",
-                body: "See who has read and acknowledged every update — by name, date, and lesson — before your next audit.",
+                body: "See who has read and acknowledged every update by name, date, and lesson, before your next audit.",
               },
             ].map((card) => {
               const Icon = card.icon;
@@ -226,7 +226,7 @@ export default async function HowItWorksPage() {
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--easa-color-text-muted)]">
             Once your school is set up, Flight Lyceum monitors changes, surfaces impact, and routes
-            approvals — so your team acts on the right things rather than discovering them too late.
+            approvals, so your team acts on the right things rather than discovering them too late.
           </p>
 
           <div className="mt-8 grid gap-5 md:grid-cols-2">
@@ -284,7 +284,7 @@ export default async function HowItWorksPage() {
           </h2>
           <p className="mt-5 max-w-3xl text-base leading-8 text-white/72">
             The platform keeps two lanes separate: a slow, careful lane for compliance approvals with full
-            history and rollback — and a fast lane for getting approved material to the right people. Your
+            history and rollback, and a fast lane for getting approved material to the right people. Your
             compliance team is never bypassed and your instructors are never waiting.
           </p>
         </article>

@@ -497,6 +497,11 @@ export default function ReviewPanel({
             </div>
           )}
 
+          <p className="text-sm leading-6 text-[var(--easa-color-text-muted)]">
+            AI can draft the update from the regulatory finding and retrieved manual context.
+            Nothing changes until an authorised human approves it.
+          </p>
+
           <button
             className="easa-btn primary flex items-center gap-2"
             disabled={step === "generating"}
@@ -549,7 +554,7 @@ export default function ReviewPanel({
                 <span className="easa-badge is-green">After</span>
               </div>
               <p className="text-xs text-[var(--easa-color-text-muted)]">
-                Review and edit below before approving.
+                Final human review required. Edit the AI draft as needed before applying it to the flight book.
               </p>
               {(draft.changeSummary || draft.whyThisSection || draft.confidence) && (
                 <div className="rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs space-y-1">
@@ -664,6 +669,9 @@ export default function ReviewPanel({
               <p className="text-sm font-semibold">Flight book updated</p>
               <p className="text-xs text-[var(--easa-color-text-muted)]">
                 {[draft.sectionNumber, draft.sectionTitle].filter(Boolean).join(" — ") || "Section"} · {draft.flightbookName}
+              </p>
+              <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                Version saved. You can restore this section from Time machine to any retained previous version.
               </p>
             </div>
           </div>

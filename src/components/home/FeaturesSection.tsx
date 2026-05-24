@@ -12,11 +12,19 @@ const cards = [
   },
   {
     title: "AI impact assessment",
-    body: "When a regulation changes, the AI flags affected manual sections and drafts a plain-language replacement. Your team approves.",
+    body: "When a regulation changes, AI flags affected manual sections and drafts plain-language updates. Your team has the final say before anything is applied.",
     image: "/images/change-impact-review.jpg",
     alt: "AI impact assessment screen showing regulation change review and manual update approval",
     href: "/how-it-works",
     linkLabel: "See how AI impact assessment works",
+  },
+  {
+    title: "Time machine rollback",
+    body: "Restore any manual section to a previous version by date. Every approval, edit, and rollback stays in the audit trail.",
+    image: "/images/dashboard-overview.jpg",
+    alt: "Flight Lyceum dashboard showing compliance timeline and version history",
+    href: "/how-it-works",
+    linkLabel: "See how Time machine rollback works",
   },
   {
     title: "Read & acknowledge",
@@ -28,7 +36,7 @@ const cards = [
   },
   {
     title: "Mobile-first for students",
-    body: "Students read, understand, and acknowledge updates from their phone — before the next lesson.",
+    body: "Students read, understand, and acknowledge updates from their phone, before the next lesson.",
     image: "/images/mobile-student-view.jpg",
     alt: "Mobile view of Flight Lyceum showing a student reading and acknowledging a training update",
     href: "/how-it-works",
