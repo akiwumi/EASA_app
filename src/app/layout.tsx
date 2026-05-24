@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PullToRefresh from "@/components/PullToRefresh";
 import CookieBanner from "@/components/CookieBanner";
-import PwaLifecycle from "@/components/PwaLifecycle";
+import PwaWrapper from "@/components/PwaWrapper";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://flightlyceum.com";
 
@@ -99,7 +99,7 @@ export default function RootLayout({
         <PullToRefresh />
         {children}
         <CookieBanner />
-        <PwaLifecycle />
+        <PwaWrapper />
       </body>
     </html>
   );
