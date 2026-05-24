@@ -34,7 +34,7 @@ async function loadSeatSummary(admin: ReturnType<typeof getSupabaseAdminClient>,
       .from("org_users")
       .select("*", { count: "exact", head: true })
       .eq("organization_id", orgId)
-      .neq("role", "admin"),
+      .not("role", "in", '("admin","student")'),
   ]);
 
   if (subscriptionError && !["PGRST116", "PGRST205", "42P01"].includes(subscriptionError.code ?? "")) {
@@ -127,12 +127,12 @@ export async function POST(request: Request) {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedDisplayName = displayName?.trim() || null;
 
-  if (validRole !== "admin") {
+  if (validRole !== "admin" && validRole !== "student") {
     const limits = await loadSeatSummary(admin, ctx.orgId);
     if (!limits.canAddExtraUsers) {
       return NextResponse.json(
         {
-          error: `This subscription allows ${limits.extraUserLimit} extra user account${limits.extraUserLimit === 1 ? "" : "s"}. Remove an existing non-admin account or upgrade the plan first.`,
+          error: `This subscription allows ${limits.extraUserLimit} extra staff account${limits.extraUserLimit === 1 ? "" : "s"}. Remove an existing non-admin account or upgrade the plan first.`,
         },
         { status: 400 },
       );
@@ -271,12 +271,12 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "User membership not found." }, { status: 404 });
   }
 
-  if (membership.role === "admin" && validRole !== "admin") {
+  if (membership.role === "admin" && validRole !== "admin" && validRole !== "student") {
     const limits = await loadSeatSummary(admin, ctx.orgId);
     if (!limits.canAddExtraUsers) {
       return NextResponse.json(
         {
-          error: `This subscription already uses all ${limits.extraUserLimit} extra user account${limits.extraUserLimit === 1 ? "" : "s"}.`,
+          error: `This subscription already uses all ${limits.extraUserLimit} extra staff account${limits.extraUserLimit === 1 ? "" : "s"}.`,
         },
         { status: 400 },
       );

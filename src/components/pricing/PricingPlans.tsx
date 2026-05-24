@@ -14,6 +14,7 @@ type PlanKey = "monthly" | "annual";
 
 const features = [
   "30-day free trial — card held, not charged until day 31",
+  "Unlimited student accounts",
   "EASA change monitoring across 40+ regulatory families",
   "AI impact assessment and plain-language draft updates",
   "Controlled manuals with full revision history and rollback",
