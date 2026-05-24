@@ -4,7 +4,7 @@ import {
   buildSignupVerificationLinkParams,
   sendAccountVerificationEmail,
 } from "@/lib/auth/verification-email";
-import { resolveIncludedExtraUserLimit } from "@/lib/billing/subscription";
+import { resolveIncludedExtraUserLimit, resolveStudentLimit } from "@/lib/billing/subscription";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { CurrentOrgRole } from "@/lib/types/domain";
@@ -21,6 +21,38 @@ function toOrgRole(role?: string): CurrentOrgRole {
     return role;
   }
   return "viewer";
+}
+
+async function loadStudentSeatSummary(admin: ReturnType<typeof getSupabaseAdminClient>, orgId: string) {
+  const [{ data: subscription, error: subscriptionError }, { count: studentsUsed, error: countError }] = await Promise.all([
+    admin
+      .from("organization_subscriptions")
+      .select("billing_state, stripe_price_id, subscription_status")
+      .eq("organization_id", orgId)
+      .maybeSingle(),
+    admin
+      .from("org_users")
+      .select("*", { count: "exact", head: true })
+      .eq("organization_id", orgId)
+      .eq("role", "student"),
+  ]);
+
+  if (subscriptionError && !["PGRST116", "PGRST205", "42P01"].includes(subscriptionError.code ?? "")) {
+    throw new Error(subscriptionError.message);
+  }
+  if (countError) throw new Error(countError.message);
+
+  const studentLimit = await resolveStudentLimit(subscription ?? null);
+  const used = Number(studentsUsed ?? 0);
+
+  return {
+    studentLimit,
+    studentsUsed: used,
+    studentsRemaining: Math.max(studentLimit - used, 0),
+    isOverStudentLimit: used > studentLimit,
+    canAddStudents: studentLimit > 0 && used < studentLimit,
+    billingState: subscription?.billing_state ?? "inactive",
+  };
 }
 
 async function loadSeatSummary(admin: ReturnType<typeof getSupabaseAdminClient>, orgId: string) {
@@ -103,9 +135,12 @@ export async function GET() {
     phone: profileMap.get(ou.user_id)?.phone ?? null,
   }));
 
-  const limits = await loadSeatSummary(admin, ctx.orgId);
+  const [limits, studentLimits] = await Promise.all([
+    loadSeatSummary(admin, ctx.orgId),
+    loadStudentSeatSummary(admin, ctx.orgId),
+  ]);
 
-  return NextResponse.json({ users, limits });
+  return NextResponse.json({ users, limits, studentLimits });
 }
 
 // POST /api/admin/users — invite a new user and add to org
@@ -133,6 +168,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: `This subscription allows ${limits.extraUserLimit} extra staff account${limits.extraUserLimit === 1 ? "" : "s"}. Remove an existing non-admin account or upgrade the plan first.`,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (validRole === "student") {
+    const studentLimits = await loadStudentSeatSummary(admin, ctx.orgId);
+    if (!studentLimits.canAddStudents) {
+      return NextResponse.json(
+        {
+          error: `This subscription includes ${studentLimits.studentLimit} student account${studentLimits.studentLimit === 1 ? "" : "s"}. Purchase a student pack to add more.`,
         },
         { status: 400 },
       );
@@ -271,12 +318,24 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "User membership not found." }, { status: 404 });
   }
 
-  if (membership.role === "admin" && validRole !== "admin" && validRole !== "student") {
+  if (membership.role !== "admin" && membership.role !== "student" && validRole !== "admin" && validRole !== "student") {
     const limits = await loadSeatSummary(admin, ctx.orgId);
     if (!limits.canAddExtraUsers) {
       return NextResponse.json(
         {
           error: `This subscription already uses all ${limits.extraUserLimit} extra staff account${limits.extraUserLimit === 1 ? "" : "s"}.`,
+        },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (membership.role !== "student" && validRole === "student") {
+    const studentLimits = await loadStudentSeatSummary(admin, ctx.orgId);
+    if (!studentLimits.canAddStudents) {
+      return NextResponse.json(
+        {
+          error: `This subscription includes ${studentLimits.studentLimit} student account${studentLimits.studentLimit === 1 ? "" : "s"}. Purchase a student pack to add more.`,
         },
         { status: 400 },
       );

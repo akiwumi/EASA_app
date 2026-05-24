@@ -70,3 +70,13 @@ export async function resolveIncludedExtraUserLimit(subscription: SubscriptionSe
   const stripePriceId = subscription?.stripe_price_id ?? null;
   return envSeatLimitForPriceId(stripePriceId, subscription?.subscription_status ?? null);
 }
+
+export async function resolveStudentLimit(subscription: SubscriptionSeatContext | null) {
+  if (!subscriptionHasProvisioningAccess(subscription?.billing_state)) {
+    return 0;
+  }
+  return parsePositiveInteger(process.env.SUBSCRIPTION_INCLUDED_STUDENTS) ?? 50;
+}
+
+export const STUDENT_PACK_SIZE =
+  parsePositiveInteger(process.env.SUBSCRIPTION_STUDENT_PACK_SIZE) ?? 10;

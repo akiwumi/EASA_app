@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
-type PlanKey = "monthly" | "quarterly" | "annual";
+type PlanKey = "monthly" | "quarterly" | "annual" | "student_pack";
 
 const TRIAL_DAYS = 30;
 
@@ -29,11 +29,15 @@ function getPriceId(plan: PlanKey) {
     return process.env.STRIPE_PRICE_ID_ANNUAL;
   }
 
+  if (plan === "student_pack") {
+    return process.env.STRIPE_PRICE_ID_STUDENT_PACK;
+  }
+
   return process.env.STRIPE_PRICE_ID_MONTHLY ?? process.env.STRIPE_PRICE_ID;
 }
 
 function normalizePlan(value: unknown): PlanKey {
-  if (value === "quarterly" || value === "annual" || value === "monthly") {
+  if (value === "quarterly" || value === "annual" || value === "monthly" || value === "student_pack") {
     return value;
   }
 
@@ -104,32 +108,40 @@ export async function POST(request: Request) {
   const userEmail = userResult.data.user?.email ?? undefined;
   const customerId = subscription?.stripe_customer_id ?? undefined;
 
+  const isStudentPack = plan === "student_pack";
+
   const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
+    mode: isStudentPack ? "payment" : "subscription",
     customer: customerId,
     customer_email: customerId ? undefined : userEmail,
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${appUrl}/pricing?checkout=success`,
-    cancel_url: `${appUrl}/pricing?checkout=cancelled`,
+    success_url: isStudentPack
+      ? `${appUrl}/settings?tab=users&checkout=student_pack_success`
+      : `${appUrl}/pricing?checkout=success`,
+    cancel_url: isStudentPack
+      ? `${appUrl}/settings?tab=users`
+      : `${appUrl}/pricing?checkout=cancelled`,
     client_reference_id: ctx.orgId,
     metadata: {
       organizationId: ctx.orgId,
       userId: ctx.userId,
       plan,
     },
-    subscription_data: {
-      trial_period_days: TRIAL_DAYS,
-      metadata: {
-        organizationId: ctx.orgId,
-        userId: ctx.userId,
-        plan,
+    ...(!isStudentPack && {
+      subscription_data: {
+        trial_period_days: TRIAL_DAYS,
+        metadata: {
+          organizationId: ctx.orgId,
+          userId: ctx.userId,
+          plan,
+        },
       },
-    },
-    custom_text: {
-      submit: {
-        message: `Your ${organization?.name ?? "Flight Lyceum"} workspace starts with a ${TRIAL_DAYS} day free trial.`,
+      custom_text: {
+        submit: {
+          message: `Your ${organization?.name ?? "Flight Lyceum"} workspace starts with a ${TRIAL_DAYS} day free trial.`,
+        },
       },
-    },
+    }),
   });
 
   return NextResponse.json({ url: session.url });

@@ -22,14 +22,27 @@ type UserSeatLimits = {
   billingState: string;
 };
 
+type StudentSeatLimits = {
+  studentLimit: number;
+  studentsUsed: number;
+  studentsRemaining: number;
+  isOverStudentLimit: boolean;
+  canAddStudents: boolean;
+  billingState: string;
+};
+
 type UsersPayload = {
   users?: UserDirectoryEntry[];
   limits?: UserSeatLimits;
+  studentLimits?: StudentSeatLimits;
 };
 
 export default function UsersTab() {
   const [users, setUsers] = useState<UserDirectoryEntry[]>([]);
   const [limits, setLimits] = useState<UserSeatLimits | null>(null);
+  const [studentLimits, setStudentLimits] = useState<StudentSeatLimits | null>(null);
+  const [buyingPack, setBuyingPack] = useState(false);
+  const [packError, setPackError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -53,6 +66,7 @@ export default function UsersTab() {
     const json = (await res.json()) as UsersPayload;
     setUsers(json.users ?? []);
     setLimits(json.limits ?? null);
+    setStudentLimits(json.studentLimits ?? null);
     setLoading(false);
   }
 
@@ -62,6 +76,26 @@ export default function UsersTab() {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  async function buyStudentPack() {
+    setBuyingPack(true);
+    setPackError(null);
+    try {
+      const res = await fetch("/api/admin/billing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "student_pack" }),
+      });
+      const payload = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !payload.url) {
+        throw new Error(payload.error ?? "Unable to start checkout.");
+      }
+      window.location.assign(payload.url);
+    } catch (err) {
+      setPackError(err instanceof Error ? err.message : "Unable to start checkout.");
+      setBuyingPack(false);
+    }
+  }
 
   async function invite() {
     if (!inviteEmail.trim()) return;
@@ -140,16 +174,39 @@ export default function UsersTab() {
               School admins can create student logins directly or send invites for staff accounts.
             </p>
           </div>
-          {limits ? (
-            <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-xs">
-              <p className="font-medium text-[var(--easa-color-text-primary)]">
-                Extra accounts: {limits.extraUsersUsed} / {limits.extraUserLimit}
-              </p>
-              <p className="mt-1 text-[var(--easa-color-text-muted)]">
-                {limits.extraUsersRemaining} remaining · Billing {limits.billingState}
-              </p>
-            </div>
-          ) : null}
+          <div className="flex flex-col gap-2">
+            {limits ? (
+              <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-xs">
+                <p className="font-medium text-[var(--easa-color-text-primary)]">
+                  Staff accounts: {limits.extraUsersUsed} / {limits.extraUserLimit}
+                </p>
+                <p className="mt-1 text-[var(--easa-color-text-muted)]">
+                  {limits.extraUsersRemaining} remaining · Billing {limits.billingState}
+                </p>
+              </div>
+            ) : null}
+            {studentLimits ? (
+              <div className="rounded-[16px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-xs">
+                <p className="font-medium text-[var(--easa-color-text-primary)]">
+                  Students: {studentLimits.studentsUsed} / {studentLimits.studentLimit}
+                </p>
+                <p className="mt-1 text-[var(--easa-color-text-muted)]">
+                  {studentLimits.studentsRemaining} remaining
+                </p>
+                {studentLimits.studentsRemaining === 0 || studentLimits.isOverStudentLimit ? (
+                  <button
+                    className="mt-2 rounded-full bg-[var(--easa-color-brand-primary)] px-3 py-1 font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                    disabled={buyingPack}
+                    type="button"
+                    onClick={buyStudentPack}
+                  >
+                    {buyingPack ? "Loading…" : "Add 10 more students →"}
+                  </button>
+                ) : null}
+                {packError ? <p className="mt-1 text-[var(--easa-color-accent-pink)]">{packError}</p> : null}
+              </div>
+            ) : null}
+          </div>
         </div>
         <p className="mb-4 text-xs text-[var(--easa-color-text-muted)]">
           Non-admin users count against the subscription allowance. Admin accounts stay unrestricted for billing control.
@@ -230,7 +287,12 @@ export default function UsersTab() {
         <div className="mt-4 flex flex-wrap gap-3">
           <button
             className="easa-btn primary flex items-center gap-2"
-            disabled={inviting || !inviteEmail.trim() || (inviteRole !== "admin" && limits !== null && !limits.canAddExtraUsers)}
+            disabled={
+              inviting ||
+              !inviteEmail.trim() ||
+              (inviteRole === "student" && studentLimits !== null && !studentLimits.canAddStudents) ||
+              (inviteRole !== "admin" && inviteRole !== "student" && limits !== null && !limits.canAddExtraUsers)
+            }
             onClick={invite}
           >
             <UserPlus size={16} strokeWidth={1.75} />
