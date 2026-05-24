@@ -649,6 +649,123 @@ export async function loadDashboardRoleFocus(
   };
 }
 
+export type ComplianceTimeline = {
+  nextScanUtc: string | null;
+  detectedLast30d: number;
+  detectedByWeek: { label: string; count: number }[];
+  pendingFresh: number;
+  pendingAgeing: number;
+  pendingOverdue: number;
+  approvedThisWeek: number;
+};
+
+export async function loadComplianceTimeline(
+  organizationId: string,
+): Promise<ComplianceTimeline> {
+  const admin = getSupabaseAdminClient();
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const weekStart = new Date(now);
+  weekStart.setUTCHours(0, 0, 0, 0);
+  weekStart.setUTCDate(weekStart.getUTCDate() - ((weekStart.getUTCDay() + 6) % 7));
+
+  const [
+    { data: scheduleRow },
+    { data: regChanges },
+    { data: pendingUpdates },
+    { data: approvedUpdates },
+  ] = await Promise.all([
+    admin
+      .from("schedules")
+      .select("run_times_utc, run_time_utc")
+      .eq("organization_id", organizationId)
+      .eq("enabled", true)
+      .maybeSingle(),
+    admin
+      .from("reg_changes")
+      .select("detected_at")
+      .eq("organization_id", organizationId)
+      .gte("detected_at", thirtyDaysAgo)
+      .order("detected_at", { ascending: true }),
+    admin
+      .from("proposed_updates")
+      .select("created_at")
+      .eq("organization_id", organizationId)
+      .eq("status", "pending"),
+    admin
+      .from("proposed_updates")
+      .select("id")
+      .eq("organization_id", organizationId),
+  ]);
+
+  // Next scan time
+  let nextScanUtc: string | null = null;
+  if (scheduleRow) {
+    const times: string[] = Array.isArray(scheduleRow.run_times_utc) && scheduleRow.run_times_utc.length > 0
+      ? scheduleRow.run_times_utc.map((t: string) => String(t).slice(0, 5))
+      : scheduleRow.run_time_utc
+        ? [String(scheduleRow.run_time_utc).slice(0, 5)]
+        : [];
+    if (times.length > 0) {
+      const nowHHMM = `${String(now.getUTCHours()).padStart(2, "0")}:${String(now.getUTCMinutes()).padStart(2, "0")}`;
+      const next = times.find((t) => t > nowHHMM) ?? times[0];
+      nextScanUtc = next ?? null;
+    }
+  }
+
+  // Changes by week (last 4 weeks)
+  const weekBuckets: Record<string, number> = {};
+  for (let w = 3; w >= 0; w--) {
+    const d = new Date(now.getTime() - w * 7 * 24 * 60 * 60 * 1000);
+    const label = `W${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+    weekBuckets[label] = 0;
+  }
+  for (const row of regChanges ?? []) {
+    const d = new Date(row.detected_at as string);
+    const daysAgo = Math.floor((now.getTime() - d.getTime()) / (7 * 24 * 60 * 60 * 1000));
+    const bucketDate = new Date(now.getTime() - daysAgo * 7 * 24 * 60 * 60 * 1000);
+    const label = `W${bucketDate.getUTCMonth() + 1}/${bucketDate.getUTCDate()}`;
+    if (label in weekBuckets) weekBuckets[label] = (weekBuckets[label] ?? 0) + 1;
+  }
+  const detectedByWeek = Object.entries(weekBuckets).map(([label, count]) => ({ label, count }));
+
+  // Pending age buckets
+  let pendingFresh = 0;
+  let pendingAgeing = 0;
+  let pendingOverdue = 0;
+  for (const row of pendingUpdates ?? []) {
+    const age = now.getTime() - new Date(row.created_at as string).getTime();
+    const days = age / (24 * 60 * 60 * 1000);
+    if (days < 7) pendingFresh++;
+    else if (days <= 30) pendingAgeing++;
+    else pendingOverdue++;
+  }
+
+  // Approved this week
+  const updateIds = (approvedUpdates ?? []).map((r) => r.id as string);
+  let approvedThisWeek = 0;
+  if (updateIds.length) {
+    const { count } = await admin
+      .from("approvals")
+      .select("id", { count: "exact", head: true })
+      .in("proposed_update_id", updateIds)
+      .in("action", ["approved", "auto_approved"])
+      .gte("decided_at", weekStart.toISOString());
+    approvedThisWeek = count ?? 0;
+  }
+
+  return {
+    nextScanUtc,
+    detectedLast30d: (regChanges ?? []).length,
+    detectedByWeek,
+    pendingFresh,
+    pendingAgeing,
+    pendingOverdue,
+    approvedThisWeek,
+  };
+}
+
 export function pipelineHealthLabel(status: string | null | undefined): {
   value: string;
   trend: string;

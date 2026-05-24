@@ -40,10 +40,10 @@ export default function HeroSection() {
 
       <div className="mx-auto max-w-7xl px-6 text-center">
         <p className="mx-auto mt-4 max-w-2xl text-lg leading-7 text-muted-foreground">
-          The compliance and training platform built for Approved Training
-          Organisations. Monitor EASA changes, control your manuals, assign
-          reading by lesson, and track every acknowledgement in one system
-          your whole school actually uses.
+          Flight Lyceum monitors 40+ EASA regulatory families, flags exactly which
+          manual sections are affected, and drafts plain-language updates for your
+          approval — in minutes. Approved changes route automatically to instructors
+          and students for reading and acknowledgement before the next lesson.
         </p>
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-4">

@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
 import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
 import PipelineStatusCard from "@/components/dashboard/PipelineStatusCard";
+import ComplianceTimelinePanel from "@/components/dashboard/ComplianceTimelinePanel";
 import { buildDashboardSetupTasks } from "@/components/dashboard/DashboardSectionPanels";
 import {
   loadDashboardSetupSummary,
   loadDashboardStats,
   loadOrgContext,
   loadRecentPipelineRun,
+  loadComplianceTimeline,
 } from "@/services/dashboard";
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 
@@ -19,10 +21,11 @@ export default async function DashboardPage() {
     redirect("/settings?tab=setup");
   }
 
-  const [setupSummary, stats, lastRun] = await Promise.all([
+  const [setupSummary, stats, lastRun, timeline] = await Promise.all([
     loadDashboardSetupSummary(org.organizationId),
     loadDashboardStats(org.organizationId),
     loadRecentPipelineRun(org.organizationId),
+    loadComplianceTimeline(org.organizationId),
   ]);
 
   const setupTasks = buildDashboardSetupTasks(setupSummary);
@@ -172,6 +175,10 @@ export default async function DashboardPage() {
         </section>
 
       </div>
+
+      {/* Compliance timeline — full width below the two-column grid */}
+      <ComplianceTimelinePanel data={timeline} />
+
     </div>
   );
 }
