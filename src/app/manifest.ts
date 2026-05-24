@@ -59,7 +59,6 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/images/dashboard-overview.jpg",
         sizes: "1280x800",
         type: "image/jpeg",
-        // @ts-expect-error — form_factor is valid per spec but not yet in Next.js types
         form_factor: "wide",
         label: "Compliance dashboard",
       },
@@ -67,7 +66,6 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/images/mobile-student-view.jpg",
         sizes: "390x844",
         type: "image/jpeg",
-        // @ts-expect-error
         form_factor: "narrow",
         label: "Student reading view on mobile",
       },
