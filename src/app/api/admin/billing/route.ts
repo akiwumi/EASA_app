@@ -4,7 +4,7 @@ import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/acces
 
 type PlanKey = "monthly" | "quarterly" | "annual";
 
-const TRIAL_DAYS = 7;
+const TRIAL_DAYS = 30;
 
 function getStripe() {
   const secretKey = process.env.STRIPE_SECRET_KEY;

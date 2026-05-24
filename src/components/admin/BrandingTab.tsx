@@ -210,7 +210,7 @@ export default function BrandingTab() {
                       </p>
                     ) : null}
                     <p className="text-xs text-[var(--easa-color-text-muted)]">
-                      Stripe checkout starts with a 7 day free trial. Subscription events update this access state automatically.
+                      Stripe checkout starts with a 30-day free trial. Subscription events update this access state automatically.
                     </p>
                     <Link className="easa-btn primary w-fit" href="/pricing">
                       Manage Stripe plan

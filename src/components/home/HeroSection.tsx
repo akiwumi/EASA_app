@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 
 const proofPoints = [
-  "Keep instructors and students on the latest approved procedures, automatically.",
-  "Turn every EASA change into a training action with a full approval trail.",
-  "Stay audit ready without chasing PDFs, emails, or spreadsheets.",
+  "Monitors Part-FCL, Part-ORA, Part-NCO, and 40+ EASA regulatory families automatically.",
+  "AI flags affected manual sections and drafts a plain-language update — seconds after a change is published.",
+  "Every approval, rollback, and acknowledgement logged. Print your audit pack before any authority visit.",
 ];
 
 export default function HeroSection() {
@@ -31,9 +31,9 @@ export default function HeroSection() {
               textShadow: "0 4px 18px rgba(0, 0, 0, 0.72), 0 1px 3px rgba(0, 0, 0, 0.9)",
             }}
           >
-            <span className="block md:inline">Keep your flight</span>{" "}
-            <span className="block md:inline">school aligned</span>{" "}
-            <span className="block md:inline">and audit ready.</span>
+            <span className="block md:inline">EASA changes — detected,</span>{" "}
+            <span className="block md:inline">assessed, and ready</span>{" "}
+            <span className="block md:inline">for your approval.</span>
           </h1>
         </div>
       </div>
@@ -52,7 +52,13 @@ export default function HeroSection() {
             className="inline-flex items-center justify-center rounded-full bg-foreground px-7 py-3 text-base font-medium shadow transition-colors hover:bg-foreground/90 sm:px-8"
             style={{ color: 'var(--color-background)' }}
           >
-            Register now
+            Start 30-day free trial
+          </Link>
+          <Link
+            href="#how-it-works"
+            className="text-sm font-medium underline underline-offset-4 text-foreground/80 hover:text-foreground"
+          >
+            See how it works →
           </Link>
         </div>
 

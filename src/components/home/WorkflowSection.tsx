@@ -43,21 +43,25 @@ export default function WorkflowSection() {
           </h2>
         </div>
 
-        <div className="easa-mobile-carousel mt-12 grid gap-6 md:grid-cols-4">
-          {steps.map((step) => (
-            <div
-              key={step.num}
-              className="h-full rounded-2xl border border-border bg-card p-6"
-            >
-              <p className="mb-3 text-sm font-medium text-muted-foreground">
-                {step.num}
-              </p>
-              <h3 className="text-lg font-semibold text-foreground">
-                {step.title}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {step.body}
-              </p>
+        <div className="easa-mobile-carousel mt-12 grid gap-0 md:grid-cols-4">
+          {steps.map((step, i) => (
+            <div key={step.num} className="relative flex items-stretch">
+              <div className="h-full w-full rounded-2xl border border-border bg-card p-6">
+                <p className="mb-3 text-sm font-medium text-muted-foreground">
+                  {step.num}
+                </p>
+                <h3 className="text-lg font-semibold text-foreground">
+                  {step.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  {step.body}
+                </p>
+              </div>
+              {i < steps.length - 1 && (
+                <div className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 md:flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border text-muted-foreground text-xs font-bold select-none">
+                  →
+                </div>
+              )}
             </div>
           ))}
         </div>

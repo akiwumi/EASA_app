@@ -2,7 +2,7 @@
 
 This app now expects Stripe to manage school subscriptions with:
 
-- a `7` day free trial at signup
+- a `30` day free trial at signup
 - admin-controlled billing only
 - cancel-at-period-end support
 - app lock when payment fails or the subscription ends
@@ -76,7 +76,7 @@ SUPABASE_SERVICE_ROLE_KEY=...
 
 ## 5. Trial behavior
 
-The checkout flow now creates subscriptions with a `7` day Stripe trial:
+The checkout flow now creates subscriptions with a `30` day Stripe trial:
 
 - during the trial the subscription state is `trialing`
 - when the trial ends, Stripe attempts the first subscription payment
@@ -98,7 +98,7 @@ The app uses `organization_subscriptions.billing_state` to control access.
 2. Confirm the admin receives a verification email.
 3. Click the verification link and confirm it lands on `/welcome`.
 4. Continue to `/pricing` and start checkout as the signed-in school admin.
-5. Confirm the Stripe checkout shows a `7` day trial before billing starts.
+5. Confirm the Stripe checkout shows a `30` day trial before billing starts.
 6. Complete checkout and confirm the `organization_subscriptions` row becomes `trialing` or `active`.
 7. Cancel at period end and confirm:
    - `cancel_at_period_end` becomes `true`

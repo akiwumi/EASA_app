@@ -23,7 +23,7 @@ const faqs = [
       },
       {
         q: "Is there a free trial?",
-        a: "Yes — new schools get a 14-day free trial with full access to all features. No credit card is required to get started. After the trial, choose the plan that fits your school's size.",
+        a: "Yes — new schools get a 30-day free trial with full access to all features. A card is required to start but you won't be charged until day 31. After the trial, choose monthly or annual billing.",
       },
       {
         q: "Do I need to install anything?",

@@ -7,14 +7,14 @@ import { isUserSignedIn } from "@/lib/supabase/server";
 export const metadata: Metadata = {
   title: "Pricing — Flight Lyceum",
   description:
-    "Simple subscription pricing for EASA Approved Training Organisations. Start with a 7 day free trial, then pay by month, quarter, or year through Stripe.",
+    "Simple subscription pricing for EASA Approved Training Organisations. Start with a 3 day free trial, then pay by month, quarter, or year through Stripe.",
   alternates: {
     canonical: "/pricing",
   },
   openGraph: {
     title: "Pricing — Flight Lyceum",
     description:
-      "Start with a 7 day free trial, then choose monthly, quarterly, or annual Stripe billing for Flight Lyceum.",
+      "Start with a 3 day free trial, then choose monthly, quarterly, or annual Stripe billing for Flight Lyceum.",
     url: "/pricing",
   },
 };
@@ -38,8 +38,8 @@ export default async function PricingPage({
               <h1>Choose the plan that works for your flight school</h1>
             </div>
             <p>
-              Start with a 7 day free trial. After trial, pay securely through Stripe
-              on a monthly, quarterly, or annual subscription.
+              Start with a 30-day free trial. A card is required but you won&apos;t be charged
+              until day 31. Pay securely through Stripe on a monthly or annual subscription.
             </p>
           </section>
 

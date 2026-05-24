@@ -9,66 +9,21 @@ type PricingPlansProps = {
   schoolName?: string;
 };
 
-type PlanKey = "monthly" | "quarterly" | "annual";
+type BillingCycle = "monthly" | "annual";
+type PlanKey = "monthly" | "annual";
 
-const plans: Array<{
-  key: PlanKey;
-  name: string;
-  price: string;
-  cadence: string;
-  note: string;
-  badge?: string;
-  features: string[];
-}> = [
-  {
-    key: "monthly",
-    name: "Monthly",
-    price: "$220",
-    cadence: "/mo",
-    note: "Flexible access for active ATO operations.",
-    features: [
-      "7 day free trial",
-      "EASA change monitoring",
-      "Manual impact review",
-      "Training acknowledgements",
-      "Admin workspace setup",
-    ],
-  },
-  {
-    key: "quarterly",
-    name: "Quarterly",
-    price: "$200",
-    cadence: "/quarter",
-    note: "Billed quarterly for schools that want steadier planning.",
-    badge: "Balanced",
-    features: [
-      "7 day free trial",
-      "Everything in Monthly",
-      "Quarterly billing cycle",
-      "Priority setup support",
-      "Team onboarding guidance",
-    ],
-  },
-  {
-    key: "annual",
-    name: "Annual",
-    price: "$2,000",
-    cadence: "/yr",
-    note: "Best value for year-round compliance control.",
-    badge: "Best value",
-    features: [
-      "7 day free trial",
-      "Everything in Quarterly",
-      "Annual billing cycle",
-      "Lowest yearly rate",
-      "Renewal-ready billing record",
-    ],
-  },
+const features = [
+  "30-day free trial — card held, not charged until day 31",
+  "EASA change monitoring across 40+ regulatory families",
+  "AI impact assessment and plain-language draft updates",
+  "Controlled manuals with full revision history and rollback",
+  "Read-and-acknowledge workflows for instructors and students",
+  "Lesson-linked reading assignments by programme and phase",
+  "Audit-ready export pack for authority oversight visits",
+  "Admin workspace with user roles and onboarding checklist",
+  "Mobile-friendly student access",
+  "Email digest of weekly EASA changes",
 ];
-
-function formatPlanLabel(planKey: PlanKey) {
-  return planKey.charAt(0).toUpperCase() + planKey.slice(1);
-}
 
 function BillingButton({
   signedIn,
@@ -113,9 +68,9 @@ function BillingButton({
     return (
       <div className="space-y-2">
         <Link className="pricing-action" href={`/register?plan=${planKey}`}>
-          Start free trial
+          Start 30-day free trial
         </Link>
-        <p className="pricing-action-note">Create your school account before Stripe checkout.</p>
+        <p className="pricing-action-note">Card required. You won&apos;t be charged until day 31.</p>
       </div>
     );
   }
@@ -140,10 +95,17 @@ export default function PricingPlans({
   signedIn,
   schoolName,
 }: PricingPlansProps) {
+  const [billing, setBilling] = useState<BillingCycle>("annual");
+
   const registeredCopy = useMemo(() => {
     if (!schoolName) return null;
     return `${schoolName} is ready. Choose a plan to continue with Stripe billing.`;
   }, [schoolName]);
+
+  const planKey: PlanKey = billing === "annual" ? "annual" : "monthly";
+  const price = billing === "annual" ? "€167" : "€220";
+  const cadence = billing === "annual" ? "/mo, billed annually" : "/month";
+  const annualTotal = billing === "annual" ? "€2,000 billed once per year" : null;
 
   return (
     <div className="pricing-board">
@@ -156,49 +118,85 @@ export default function PricingPlans({
       <section className="pricing-heading-row">
         <div>
           <p className="pricing-kicker">Subscription</p>
-          <h2>Individual Plans</h2>
+          <h2>One plan. Everything included.</h2>
         </div>
-        <div className="pricing-trial-pill">7 day free trial</div>
+        <div className="pricing-trial-pill">30-day free trial</div>
       </section>
 
-      <section className="pricing-grid">
-        {plans.map((plan) => (
-          <article
-            key={plan.key}
-            className={`pricing-card ${plan.key === "quarterly" ? "is-featured" : ""}`}
-          >
-            <div className="pricing-card-top">
-              <div>
-                <div className="pricing-plan-row">
-                  <h3>{plan.name}</h3>
-                  {plan.badge ? <span>{plan.badge}</span> : null}
-                </div>
-                <p>{plan.note}</p>
+      {/* Billing toggle */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <button
+          type="button"
+          onClick={() => setBilling("monthly")}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            billing === "monthly"
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Monthly
+        </button>
+        <button
+          type="button"
+          onClick={() => setBilling("annual")}
+          className={`flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+            billing === "annual"
+              ? "bg-foreground text-background"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Annual
+          <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">
+            2 months free
+          </span>
+        </button>
+      </div>
+
+      <section className="pricing-grid" style={{ gridTemplateColumns: "1fr" }}>
+        <article className="pricing-card is-featured" style={{ maxWidth: 520, margin: "0 auto", width: "100%" }}>
+          <div className="pricing-card-top">
+            <div>
+              <div className="pricing-plan-row">
+                <h3>Flight Lyceum ATO</h3>
+                <span>All features</span>
               </div>
-              <div className="pricing-price">
-                <strong>{plan.price}</strong>
-                <span>{plan.cadence}</span>
-              </div>
+              <p>Full compliance and training platform for EASA Approved Training Organisations.</p>
             </div>
-
-            <div className="pricing-divider" />
-
-            <div className="pricing-feature-block">
-              <p>{formatPlanLabel(plan.key)} includes</p>
-              <ul>
-                {plan.features.map((feature) => (
-                  <li key={feature}>
-                    <Check size={16} strokeWidth={2.5} />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
+            <div className="pricing-price">
+              <strong>{price}</strong>
+              <span>{cadence}</span>
             </div>
+          </div>
 
-            <BillingButton signedIn={signedIn} planKey={plan.key} />
-          </article>
-        ))}
+          {annualTotal && (
+            <p className="px-1 pb-1 text-xs text-muted-foreground">{annualTotal}</p>
+          )}
+
+          <div className="pricing-divider" />
+
+          <div className="pricing-feature-block">
+            <p>Everything included</p>
+            <ul>
+              {features.map((feature) => (
+                <li key={feature}>
+                  <Check size={16} strokeWidth={2.5} />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <BillingButton signedIn={signedIn} planKey={planKey} />
+        </article>
       </section>
+
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        Need multi-base access, custom integrations, or migration support?{" "}
+        <Link href="/contact" className="font-medium underline underline-offset-4 hover:text-foreground">
+          Contact us
+        </Link>{" "}
+        for an enterprise quote.
+      </p>
     </div>
   );
 }
