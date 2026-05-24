@@ -139,9 +139,14 @@ function sourceLabel(source: string) {
     approved_update: "Approved update",
     ai_generated: "AI generated",
     manual: "Manual edit",
+    manual_edit: "Manual edit",
     rollback: "Rollback",
     upload: "Upload",
+    approved: "Approved",
+    baseline: "Initial baseline",
+    manual_version: "Manual full-book version",
   };
+  if (source.startsWith("ai-finding:")) return "Approved AI finding";
   return map[source] ?? source.replace(/_/g, " ");
 }
 
@@ -304,7 +309,7 @@ export default function ComparePanel({ v1, v2, onClose }: Props) {
           <ArrowLeftRight size={16} strokeWidth={1.75} className="text-[var(--easa-color-accent-teal)]" />
           <h2 className="text-sm font-semibold">
             Compare versions
-            {sectionLabel ? ` — ${sectionLabel}` : ""}
+            {sectionLabel ? `: ${sectionLabel}` : ""}
           </h2>
         </div>
         <div className="flex items-center gap-2">

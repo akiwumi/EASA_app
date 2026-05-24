@@ -400,9 +400,26 @@ export async function loadRecentSectionVersions(
     return [];
   }
 
+  const sourceLabels: Record<string, string> = {
+    approved_update: "Approved update",
+    ai_generated: "AI generated",
+    manual: "Manual edit",
+    manual_edit: "Manual edit",
+    rollback: "Rollback",
+    upload: "Upload",
+    approved: "Approved",
+    baseline: "Initial baseline",
+    manual_version: "Manual full-book version",
+  };
+
+  function formatChangeSource(source: string): string {
+    if (source.startsWith("ai-finding:")) return "Approved AI finding";
+    return sourceLabels[source] ?? source.replace(/_/g, " ");
+  }
+
   return (data ?? []).map((v) => ({
     at: formatUtc(v.created_at as string),
-    note: `${v.change_source as string} · v${v.version_number}`,
+    note: `${formatChangeSource(v.change_source as string)} · v${v.version_number}`,
   }));
 }
 

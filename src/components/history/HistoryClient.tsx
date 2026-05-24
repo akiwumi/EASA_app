@@ -28,11 +28,12 @@ function changeSourceLabel(source: string): string {
     approved_update: "Approved update",
     ai_generated: "AI generated",
     manual: "Manual edit",
+    manual_edit: "Manual edit",
     rollback: "Rollback",
     upload: "Upload",
     approved: "Approved",
     manual_version: "Manual full-book version",
-    approved_finding: "Approved finding",
+    baseline: "Initial baseline",
   };
   if (source.startsWith("ai-finding:")) return "Approved AI finding";
   return map[source] ?? source.replace(/_/g, " ");
@@ -42,7 +43,8 @@ function changeSourceBadgeClass(source: string): string {
   if (source === "rollback") return "easa-badge is-orange";
   if (source === "ai_generated" || source === "approved_update" || source === "approved" || source.startsWith("ai-finding:"))
     return "easa-badge is-green";
-  if (source === "manual") return "easa-badge is-blue";
+  if (source === "manual" || source === "manual_edit") return "easa-badge is-blue";
+  if (source === "baseline") return "easa-badge is-muted";
   return "easa-badge is-muted";
 }
 
@@ -135,7 +137,7 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
                 <button
                   key={date}
                   type="button"
-                  title={`${label} — ${count} version${count !== 1 ? "s" : ""}`}
+                  title={`${label}: ${count} version${count !== 1 ? "s" : ""}`}
                   className="group relative flex flex-col items-center px-3 py-2"
                   onClick={() => scrollToDate(date)}
                 >
@@ -173,7 +175,7 @@ export default function HistoryClient({ versions, isAdmin }: Props) {
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2 rounded-full border border-[var(--easa-color-accent-teal)] px-3 py-1.5 text-sm text-[var(--easa-color-accent-teal)]">
               <ArrowLeftRight size={14} strokeWidth={1.75} />
-              Compare mode — select 2 versions
+              Compare mode: select 2 versions
             </div>
             <span className="text-sm text-[var(--easa-color-text-muted)]">
               {selected.length}/2 selected

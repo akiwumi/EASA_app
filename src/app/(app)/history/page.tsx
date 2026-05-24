@@ -1,4 +1,5 @@
-import { History } from "lucide-react";
+import { History, RotateCcw } from "lucide-react";
+import Link from "next/link";
 import HistoryClient, { type VersionRow } from "@/components/history/HistoryClient";
 import { getOptionalSupabaseAdminClient, getOrgAccessContext } from "@/lib/supabase/access";
 
@@ -53,7 +54,18 @@ export default async function HistoryPage() {
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (orgId) query = query.eq("organization_id", orgId);
+  if (orgId) {
+    query = query.eq("organization_id", orgId);
+  } else {
+    return (
+      <div className="easa-card p-10 text-center">
+        <p className="text-sm font-medium">No organisation found</p>
+        <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+          Complete your account setup to access version history.
+        </p>
+      </div>
+    );
+  }
 
   const { data, error } = await query;
 
@@ -155,19 +167,28 @@ export default async function HistoryPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="easa-card p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--easa-color-surface-2)]">
-            <History size={20} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[var(--easa-color-surface-2)]">
+              <History size={20} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">Time machine</h1>
+              <p className="mt-0.5 text-sm text-[var(--easa-color-text-muted)]">
+                Browse every retained version by date, compare changes, and roll back a manual section to a specific earlier state.
+              </p>
+              <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                Every AI-assisted update, manual edit, approval, and rollback remains traceable.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold">Time machine</h1>
-            <p className="mt-0.5 text-sm text-[var(--easa-color-text-muted)]">
-              Browse every retained version by date, compare changes, and roll back a manual section to a specific earlier state.
-            </p>
-            <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-              Time machine protects human-approved compliance decisions: every AI-assisted update, manual edit, approval, and rollback remains traceable.
-            </p>
-          </div>
+          <Link
+            href="/history/rollback"
+            className="easa-btn secondary flex items-center gap-2 text-sm"
+          >
+            <RotateCcw size={15} strokeWidth={1.75} />
+            Rollback calendar
+          </Link>
         </div>
       </div>
 

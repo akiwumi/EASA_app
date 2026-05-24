@@ -61,6 +61,7 @@ export async function POST(request: Request) {
     body: section.body as string,
     version_number: nextVersion,
     change_source: `ai-finding:${findingId}`,
+    created_by: ctx.userId,
   });
 
   if (versionErr) {
