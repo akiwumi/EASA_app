@@ -248,11 +248,11 @@ export default function AppShell({
           </Link>
 
           <Link
-            href="/faq"
+            href="/help"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
           >
             <HelpCircle size={17} strokeWidth={1.85} className="shrink-0" />
-            FAQ
+            Help Center
           </Link>
 
           <Link
@@ -392,7 +392,7 @@ export default function AppShell({
                   <Link href="/" title="Home" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
                     <Home size={16} strokeWidth={1.85} />
                   </Link>
-                  <Link href="/faq" title="FAQ" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
+                  <Link href="/help" title="Help Center" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
                     <HelpCircle size={16} strokeWidth={1.85} />
                   </Link>
                   <Link href="/contact" title="Contact" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">

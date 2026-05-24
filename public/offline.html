@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>You're offline — Flight Lyceum</title>
+  <style>
+    :root {
+      --brand: #1f3434;
+      --bg: #f4f1e8;
+      --muted: #6c6f7b;
+      --border: rgba(82,74,58,0.12);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      color: #1e1f24;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      text-align: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: rgba(255,254,250,0.96);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 16px 40px rgba(37,34,24,0.06);
+      padding: 2.5rem 2rem;
+      max-width: 400px;
+      width: 100%;
+    }
+    .icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      margin-bottom: 0.5rem;
+      color: var(--brand);
+    }
+    p {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+    button {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 0.65rem 1.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.88; }
+    .logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .logo-dot {
+      width: 28px;
+      height: 28px;
+      background: var(--brand);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .cached-pages {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      text-align: left;
+    }
+    .cached-pages p {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+    .cached-pages a {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--brand);
+      text-decoration: none;
+      padding: 0.3rem 0;
+    }
+    .cached-pages a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <div class="logo-dot">FL</div>
+    Flight Lyceum
+  </div>
+
+  <div class="card">
+    <div class="icon">✈️</div>
+    <h1>You're offline</h1>
+    <p>
+      It looks like you've lost your internet connection.
+      Some pages are available to read offline — or try again when you're back online.
+    </p>
+    <button onclick="window.location.reload()">Try again</button>
+
+    <div class="cached-pages">
+      <p>Available offline</p>
+      <a href="/">Home</a>
+      <a href="/help">Help Center</a>
+      <a href="/faq">FAQ</a>
+      <a href="/dashboard">Dashboard</a>
+    </div>
+  </div>
+</body>
+</html>
