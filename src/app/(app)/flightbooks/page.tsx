@@ -86,12 +86,22 @@ async function enrichBooks(
     return books.map((b) => ({ ...b, sectionCount: 0 }));
   }
 
-  const exportsResult = await admin
+  let exportsResult = await admin
     .from("flightbook_exports")
     .select("id, flightbook_id, version_number, change_source, created_at, note")
     .eq("organization_id", orgId)
     .in("flightbook_id", books.map((b) => b.id))
     .order("created_at", { ascending: false });
+
+  // Retry without the note column if the schema is missing it
+  if (exportsResult.error && /column .* does not exist/i.test(exportsResult.error.message ?? "")) {
+    exportsResult = await admin
+      .from("flightbook_exports")
+      .select("id, flightbook_id, version_number, change_source, created_at")
+      .eq("organization_id", orgId)
+      .in("flightbook_id", books.map((b) => b.id))
+      .order("created_at", { ascending: false }) as typeof exportsResult;
+  }
 
   // Pending proposed_updates per flightbook (via flightbook_sections join)
   const bookIds = books.map((b) => b.id);
@@ -123,16 +133,17 @@ async function enrichBooks(
     string,
     { id: string; version_number: number; change_source: string; created_at: string; note: string | null }[]
   >();
-  if (!exportsResult.error) {
+  if (!exportsResult.error && !isMissingSchemaError(exportsResult.error ?? {})) {
     for (const row of exportsResult.data ?? []) {
       const flightbookId = row.flightbook_id as string;
+      if (!flightbookId) continue;
       const current = exportsByBook.get(flightbookId) ?? [];
       current.push({
         id: row.id as string,
         version_number: row.version_number as number,
         change_source: row.change_source as string,
         created_at: row.created_at as string,
-        note: (row.note as string | null) ?? null,
+        note: ("note" in row ? (row.note as string | null) : null) ?? null,
       });
       exportsByBook.set(flightbookId, current);
     }

@@ -17,10 +17,13 @@ export default function DownloadFlightbookButton({
   label,
 }: Props) {
   function download(format: "md" | "txt" | "doc" | "pdf") {
-    const link = document.createElement("a");
     const exportQuery = exportId ? `&exportId=${exportId}` : "";
+    const link = document.createElement("a");
     link.href = `/api/flightbooks/${id}/download?format=${format}${exportQuery}`;
+    link.download = "";
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   }
 
   if (compact) {
