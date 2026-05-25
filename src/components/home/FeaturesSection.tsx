@@ -85,8 +85,9 @@ export default function FeaturesSection() {
   }
 
   const normalizedIndex = activeIndex % cards.length;
-  const slideWidth = 100 / visibleSlides;
-  const trackTranslate = activeIndex * slideWidth;
+  const slideGapPx = 15;
+  const slideWidth = `calc((100vw - ${slideGapPx}px) / ${visibleSlides})`;
+  const trackTranslate = `calc((${slideWidth} + ${slideGapPx}px) * ${activeIndex})`;
 
   const edgeFadeMask = "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)";
 
@@ -131,18 +132,18 @@ export default function FeaturesSection() {
         >
           <div
             className={`flex ${isTransitionEnabled ? "transition-transform duration-700 ease-out" : ""}`}
-            style={{ transform: `translateX(-${trackTranslate}vw)` }}
+            style={{ gap: `${slideGapPx}px`, transform: `translateX(-${trackTranslate})` }}
             onTransitionEnd={handleTrackTransitionEnd}
           >
             {loopCards.map((card, index) => (
               <article
                 key={`${card.title}-${index}`}
-                className="shrink-0 px-[10px]"
+                className="shrink-0"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
-                style={{ width: `${slideWidth}vw` }}
+                style={{ width: slideWidth }}
               >
-                <div className="mx-auto h-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="h-full overflow-hidden rounded-2xl border border-border bg-card">
                   <div
                     className="relative h-[120px] overflow-hidden bg-secondary md:h-[160px]"
                     onMouseEnter={() => setIsPaused(true)}
