@@ -49,6 +49,7 @@ type UpdateQueueLegacyRow = {
   confidence_score: number | null;
   status: string | null;
   ai_rationale: string | null;
+  ai_suggested_text?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -121,6 +122,7 @@ function mapLegacyQueueRow(row: UpdateQueueLegacyRow): UpdateQueueItem {
     confidence_score: row.confidence_score,
     status: row.status ?? "pending",
     ai_rationale: row.ai_rationale,
+    ai_suggested_text: row.ai_suggested_text ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     reg_changes: {
@@ -387,6 +389,7 @@ export async function GET(request: Request) {
         confidence_score,
         status,
         ai_rationale,
+        ai_suggested_text,
         created_at,
         updated_at,
         reg_change_id,

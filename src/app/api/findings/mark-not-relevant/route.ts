@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     .from("reg_changes")
     .select("id, reg_part")
     .eq("organization_id", ctx.orgId)
-    .eq("ai_finding_id", body.findingId)
+    .eq("ai_finding_id", resolvedFindingId)
     .maybeSingle();
 
   const regPart = body.filterRegPart ?? (regChange?.reg_part as string | null | undefined) ?? null;
@@ -125,6 +125,9 @@ export async function POST(request: Request) {
   }
 
   const matchingProposalIds: string[] = [];
+  if (body.proposedUpdateId) {
+    matchingProposalIds.push(body.proposedUpdateId);
+  }
   if (finding.summary) {
     const { data: proposals } = await admin
       .from("proposed_updates")
@@ -134,7 +137,8 @@ export async function POST(request: Request) {
       .eq("ai_rationale", finding.summary)
       .order("created_at", { ascending: false });
     for (const proposal of proposals ?? []) {
-      if (proposal.id) matchingProposalIds.push(String(proposal.id));
+      const proposalId = proposal.id ? String(proposal.id) : null;
+      if (proposalId && !matchingProposalIds.includes(proposalId)) matchingProposalIds.push(proposalId);
     }
   }
 

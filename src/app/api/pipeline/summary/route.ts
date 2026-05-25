@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+
+function summaryDismissCookieName(orgId: string, userId: string) {
+  return `pipeline_summary_seen_${orgId}_${userId}`;
+}
 
 export async function GET() {
   const ctx = await getOrgAccessContext();
   if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getSupabaseAdminClient();
+  const cookieStore = await cookies();
+  const cookieSeenRunId = cookieStore.get(summaryDismissCookieName(ctx.orgId, ctx.userId))?.value ?? null;
   const readState = ctx.userId
     ? await admin
         .from("org_ui_state")
@@ -88,7 +95,7 @@ export async function GET() {
   }
 
   const seenRunId = (readState.data?.pipeline_summary_seen_run_id as string | null) ?? null;
-  const dismissed = seenRunId === latestRun.id;
+  const dismissed = seenRunId === latestRun.id || cookieSeenRunId === latestRun.id;
 
   return NextResponse.json({
     summaryLines: summary,
@@ -131,6 +138,12 @@ export async function POST(request: Request) {
       { onConflict: "organization_id,user_id" },
     );
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true, persisted: !error });
+  response.cookies.set(summaryDismissCookieName(ctx.orgId, ctx.userId), body.runId, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  return response;
 }
