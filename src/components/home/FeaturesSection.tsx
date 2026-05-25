@@ -48,7 +48,7 @@ const cards = [
 ];
 
 export default function FeaturesSection() {
-  const visibleSlides = 2;
+  const visibleSlides = 1;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
@@ -64,19 +64,6 @@ export default function FeaturesSection() {
     return () => window.clearInterval(interval);
   }, [isPaused]);
 
-  function goToNext() {
-    setIsTransitionEnabled(true);
-    setActiveIndex((current) => current + 1);
-  }
-
-  function goToPrevious() {
-    setIsTransitionEnabled(true);
-    setActiveIndex((current) => {
-      if (current === 0) return cards.length - 1;
-      return current - 1;
-    });
-  }
-
   function handleTrackTransitionEnd() {
     if (activeIndex < cards.length) return;
     // Seamlessly jump back to the real first pair after showing clone slides.
@@ -84,13 +71,14 @@ export default function FeaturesSection() {
     setActiveIndex(0);
   }
 
-  const normalizedIndex = activeIndex % cards.length;
   const slideGapPx = 15;
-  const slideSizePx = 852;
-  const trackTranslatePx = activeIndex * -(slideSizePx + slideGapPx);
-  const slideFrameSize = `${slideSizePx}px`;
-
-  const edgeFadeMask = "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)";
+  const carouselWidthPx = 1196;
+  const carouselHeightPx = 800;
+  const slideWidthPx = 1109;
+  const slideHeightPx = 697;
+  const imageHeightPx = 540;
+  const slideInsetPx = (carouselWidthPx - slideWidthPx) / 2;
+  const trackTranslatePx = activeIndex * -(slideWidthPx + slideGapPx);
 
   useEffect(() => {
     if (isTransitionEnabled) return;
@@ -123,100 +111,60 @@ export default function FeaturesSection() {
         </div>
 
         <div
-          className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden"
+          className="mx-auto overflow-hidden"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          style={{
-            WebkitMaskImage: edgeFadeMask,
-            maskImage: edgeFadeMask,
-          }}
+          style={{ width: `${carouselWidthPx}px`, height: `${carouselHeightPx}px` }}
         >
           <div
-            className={`flex ${isTransitionEnabled ? "transition-transform duration-700 ease-out" : ""}`}
-            style={{ gap: `${slideGapPx}px`, transform: `translateX(${trackTranslatePx}px)` }}
+            className={`flex h-full items-center ${isTransitionEnabled ? "transition-transform duration-700 ease-out" : ""}`}
+            style={{
+              gap: `${slideGapPx}px`,
+              paddingLeft: `${slideInsetPx}px`,
+              paddingRight: `${slideInsetPx}px`,
+              transform: `translateX(${trackTranslatePx}px)`,
+            }}
             onTransitionEnd={handleTrackTransitionEnd}
           >
             {loopCards.map((card, index) => (
               <article
                 key={`${card.title}-${index}`}
-                className="shrink-0"
+                className="flex shrink-0 flex-col"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
-                style={{ width: slideFrameSize, height: slideFrameSize }}
+                style={{ width: `${slideWidthPx}px`, height: `${slideHeightPx}px` }}
               >
-                <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border bg-card">
-                  <div
-                    className="relative min-h-0 flex-1 overflow-hidden bg-secondary"
-                    onMouseEnter={() => setIsPaused(true)}
-                    onMouseLeave={() => setIsPaused(false)}
+                <Link
+                  href={card.href}
+                  aria-label={card.linkLabel}
+                  className="relative block w-full overflow-hidden rounded-xl border border-transparent bg-transparent"
+                  style={{ height: `${imageHeightPx}px` }}
+                >
+                  <Image
+                    src={card.image}
+                    alt={card.alt}
+                    fill
+                    sizes="1109px"
+                    className="h-full w-full object-contain"
+                  />
+                </Link>
+                <div className="flex flex-1 flex-col justify-center bg-transparent px-4 text-center">
+                  <h3 className="text-xl font-semibold text-foreground">
+                    {card.title}
+                  </h3>
+                  <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    {card.body}
+                  </p>
+                  <Link
+                    href={card.href}
+                    aria-label={card.linkLabel}
+                    className="mt-4 text-sm font-medium text-foreground hover:underline"
                   >
-                    <Image
-                      src={card.image}
-                      alt={card.alt}
-                      fill
-                      sizes="852px"
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
-
-                  <div className="flex flex-1 flex-col p-6">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {card.title}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      {card.body}
-                    </p>
-                    <Link
-                      href={card.href}
-                      aria-label={card.linkLabel}
-                      className="mt-4 text-sm font-medium text-foreground hover:underline"
-                    >
-                      Learn more →
-                    </Link>
-                  </div>
+                    Learn more →
+                  </Link>
                 </div>
               </article>
             ))}
-          </div>
-
-          <div className="mx-auto mt-5 flex max-w-3xl items-center justify-between gap-3 px-4 md:px-8">
-            <button
-              type="button"
-              onClick={goToPrevious}
-              aria-label="Previous feature image"
-              className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
-            >
-              Previous
-            </button>
-
-            <div className="flex items-center gap-2">
-              {cards.map((card, index) => {
-                const isActive = index === normalizedIndex;
-                return (
-                  <button
-                    key={card.title}
-                    type="button"
-                    aria-label={`Go to ${card.title}`}
-                    aria-current={isActive}
-                    onClick={() => setActiveIndex(index)}
-                    className={`h-2.5 rounded-full transition ${
-                      isActive
-                        ? "w-7 bg-foreground"
-                        : "w-2.5 bg-muted-foreground/40 hover:bg-muted-foreground/60"
-                    }`}
-                  />
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              onClick={goToNext}
-              aria-label="Next feature image"
-              className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
-            >
-              Next
-            </button>
           </div>
         </div>
       </div>
