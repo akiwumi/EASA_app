@@ -515,6 +515,56 @@ export async function PATCH(request: Request) {
         { status: "conflict" in application && application.conflict ? 409 : 400 },
       );
     }
+
+    // Soft-delete the linked ai_findings so they never reappear in collated results.
+    // Path 1: via reg_changes.ai_finding_id
+    // Path 2: fallback via matching ai_rationale → ai_findings.summary
+    try {
+      const { data: proposals } = await admin
+        .from("proposed_updates")
+        .select("reg_change_id, ai_rationale")
+        .in("id", targetIds)
+        .eq("organization_id", ctx.orgId);
+
+      const regChangeIds = (proposals ?? [])
+        .map((r) => r.reg_change_id as string | null)
+        .filter((id): id is string => Boolean(id));
+
+      const rationales = (proposals ?? [])
+        .filter((r) => !r.reg_change_id)
+        .map((r) => r.ai_rationale as string | null)
+        .filter((s): s is string => Boolean(s));
+
+      if (regChangeIds.length > 0) {
+        const { data: regChanges } = await admin
+          .from("reg_changes")
+          .select("ai_finding_id")
+          .in("id", regChangeIds);
+
+        const findingIds = (regChanges ?? [])
+          .map((r) => r.ai_finding_id as string | null)
+          .filter((id): id is string => Boolean(id));
+
+        if (findingIds.length > 0) {
+          await admin
+            .from("ai_findings")
+            .update({ deleted_at: new Date().toISOString(), deleted_by: ctx.userId })
+            .in("id", findingIds)
+            .is("deleted_at", null);
+        }
+      }
+
+      if (rationales.length > 0) {
+        await admin
+          .from("ai_findings")
+          .update({ deleted_at: new Date().toISOString(), deleted_by: ctx.userId })
+          .eq("organization_id", ctx.orgId)
+          .in("summary", rationales)
+          .is("deleted_at", null);
+      }
+    } catch {
+      // best-effort — finding cleanup must never block the approval response
+    }
   }
 
   if (action === "delete") {
