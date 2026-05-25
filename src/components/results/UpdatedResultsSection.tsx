@@ -60,6 +60,7 @@ export default function UpdatedResultsSection({
   const [selectedTrash, setSelectedTrash] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<{ type: "category" | "impact"; value: string } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<{ ids: string[] } | null>(null);
 
   const byCategory = useMemo(() => {
     const map: Record<string, number> = {};
@@ -114,9 +115,13 @@ export default function UpdatedResultsSection({
     ));
   }
 
+  function requestDelete(ids: string[]) {
+    if (ids.length === 0) return;
+    setPendingDelete({ ids });
+  }
+
   async function trashAction(ids: string[], action: "delete" | "restore" | "permanent_delete") {
     if (ids.length === 0) return;
-    if (action === "permanent_delete" && !confirm("Permanently delete selected results? This cannot be undone.")) return;
 
     setTrashLoading(true);
     setMessage(null);
@@ -475,7 +480,7 @@ export default function UpdatedResultsSection({
               <button
                 className="easa-btn secondary flex items-center gap-1.5 text-sm"
                 disabled={trashLoading || selectedTrash.size === 0}
-                onClick={() => trashAction(Array.from(selectedTrash), "permanent_delete")}
+                onClick={() => requestDelete(Array.from(selectedTrash))}
               >
                 <XCircle size={14} strokeWidth={1.75} />
                 Delete permanently
@@ -483,6 +488,34 @@ export default function UpdatedResultsSection({
             </div>
           ) : null}
         </div>
+
+        {pendingDelete && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/40 dark:bg-red-950/30">
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">
+              Permanently delete {pendingDelete.ids.length} item{pendingDelete.ids.length !== 1 ? "s" : ""}? This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                className="easa-btn secondary text-sm"
+                onClick={() => setPendingDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="easa-btn text-sm font-medium"
+                style={{ background: "var(--easa-color-accent-pink)", color: "#fff", border: "none" }}
+                disabled={trashLoading}
+                onClick={async () => {
+                  const ids = pendingDelete.ids;
+                  setPendingDelete(null);
+                  await trashAction(ids, "permanent_delete");
+                }}
+              >
+                Yes, delete permanently
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mt-4 space-y-3">
           {trashItems.length === 0 ? (
@@ -526,7 +559,7 @@ export default function UpdatedResultsSection({
                       <button
                         className="easa-btn secondary flex items-center gap-1.5 text-sm"
                         disabled={trashLoading}
-                        onClick={() => trashAction([item.id], "permanent_delete")}
+                        onClick={() => requestDelete([item.id])}
                       >
                         <XCircle size={14} strokeWidth={1.75} />
                         Delete permanently
