@@ -137,7 +137,7 @@ export default function FeaturesSection() {
             {loopCards.map((card, index) => (
               <article
                 key={`${card.title}-${index}`}
-                className="shrink-0 px-4 md:px-8"
+                className="shrink-0 px-[10px]"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
                 style={{ width: `${slideWidth}vw` }}
