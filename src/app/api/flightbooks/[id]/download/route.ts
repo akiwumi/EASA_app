@@ -55,27 +55,44 @@ async function buildDocx(input: {
 
   for (const section of input.sections) {
     const heading = [section.section_number, section.title].filter(Boolean).join(" ") || "Untitled section";
+    const updatedColor = "DC2626";
     if (section.updated) {
       children.push(
         new Paragraph({
           children: [
-            new TextRun({
-              text: "UPDATED SECTION",
-              bold: true,
-              color: "B91C1C",
-            }),
+            new TextRun({ text: "Updated in this revision", bold: true, color: updatedColor }),
           ],
         }),
       );
     }
-    children.push(new Paragraph({ text: heading, heading: HeadingLevel.HEADING_2 }));
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: heading,
+            bold: true,
+            ...(section.updated ? { color: updatedColor } : {}),
+          }),
+        ],
+        heading: HeadingLevel.HEADING_2,
+      }),
+    );
 
     const blocks = section.body.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
     if (blocks.length === 0) {
       children.push(new Paragraph({ text: "" }));
     } else {
       for (const block of blocks) {
-        children.push(new Paragraph({ children: [new TextRun({ text: block })] }));
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: block,
+                ...(section.updated ? { color: updatedColor } : {}),
+              }),
+            ],
+          }),
+        );
       }
     }
   }
@@ -109,6 +126,8 @@ function wrapText(text: string, maxChars: number) {
   return lines;
 }
 
+type StyledLine = { text: string; bold?: boolean; red?: boolean };
+
 function escapePdfText(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
 }
@@ -124,22 +143,24 @@ function buildPdf(input: {
   exportedAt: string;
   sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[];
 }) {
-  const contentLines = [
-    input.name,
-    "",
-    `Document type: ${input.docType}`,
-    `Revision: ${input.versionLabel ?? "Current"}`,
-    `Exported at: ${input.exportedAt}`,
-    "",
-    ...input.sections.flatMap((section) => {
+  const lines: StyledLine[] = [
+    { text: input.name, bold: true },
+    { text: "" },
+    { text: `Document type: ${input.docType}` },
+    { text: `Revision: ${input.versionLabel ?? "Current"}` },
+    { text: `Exported at: ${input.exportedAt}` },
+    { text: "" },
+    ...input.sections.flatMap((section): StyledLine[] => {
       const heading = [section.section_number, section.title].filter(Boolean).join(" ") || "Untitled section";
-      return [heading, "", ...wrapText(section.body, 92), ""];
+      const red = section.updated ? true : undefined;
+      const bodyLines: StyledLine[] = wrapText(section.body, 92).map((t) => ({ text: t, red }));
+      return [{ text: heading, bold: true, red }, { text: "" }, ...bodyLines, { text: "" }];
     }),
   ];
 
-  const pages: string[][] = [];
-  let current: string[] = [];
-  for (const line of contentLines) {
+  const pages: StyledLine[][] = [];
+  let current: StyledLine[] = [];
+  for (const line of lines) {
     if (current.length >= 48) {
       pages.push(current);
       current = [];
@@ -147,6 +168,9 @@ function buildPdf(input: {
     current.push(line);
   }
   if (current.length) pages.push(current);
+
+  const fontRegId = 3 + pages.length * 2;
+  const fontBoldId = fontRegId + 1;
 
   const objects: string[] = [];
   objects.push("<< /Type /Catalog /Pages 2 0 R >>");
@@ -156,18 +180,31 @@ function buildPdf(input: {
   pages.forEach((pageLines, index) => {
     const pageId = 3 + index * 2;
     const contentId = pageId + 1;
-    const streamLines = ["BT", "/F1 10 Tf", "50 790 Td", "14 TL"];
+    const streamLines = ["BT", "/F1 10 Tf", "0 0 0 rg", "50 790 Td", "14 TL"];
+    let currentBold = false;
+    let currentRed = false;
     pageLines.forEach((line, lineIndex) => {
       if (lineIndex > 0) streamLines.push("T*");
-      streamLines.push(`(${escapePdfText(line)}) Tj`);
+      const bold = line.bold ?? false;
+      const red = line.red ?? false;
+      if (bold !== currentBold) {
+        streamLines.push(`/${bold ? "F2" : "F1"} 10 Tf`);
+        currentBold = bold;
+      }
+      if (red !== currentRed) {
+        streamLines.push(red ? "1 0 0 rg" : "0 0 0 rg");
+        currentRed = red;
+      }
+      streamLines.push(`(${escapePdfText(line.text)}) Tj`);
     });
     streamLines.push("ET");
     const stream = streamLines.join("\n");
-    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 ${3 + pages.length * 2} 0 R >> >> /Contents ${contentId} 0 R >>`);
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 ${fontRegId} 0 R /F2 ${fontBoldId} 0 R >> >> /Contents ${contentId} 0 R >>`);
     objects.push(`<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`);
   });
 
   objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+  objects.push("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>");
 
   let pdf = "%PDF-1.4\n";
   const offsets = [0];
@@ -216,6 +253,17 @@ function parseRetainedMarkdownExport(markdown: string) {
   const lines = markdown.split(/\r?\n/);
   const titleLine = lines.find((line) => line.startsWith("# "));
   const name = titleLine?.replace(/^#\s+/, "").trim() || "Retained export";
+
+  let docType: string | null = null;
+  let versionLabel: string | null = null;
+  for (const line of lines) {
+    if (line.startsWith("## ")) break;
+    const docTypeMatch = line.match(/^[-*]\s+Document type:\s*(.+)$/);
+    if (docTypeMatch) docType = docTypeMatch[1].trim();
+    const revisionMatch = line.match(/^[-*]\s+Revision:\s*(.+)$/);
+    if (revisionMatch) versionLabel = revisionMatch[1].trim();
+  }
+
   const sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[] = [];
   let current:
     | { section_number: string | null; title: string | null; bodyLines: string[]; updated?: boolean }
@@ -261,6 +309,8 @@ function parseRetainedMarkdownExport(markdown: string) {
 
   return {
     name,
+    docType,
+    versionLabel,
     sections: sections.length > 0
       ? sections
       : [{ section_number: null, title: "Retained export", body: markdown }],
@@ -296,7 +346,7 @@ export async function GET(
     }
 
     const objectPath =
-      format === "txt" || format === "pdf"
+      format === "txt"
         ? (exportRow.text_storage_path as string)
         : (exportRow.markdown_storage_path as string);
 
@@ -314,31 +364,35 @@ export async function GET(
     const text = await storageObject.text();
     const filenameBase = sanitizeFilename(objectPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "flightbook");
 
-    if (format === "docx") {
+    if (format === "docx" || format === "pdf") {
       const parsedExport = parseRetainedMarkdownExport(text);
-      const content = await buildDocx({
-        name: parsedExport.name,
-        docType: "flightbook",
-        versionLabel: "Retained export",
-        exportedAt: new Date().toISOString(),
-        sections: parsedExport.sections,
-      });
-      return new Response(toBinaryBody(content), {
-        status: 200,
-        headers: {
-          "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "Content-Disposition": `attachment; filename="${filenameBase}.docx"`,
-        },
-      });
-    }
+      const exportedAt = new Date().toISOString();
+      const docType = parsedExport.docType ?? "flightbook";
+      const versionLabel = parsedExport.versionLabel ?? null;
 
-    if (format === "pdf") {
+      if (format === "docx") {
+        const content = await buildDocx({
+          name: parsedExport.name,
+          docType,
+          versionLabel,
+          exportedAt,
+          sections: parsedExport.sections,
+        });
+        return new Response(toBinaryBody(content), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "Content-Disposition": `attachment; filename="${filenameBase}.docx"`,
+          },
+        });
+      }
+
       const content = buildPdf({
-        name: filenameBase,
-        docType: "flightbook",
-        versionLabel: "Retained export",
-        exportedAt: new Date().toISOString(),
-        sections: [{ section_number: null, title: "Retained export", body: text }],
+        name: parsedExport.name,
+        docType,
+        versionLabel,
+        exportedAt,
+        sections: parsedExport.sections,
       });
       return new Response(toBinaryBody(content), {
         status: 200,
