@@ -86,8 +86,9 @@ export default function FeaturesSection() {
 
   const normalizedIndex = activeIndex % cards.length;
   const slideGapPx = 15;
-  const slideWidth = `calc((100vw - ${slideGapPx}px) / ${visibleSlides})`;
-  const trackTranslate = `calc((${slideWidth} + ${slideGapPx}px) * ${activeIndex})`;
+  const slideSizePx = 852;
+  const trackTranslatePx = activeIndex * -(slideSizePx + slideGapPx);
+  const slideFrameSize = `${slideSizePx}px`;
 
   const edgeFadeMask = "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)";
 
@@ -132,7 +133,7 @@ export default function FeaturesSection() {
         >
           <div
             className={`flex ${isTransitionEnabled ? "transition-transform duration-700 ease-out" : ""}`}
-            style={{ gap: `${slideGapPx}px`, transform: `translateX(-${trackTranslate})` }}
+            style={{ gap: `${slideGapPx}px`, transform: `translateX(${trackTranslatePx}px)` }}
             onTransitionEnd={handleTrackTransitionEnd}
           >
             {loopCards.map((card, index) => (
@@ -141,11 +142,11 @@ export default function FeaturesSection() {
                 className="shrink-0"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
-                style={{ width: slideWidth }}
+                style={{ width: slideFrameSize, height: slideFrameSize }}
               >
-                <div className="h-full overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="flex h-full w-full flex-col overflow-hidden rounded-2xl border border-border bg-card">
                   <div
-                    className="relative h-[120px] overflow-hidden bg-secondary md:h-[160px]"
+                    className="relative min-h-0 flex-1 overflow-hidden bg-secondary"
                     onMouseEnter={() => setIsPaused(true)}
                     onMouseLeave={() => setIsPaused(false)}
                   >
@@ -153,8 +154,8 @@ export default function FeaturesSection() {
                       src={card.image}
                       alt={card.alt}
                       fill
-                      sizes="100vw"
-                      className="h-full w-full object-cover"
+                      sizes="852px"
+                      className="h-full w-full object-contain"
                     />
                   </div>
 
