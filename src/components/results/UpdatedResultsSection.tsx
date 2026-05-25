@@ -64,6 +64,25 @@ export default function UpdatedResultsSection({
     () => activeItems.filter((item) => states[item.id] !== "queued").map((item) => item.id),
     [activeItems, states],
   );
+
+  const anchorMap = useMemo(() => {
+    const seenCats = new Set<string>();
+    const seenImpacts = new Set<string>();
+    const result: Record<string, { category?: string; impact?: string }> = {};
+    for (const item of activeItems) {
+      const catSlug = `category-${item.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+      const impSlug = `impact-${item.impact.toLowerCase()}`;
+      if (!seenCats.has(catSlug)) {
+        seenCats.add(catSlug);
+        result[item.id] = { ...result[item.id], category: catSlug };
+      }
+      if (!seenImpacts.has(impSlug)) {
+        seenImpacts.add(impSlug);
+        result[item.id] = { ...result[item.id], impact: impSlug };
+      }
+    }
+    return result;
+  }, [activeItems]);
   const queuedCount = activeItems.length - remainingIds.length;
 
   function toggleSelected(setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
@@ -263,10 +282,13 @@ export default function UpdatedResultsSection({
             const isQueued = state === "queued";
             const isLoading = state === "loading";
             const isSelected = selectedActive.has(item.id);
+            const itemAnchors = anchorMap[item.id];
 
             return (
+              <div key={item.id}>
+                {itemAnchors?.category && <span id={itemAnchors.category} className="block scroll-mt-6" />}
+                {itemAnchors?.impact && <span id={itemAnchors.impact} className="block scroll-mt-6" />}
               <div
-                key={item.id}
                 className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -334,6 +356,7 @@ export default function UpdatedResultsSection({
                     )}
                   </div>
                 </div>
+              </div>
               </div>
             );
           })

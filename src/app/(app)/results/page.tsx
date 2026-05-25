@@ -50,10 +50,14 @@ export default async function ResultsPage() {
           <p className="text-xs text-[var(--easa-color-text-muted)]">By category</p>
           <div className="mt-3 space-y-2 text-sm">
             {Object.entries(results.byCategory).map(([category, count]) => (
-              <div key={category} className="flex items-center justify-between">
+              <Link
+                key={category}
+                href={`#category-${category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                className="flex items-center justify-between rounded-[8px] px-1 py-0.5 -mx-1 hover:bg-[var(--easa-color-surface-2)] transition-colors"
+              >
                 <span>{category}</span>
                 <span className="text-[var(--easa-color-text-muted)]">{count}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
@@ -61,10 +65,14 @@ export default async function ResultsPage() {
           <p className="text-xs text-[var(--easa-color-text-muted)]">Impact mix</p>
           <div className="mt-3 space-y-2 text-sm">
             {Object.entries(results.byImpact).map(([impact, count]) => (
-              <div key={impact} className="flex items-center justify-between">
+              <Link
+                key={impact}
+                href={`#impact-${impact.toLowerCase()}`}
+                className="flex items-center justify-between rounded-[8px] px-1 py-0.5 -mx-1 hover:bg-[var(--easa-color-surface-2)] transition-colors"
+              >
                 <span>{impact}</span>
                 <span className="text-[var(--easa-color-text-muted)]">{count}</span>
-              </div>
+              </Link>
             ))}
           </div>
         </div>

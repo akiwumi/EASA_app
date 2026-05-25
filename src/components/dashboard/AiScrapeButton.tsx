@@ -101,9 +101,9 @@ export default function AiScrapeButton({ compact = false }: AiScrapeButtonProps)
           </div>
         )}
         {status === "done" && result && (
-          <div className="max-w-[20rem] rounded-[12px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-[var(--easa-color-text-muted)]">
+          <div className="max-w-[20rem] rounded-[12px] border border-red-500 bg-[var(--easa-color-surface-2)] px-3 py-2 text-xs text-red-500">
             <div className="flex items-start gap-1.5">
-              <CheckCircle size={13} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-accent-green)]" />
+              <CheckCircle size={13} strokeWidth={1.75} className="mt-0.5 shrink-0 text-red-500" />
               <span className="break-words">
                 Pipeline complete.
                 {result.ingest?.note
