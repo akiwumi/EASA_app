@@ -38,45 +38,13 @@ export default async function ResultsPage() {
         </div>
       </header>
 
-      <section className="grid gap-4 lg:grid-cols-3">
-        <div className="easa-card p-5">
-          <p className="text-xs text-[var(--easa-color-text-muted)]">Total updates</p>
-          <p className="mt-2 text-2xl font-semibold">{results.items.length}</p>
-          <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
-            {results.source === "mock" ? "Seeded mock updates" : "From RSS feeds, ready for review"}
-          </p>
-        </div>
-        <div className="easa-card p-5">
-          <p className="text-xs text-[var(--easa-color-text-muted)]">By category</p>
-          <div className="mt-3 space-y-2 text-sm">
-            {Object.entries(results.byCategory).map(([category, count]) => (
-              <Link
-                key={category}
-                href={`#category-${category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className="flex items-center justify-between rounded-[8px] px-1 py-0.5 -mx-1 hover:bg-[var(--easa-color-surface-2)] transition-colors"
-              >
-                <span>{category}</span>
-                <span className="text-[var(--easa-color-text-muted)]">{count}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-        <div className="easa-card p-5">
-          <p className="text-xs text-[var(--easa-color-text-muted)]">Impact mix</p>
-          <div className="mt-3 space-y-2 text-sm">
-            {Object.entries(results.byImpact).map(([impact, count]) => (
-              <Link
-                key={impact}
-                href={`#impact-${impact.toLowerCase()}`}
-                className="flex items-center justify-between rounded-[8px] px-1 py-0.5 -mx-1 hover:bg-[var(--easa-color-surface-2)] transition-colors"
-              >
-                <span>{impact}</span>
-                <span className="text-[var(--easa-color-text-muted)]">{count}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      <div className="easa-card p-5">
+        <p className="text-xs text-[var(--easa-color-text-muted)]">Total updates</p>
+        <p className="mt-2 text-2xl font-semibold">{results.items.length}</p>
+        <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
+          {results.source === "mock" ? "Seeded mock updates" : "From RSS feeds, ready for review"}
+        </p>
+      </div>
 
       <UpdatedResultsSection items={results.items} deletedItems={results.deletedItems} />
     </div>

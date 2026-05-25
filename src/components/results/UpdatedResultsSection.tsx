@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { CheckCircle, CheckSquare, FolderX, ListPlus, Loader2, Plus, RotateCcw, Square, Trash2, XCircle } from "lucide-react";
+import { CheckCircle, CheckSquare, FolderX, ListPlus, Loader2, Plus, RotateCcw, Square, Trash2, X, XCircle } from "lucide-react";
 import type { EasaUpdate } from "@/lib/ai-scraper";
 
 type QueueState = "idle" | "loading" | "queued" | "error";
@@ -59,31 +59,32 @@ export default function UpdatedResultsSection({
   const [selectedActive, setSelectedActive] = useState<Set<string>>(new Set());
   const [selectedTrash, setSelectedTrash] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<{ type: "category" | "impact"; value: string } | null>(null);
+
+  const byCategory = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of activeItems) map[item.category] = (map[item.category] ?? 0) + 1;
+    return map;
+  }, [activeItems]);
+
+  const byImpact = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of activeItems) map[item.impact] = (map[item.impact] ?? 0) + 1;
+    return map;
+  }, [activeItems]);
+
+  const filteredItems = useMemo(() => {
+    if (!activeFilter) return activeItems;
+    if (activeFilter.type === "category") return activeItems.filter((item) => item.category === activeFilter.value);
+    return activeItems.filter((item) => item.impact === activeFilter.value);
+  }, [activeItems, activeFilter]);
 
   const remainingIds = useMemo(
-    () => activeItems.filter((item) => states[item.id] !== "queued").map((item) => item.id),
-    [activeItems, states],
+    () => filteredItems.filter((item) => states[item.id] !== "queued").map((item) => item.id),
+    [filteredItems, states],
   );
 
-  const anchorMap = useMemo(() => {
-    const seenCats = new Set<string>();
-    const seenImpacts = new Set<string>();
-    const result: Record<string, { category?: string; impact?: string }> = {};
-    for (const item of activeItems) {
-      const catSlug = `category-${item.category.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-      const impSlug = `impact-${item.impact.toLowerCase()}`;
-      if (!seenCats.has(catSlug)) {
-        seenCats.add(catSlug);
-        result[item.id] = { ...result[item.id], category: catSlug };
-      }
-      if (!seenImpacts.has(impSlug)) {
-        seenImpacts.add(impSlug);
-        result[item.id] = { ...result[item.id], impact: impSlug };
-      }
-    }
-    return result;
-  }, [activeItems]);
-  const queuedCount = activeItems.length - remainingIds.length;
+  const queuedCount = filteredItems.length - remainingIds.length;
 
   function toggleSelected(setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
     setter((current) => {
@@ -96,8 +97,15 @@ export default function UpdatedResultsSection({
 
   function toggleAllActive() {
     setSelectedActive((current) => (
-      current.size === activeItems.length ? new Set() : new Set(activeItems.map((item) => item.id))
+      current.size === filteredItems.length ? new Set() : new Set(filteredItems.map((item) => item.id))
     ));
+  }
+
+  function setFilter(type: "category" | "impact", value: string) {
+    setActiveFilter((current) =>
+      current?.type === type && current.value === value ? null : { type, value }
+    );
+    setSelectedActive(new Set());
   }
 
   function toggleAllTrash() {
@@ -212,25 +220,91 @@ export default function UpdatedResultsSection({
 
   return (
     <section className="easa-card p-6">
+      {activeItems.length > 0 && (
+        <div className="mb-5 grid gap-4 sm:grid-cols-2">
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">By category</p>
+            <div className="space-y-1">
+              {Object.entries(byCategory).map(([category, count]) => {
+                const isActive = activeFilter?.type === "category" && activeFilter.value === category;
+                return (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => setFilter("category", category)}
+                    className={`flex w-full items-center justify-between rounded-[8px] px-2 py-1 text-sm transition-colors ${
+                      isActive
+                        ? "bg-[var(--easa-color-brand-primary)] text-white"
+                        : "hover:bg-[var(--easa-color-surface-2)]"
+                    }`}
+                  >
+                    <span>{category}</span>
+                    <span className={isActive ? "text-white/80" : "text-[var(--easa-color-text-muted)]"}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">Impact mix</p>
+            <div className="space-y-1">
+              {Object.entries(byImpact).map(([impact, count]) => {
+                const isActive = activeFilter?.type === "impact" && activeFilter.value === impact;
+                return (
+                  <button
+                    key={impact}
+                    type="button"
+                    onClick={() => setFilter("impact", impact)}
+                    className={`flex w-full items-center justify-between rounded-[8px] px-2 py-1 text-sm transition-colors ${
+                      isActive
+                        ? "bg-[var(--easa-color-brand-primary)] text-white"
+                        : "hover:bg-[var(--easa-color-surface-2)]"
+                    }`}
+                  >
+                    <span>{impact} impact</span>
+                    <span className={isActive ? "text-white/80" : "text-[var(--easa-color-text-muted)]"}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Updated results</h2>
-          <p className="text-sm text-[var(--easa-color-text-muted)]">
-            Collated updates with AI confidence and mapped sections.
-          </p>
+          {activeFilter ? (
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-sm text-[var(--easa-color-text-muted)]">
+                Filtered by {activeFilter.type}: <strong>{activeFilter.value}</strong> · {filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => { setActiveFilter(null); setSelectedActive(new Set()); }}
+                className="flex items-center gap-1 rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 text-xs text-[var(--easa-color-text-muted)] hover:bg-[var(--easa-color-surface-3)] transition-colors"
+              >
+                <X size={11} /> Clear
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-[var(--easa-color-text-muted)]">
+              Collated updates with AI confidence and mapped sections.
+            </p>
+          )}
         </div>
         {activeItems.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-[var(--easa-color-text-muted)]">
-              {queuedCount} of {activeItems.length} queued
+              {queuedCount} of {filteredItems.length} queued
             </span>
             <button
               className="easa-btn secondary flex items-center gap-1.5 text-sm"
               disabled={trashLoading}
               onClick={toggleAllActive}
             >
-              {selectedActive.size === activeItems.length ? <CheckSquare size={14} strokeWidth={1.75} /> : <Square size={14} strokeWidth={1.75} />}
-              {selectedActive.size === activeItems.length ? "Clear selection" : "Select all"}
+              {selectedActive.size === filteredItems.length ? <CheckSquare size={14} strokeWidth={1.75} /> : <Square size={14} strokeWidth={1.75} />}
+              {selectedActive.size === filteredItems.length ? "Clear selection" : "Select all"}
             </button>
             <button
               className="easa-btn secondary flex items-center gap-1.5 text-sm"
@@ -272,23 +346,22 @@ export default function UpdatedResultsSection({
       ) : null}
 
       <div className="mt-6 space-y-4">
-        {activeItems.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <div className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-6 text-sm text-[var(--easa-color-text-muted)]">
-            No active AI findings. Run the RSS ingest + analysis to populate results, or restore items from the deleted folder.
+            {activeItems.length === 0
+              ? "No active AI findings. Run the RSS ingest + analysis to populate results, or restore items from the deleted folder."
+              : "No results match the current filter."}
           </div>
         ) : (
-          activeItems.map((item) => {
+          filteredItems.map((item) => {
             const state = states[item.id] ?? "idle";
             const isQueued = state === "queued";
             const isLoading = state === "loading";
             const isSelected = selectedActive.has(item.id);
-            const itemAnchors = anchorMap[item.id];
 
             return (
-              <div key={item.id}>
-                {itemAnchors?.category && <span id={itemAnchors.category} className="block scroll-mt-6" />}
-                {itemAnchors?.impact && <span id={itemAnchors.impact} className="block scroll-mt-6" />}
               <div
+                key={item.id}
                 className="rounded-[14px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -356,7 +429,6 @@ export default function UpdatedResultsSection({
                     )}
                   </div>
                 </div>
-              </div>
               </div>
             );
           })
