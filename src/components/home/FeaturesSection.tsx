@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const cards = [
   {
@@ -49,6 +49,16 @@ const cards = [
 
 export default function FeaturesSection() {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % cards.length);
+    }, 3500);
+
+    return () => window.clearInterval(interval);
+  }, [isPaused]);
 
   function goToNext() {
     setActiveIndex((current) => (current + 1) % cards.length);
@@ -57,8 +67,6 @@ export default function FeaturesSection() {
   function goToPrevious() {
     setActiveIndex((current) => (current - 1 + cards.length) % cards.length);
   }
-
-  const activeCard = cards[activeIndex];
 
   return (
     <section
@@ -81,36 +89,58 @@ export default function FeaturesSection() {
           </h2>
         </div>
 
-        <div className="mx-auto max-w-3xl">
-          <div className="overflow-hidden rounded-2xl border border-border bg-card">
-            <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
-              <Image
-                src={activeCard.image}
-                alt={activeCard.alt}
-                fill
-                sizes="(min-width: 768px) 55vw, 92vw"
-                className="h-full w-full object-cover"
-              />
-            </div>
-
-            <div className="flex flex-1 flex-col p-6">
-              <h3 className="text-lg font-semibold text-foreground">
-                {activeCard.title}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {activeCard.body}
-              </p>
-              <Link
-                href={activeCard.href}
-                aria-label={activeCard.linkLabel}
-                className="mt-4 text-sm font-medium text-foreground hover:underline"
+        <div
+          className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          <div
+            className="flex transition-transform duration-700 ease-out"
+            style={{ transform: `translateX(-${activeIndex * 100}vw)` }}
+          >
+            {cards.map((card) => (
+              <article
+                key={card.title}
+                className="w-screen shrink-0 px-4 md:px-8"
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
               >
-                Learn more →
-              </Link>
-            </div>
+                <div className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-border bg-card">
+                  <div
+                    className="relative h-[120px] overflow-hidden bg-secondary md:h-[160px]"
+                    onMouseEnter={() => setIsPaused(true)}
+                    onMouseLeave={() => setIsPaused(false)}
+                  >
+                    <Image
+                      src={card.image}
+                      alt={card.alt}
+                      fill
+                      sizes="100vw"
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+
+                  <div className="flex flex-1 flex-col p-6">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {card.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      {card.body}
+                    </p>
+                    <Link
+                      href={card.href}
+                      aria-label={card.linkLabel}
+                      className="mt-4 text-sm font-medium text-foreground hover:underline"
+                    >
+                      Learn more →
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
 
-          <div className="mt-5 flex items-center justify-between gap-3">
+          <div className="mx-auto mt-5 flex max-w-3xl items-center justify-between gap-3 px-4 md:px-8">
             <button
               type="button"
               onClick={goToPrevious}
