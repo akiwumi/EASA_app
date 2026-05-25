@@ -48,25 +48,56 @@ const cards = [
 ];
 
 export default function FeaturesSection() {
+  const visibleSlides = 2;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
+  const loopCards = [...cards, ...cards.slice(0, visibleSlides)];
 
   useEffect(() => {
     if (isPaused) return;
     const interval = window.setInterval(() => {
-      setActiveIndex((current) => (current + 1) % cards.length);
+      setIsTransitionEnabled(true);
+      setActiveIndex((current) => current + 1);
     }, 3500);
 
     return () => window.clearInterval(interval);
   }, [isPaused]);
 
   function goToNext() {
-    setActiveIndex((current) => (current + 1) % cards.length);
+    setIsTransitionEnabled(true);
+    setActiveIndex((current) => current + 1);
   }
 
   function goToPrevious() {
-    setActiveIndex((current) => (current - 1 + cards.length) % cards.length);
+    setIsTransitionEnabled(true);
+    setActiveIndex((current) => {
+      if (current === 0) return cards.length - 1;
+      return current - 1;
+    });
   }
+
+  function handleTrackTransitionEnd() {
+    if (activeIndex < cards.length) return;
+    // Seamlessly jump back to the real first pair after showing clone slides.
+    setIsTransitionEnabled(false);
+    setActiveIndex(0);
+  }
+
+  const normalizedIndex = activeIndex % cards.length;
+  const slideWidth = 100 / visibleSlides;
+  const trackTranslate = activeIndex * slideWidth;
+
+  const edgeFadeMask = "linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)";
+
+  useEffect(() => {
+    if (isTransitionEnabled) return;
+    const id = window.requestAnimationFrame(() => {
+      setIsTransitionEnabled(true);
+    });
+    return () => window.cancelAnimationFrame(id);
+  }
+  , [isTransitionEnabled]);
 
   return (
     <section
@@ -93,19 +124,25 @@ export default function FeaturesSection() {
           className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
+          style={{
+            WebkitMaskImage: edgeFadeMask,
+            maskImage: edgeFadeMask,
+          }}
         >
           <div
-            className="flex transition-transform duration-700 ease-out"
-            style={{ transform: `translateX(-${activeIndex * 100}vw)` }}
+            className={`flex ${isTransitionEnabled ? "transition-transform duration-700 ease-out" : ""}`}
+            style={{ transform: `translateX(-${trackTranslate}vw)` }}
+            onTransitionEnd={handleTrackTransitionEnd}
           >
-            {cards.map((card) => (
+            {loopCards.map((card, index) => (
               <article
-                key={card.title}
-                className="w-screen shrink-0 px-4 md:px-8"
+                key={`${card.title}-${index}`}
+                className="shrink-0 px-4 md:px-8"
                 onMouseEnter={() => setIsPaused(true)}
                 onMouseLeave={() => setIsPaused(false)}
+                style={{ width: `${slideWidth}vw` }}
               >
-                <div className="mx-auto max-w-3xl overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="mx-auto h-full max-w-2xl overflow-hidden rounded-2xl border border-border bg-card">
                   <div
                     className="relative h-[120px] overflow-hidden bg-secondary md:h-[160px]"
                     onMouseEnter={() => setIsPaused(true)}
@@ -152,7 +189,7 @@ export default function FeaturesSection() {
 
             <div className="flex items-center gap-2">
               {cards.map((card, index) => {
-                const isActive = index === activeIndex;
+                const isActive = index === normalizedIndex;
                 return (
                   <button
                     key={card.title}
