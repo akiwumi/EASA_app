@@ -60,17 +60,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="easa-shell flex min-h-screen items-center justify-center py-8">
-      <section className="easa-card-glass w-full max-w-xl p-6 md:p-8">
+    <div className="easa-shell flex min-h-screen min-w-0 items-center justify-center py-6 sm:py-8">
+      <section className="easa-card-glass min-w-0 w-full max-w-xl overflow-hidden p-5 sm:p-6 md:p-8">
           <span className="easa-eyebrow">Sign in</span>
-          <h2 className="mt-4 text-3xl font-semibold text-[var(--easa-color-text-primary)]">
+          <h2 className="mt-4 text-2xl font-semibold text-[var(--easa-color-text-primary)] sm:text-3xl">
             Access your organisation workspace
           </h2>
           <p className="mt-3 text-sm leading-7 text-[var(--easa-color-text-muted)]">
             Sign in with your organisation email address and password.
           </p>
 
-          <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+          <form className="mt-6 min-w-0 space-y-4 sm:mt-8" onSubmit={handleSubmit}>
             <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
               Email
               <input
@@ -113,7 +113,7 @@ export default function LoginPage() {
             <p className="mt-4 text-sm text-[var(--easa-color-accent-orange)]">{message}</p>
           ) : null}
 
-          <div className="mt-6 flex items-center justify-between gap-3 text-sm text-[var(--easa-color-text-muted)]">
+          <div className="mt-6 flex min-w-0 flex-col gap-2 text-sm text-[var(--easa-color-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <span>Forgot password?</span>
             <Link className="font-medium text-[var(--easa-color-brand-primary)]" href="/register">
               Register school

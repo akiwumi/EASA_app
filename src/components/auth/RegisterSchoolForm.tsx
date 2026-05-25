@@ -56,10 +56,10 @@ export default function RegisterSchoolForm({
   }
 
   return (
-    <div className="easa-shell flex min-h-screen items-center justify-center py-8">
-      <section className="easa-card-glass w-full max-w-2xl p-6 md:p-8">
+    <div className="easa-shell flex min-h-screen min-w-0 items-center justify-center py-6 sm:py-8">
+      <section className="easa-card-glass min-w-0 w-full max-w-2xl overflow-hidden p-5 sm:p-6 md:p-8">
         <span className="easa-eyebrow">New flight school</span>
-        <h2 className="mt-4 text-3xl font-semibold text-[var(--easa-color-text-primary)]">
+        <h2 className="mt-4 text-2xl font-semibold text-[var(--easa-color-text-primary)] sm:text-3xl">
           Register your school workspace
         </h2>
         <p className="mt-3 text-sm leading-7 text-[var(--easa-color-text-muted)]">
@@ -71,7 +71,7 @@ export default function RegisterSchoolForm({
           </p>
         ) : null}
 
-        <form className="mt-8 grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+        <form className="mt-6 grid min-w-0 gap-4 sm:mt-8 md:grid-cols-2" onSubmit={handleSubmit}>
           <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)] md:col-span-2">
             Flight school name
             <input
@@ -159,7 +159,7 @@ export default function RegisterSchoolForm({
           </p>
         ) : null}
 
-        <div className="mt-6 flex items-center justify-between gap-3 text-sm text-[var(--easa-color-text-muted)]">
+        <div className="mt-6 flex min-w-0 flex-col gap-2 text-sm text-[var(--easa-color-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <span>Already have a school workspace?</span>
           <Link className="font-medium text-[var(--easa-color-brand-primary)]" href="/login">
             Login

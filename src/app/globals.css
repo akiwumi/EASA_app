@@ -833,6 +833,20 @@ button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):act
 }
 
 @media (max-width: 640px) {
+  .easa-shell {
+    width: min(100% - 1rem, 1440px);
+  }
+
+  .easa-card,
+  .easa-card-glass {
+    border-radius: 20px;
+  }
+
+  .easa-input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .easa-h1-mobile-hero {
     font-size: clamp(2.1rem, 8vw, 3rem) !important;
     line-height: 1.08 !important;
