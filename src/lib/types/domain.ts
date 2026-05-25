@@ -48,7 +48,7 @@ export type UserProfileSummary = {
   phone: string | null;
   notification_email: boolean;
   notification_inapp: boolean;
-  notification_digest: "immediate" | "daily" | "partial";
+  notification_digest: "immediate" | "daily" | "partial" | "weekly";
 };
 
 export type FlightbookSummary = {
@@ -102,6 +102,10 @@ export type UpdateQueueItem = {
   confidence_score: number | null;
   status: string;
   ai_rationale: string | null;
+  ai_suggested_text?: string | null;
+  ai_confidence_label?: string | null;
+  finding_id?: string | null;
+  reg_part?: string | null;
   created_at: string;
   updated_at?: string;
   reg_changes: RegulationChangeSummary | null;

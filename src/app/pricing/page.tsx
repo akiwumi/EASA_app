@@ -5,14 +5,14 @@ import PricingPlans from "@/components/pricing/PricingPlans";
 import { isUserSignedIn } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Pricing — Flight Lyceum",
+  title: "Pricing | Flight Lyceum",
   description:
     "Simple subscription pricing for EASA Approved Training Organisations. Start with a 3 day free trial, then pay by month, quarter, or year through Stripe.",
   alternates: {
     canonical: "/pricing",
   },
   openGraph: {
-    title: "Pricing — Flight Lyceum",
+    title: "Pricing | Flight Lyceum",
     description:
       "Start with a 3 day free trial, then choose monthly, quarterly, or annual Stripe billing for Flight Lyceum.",
     url: "/pricing",

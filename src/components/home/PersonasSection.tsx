@@ -7,7 +7,7 @@ const personas = [
   {
     num: "02",
     title: "Compliance Managers",
-    body: "Track approvals, regulation mappings, version history, and audit trails — without spreadsheet workarounds.",
+    body: "Track approvals, regulation mappings, version history, and audit trails, without spreadsheet workarounds.",
   },
   {
     num: "03",

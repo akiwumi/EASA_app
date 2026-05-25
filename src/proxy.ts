@@ -81,7 +81,21 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === "/login" && user) {
-    const redirect = NextResponse.redirect(new URL("/dashboard", request.url));
+    let targetPath = "/updates";
+    if (serviceRoleKey) {
+      const admin = createClient(url, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const { data: orgUsers } = await admin
+        .from("org_users")
+        .select("organization_id, role")
+        .eq("user_id", user.id);
+      const orgUser = pickPreferredOrgMembership(orgUsers);
+      if (orgUser?.role === "admin") {
+        targetPath = "/dashboard";
+      }
+    }
+    const redirect = NextResponse.redirect(new URL(targetPath, request.url));
     copyCookies(response, redirect);
     return redirect;
   }

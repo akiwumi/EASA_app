@@ -741,8 +741,8 @@ export default function TrainingFormsPage() {
           <div>
             <h1 className="text-xl font-semibold">Training forms</h1>
             <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-              Create and distribute structured forms — ground exams, pre-solo checks,
-              safety briefings — and collect student responses.
+              Create and distribute structured forms (ground exams, pre-solo checks,
+              safety briefings) and collect student responses.
             </p>
           </div>
           <button

@@ -9,7 +9,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://flightlyceum.com";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Flight Lyceum — Compliance & Training Platform for Flight Schools",
+    default: "Flight Lyceum: Compliance & Training Platform for Flight Schools",
     template: "%s | Flight Lyceum",
   },
   description:
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     locale: "en_GB",
     url: siteUrl,
     siteName: "Flight Lyceum",
-    title: "Flight Lyceum — Compliance & Training Platform for Flight Schools",
+    title: "Flight Lyceum:Compliance & Training Platform for Flight Schools",
     description:
       "The compliance and training platform built for EASA Approved Training Organisations. Monitor regulation changes, control your manuals, assign reading by lesson, and track every acknowledgement.",
     images: [
@@ -53,13 +53,13 @@ export const metadata: Metadata = {
         url: "/images/hero-cessna.jpg",
         width: 1200,
         height: 630,
-        alt: "Flight Lyceum — EASA compliance and training platform for ATOs",
+        alt: "Flight Lyceum:EASA compliance and training platform for ATOs",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Flight Lyceum — Compliance & Training Platform for Flight Schools",
+    title: "Flight Lyceum:Compliance & Training Platform for Flight Schools",
     description:
       "Monitor EASA changes, control your manuals, assign reading by lesson, and track every acknowledgement in one system your whole school actually uses.",
     images: ["/images/hero-cessna.jpg"],

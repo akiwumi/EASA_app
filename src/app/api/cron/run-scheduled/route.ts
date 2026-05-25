@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/access";
 import { runPipelineForOrganization } from "@/lib/pipeline/run-org-pipeline";
+import { sendWeeklySummaryEmails } from "@/lib/pipeline/notifications";
 
 type ScheduleRow = {
   organization_id: string;
@@ -73,6 +74,8 @@ async function runScheduledPipelines(request: Request) {
   }
 
   const dueSchedules: Array<{ organization_id: string; notify_on_detect: boolean | null; slot: string }> = [];
+  const weeklySummaryTriggered = now.getUTCDay() === 1 && nowUtc === "07:00";
+  const staleArchiveWindow = nowUtc === "00:10";
 
   for (const row of (schedules ?? []) as ScheduleRow[]) {
     const runTimes = normalizeRunTimes(row);
@@ -106,10 +109,40 @@ async function runScheduledPipelines(request: Request) {
     });
   }
 
+  if (weeklySummaryTriggered) {
+    const weeklyOrgIds = Array.from(new Set(((schedules ?? []) as ScheduleRow[]).map((row) => row.organization_id)));
+    for (const organizationId of weeklyOrgIds) {
+      try {
+        await sendWeeklySummaryEmails(admin, organizationId);
+      } catch {
+        // best effort only
+      }
+    }
+  }
+
+  let staleArchive = { ok: true, archived: 0 };
+  if (staleArchiveWindow) {
+    try {
+      const archiveResponse = await fetch(new URL("/api/cron/archive-stale-findings", request.url), {
+        method: "POST",
+        headers: { authorization: request.headers.get("authorization") ?? "" },
+      });
+      const payload = (await archiveResponse.json().catch(() => ({}))) as { ok?: boolean; archived?: number };
+      staleArchive = {
+        ok: Boolean(payload.ok ?? archiveResponse.ok),
+        archived: Number(payload.archived ?? 0),
+      };
+    } catch {
+      staleArchive = { ok: false, archived: 0 };
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     checkedAtUtc: now.toISOString(),
     dueCount: dueSchedules.length,
+    weeklySummaryTriggered,
+    staleArchive,
     results,
   });
 }

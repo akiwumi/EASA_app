@@ -14,6 +14,13 @@ type ExportBook = {
   version_label: string | null;
 };
 
+type ExportMetadata = {
+  approvedByName: string | null;
+  updatedSections: Array<{ sectionNumber: string | null; title: string | null }>;
+  easaReference: string | null;
+  easaPublishedAt: string | null;
+};
+
 function sanitizeFilename(value: string) {
   return value
     .trim()
@@ -58,7 +65,25 @@ export function buildMarkdown(input: {
   versionNumber: number;
   revisionLabel: string;
   updatedSectionIds?: Set<string>;
+  metadata?: ExportMetadata;
 }) {
+  const metadataLines = input.metadata
+    ? [
+        `- Approved by: ${input.metadata.approvedByName ?? "Unknown approver"}`,
+        `- Sections updated in this revision: ${
+          input.metadata.updatedSections.length > 0
+            ? input.metadata.updatedSections
+                .map((section) => [section.sectionNumber, section.title].filter(Boolean).join(" ").trim())
+                .join("; ")
+            : "None listed"
+        }`,
+        `- Based on EASA change: ${
+          input.metadata.easaReference
+            ? `${input.metadata.easaReference}${input.metadata.easaPublishedAt ? ` (${input.metadata.easaPublishedAt})` : ""}`
+            : "Not linked"
+        }`,
+      ]
+    : [];
   const lines = [
     `# ${input.book.name}`,
     "",
@@ -67,6 +92,7 @@ export function buildMarkdown(input: {
     `- Previous version label: ${input.book.version_label ?? "Current"}`,
     `- Export version: ${versionTag(input.versionNumber)}`,
     `- Exported at: ${input.exportedAt}`,
+    ...metadataLines,
     "",
   ];
 
@@ -89,6 +115,7 @@ export function buildText(input: {
   versionNumber: number;
   revisionLabel: string;
   updatedSectionIds?: Set<string>;
+  metadata?: ExportMetadata;
 }) {
   const title = input.book.name;
   const lines = [
@@ -100,6 +127,19 @@ export function buildText(input: {
     `Previous version label: ${input.book.version_label ?? "Current"}`,
     `Export version: ${versionTag(input.versionNumber)}`,
     `Exported at: ${input.exportedAt}`,
+    `Approved by: ${input.metadata?.approvedByName ?? "Unknown approver"}`,
+    `Sections updated in this revision: ${
+      input.metadata && input.metadata.updatedSections.length > 0
+        ? input.metadata.updatedSections
+            .map((section) => [section.sectionNumber, section.title].filter(Boolean).join(" ").trim())
+            .join("; ")
+        : "None listed"
+    }`,
+    `Based on EASA change: ${
+      input.metadata?.easaReference
+        ? `${input.metadata.easaReference}${input.metadata.easaPublishedAt ? ` (${input.metadata.easaPublishedAt})` : ""}`
+        : "Not linked"
+    }`,
     "",
   ];
 
@@ -124,9 +164,10 @@ export async function createFlightbookExport(
     flightbookId: string;
     changeSource: string;
     createdBy?: string | null;
-    proposedUpdateId?: string | null;
     note?: string | null;
     updatedSectionIds?: string[];
+    approverId?: string | null;
+    proposedUpdateId?: string | null;
   },
 ) {
   const { data: book, error: bookError } = await admin
@@ -167,7 +208,15 @@ export async function createFlightbookExport(
   const markdownPath = `${input.organizationId}/${input.flightbookId}/${versionFolder}/${filenameBase}-${versionFolder}-${timestampTag}.md`;
   const textPath = `${input.organizationId}/${input.flightbookId}/${versionFolder}/${filenameBase}-${versionFolder}-${timestampTag}.txt`;
 
-  const exportInput = {
+  const exportInput: {
+    book: ExportBook;
+    sections: ExportSection[];
+    exportedAt: string;
+    versionNumber: number;
+    revisionLabel: string;
+    updatedSectionIds: Set<string>;
+    metadata: ExportMetadata;
+  } = {
     book: book as ExportBook,
     sections: (sections ?? []).map((section) => ({
       id: section.id as string,
@@ -179,7 +228,68 @@ export async function createFlightbookExport(
     versionNumber: nextVersion,
     revisionLabel: nextRevisionLabel,
     updatedSectionIds: new Set(input.updatedSectionIds ?? []),
+    metadata: {
+      approvedByName: null,
+      updatedSections: [],
+      easaReference: null,
+      easaPublishedAt: null,
+    },
   };
+
+  if ((input.approverId ?? input.createdBy) || input.proposedUpdateId || input.updatedSectionIds?.length) {
+    const approverId = input.approverId ?? input.createdBy ?? null;
+    if (approverId) {
+      const [{ data: profile }, authUserResult] = await Promise.all([
+        admin.from("user_profiles").select("display_name").eq("id", approverId).maybeSingle(),
+        admin.auth.admin.getUserById(approverId),
+      ]);
+      exportInput.metadata.approvedByName =
+        (profile?.display_name as string | null | undefined) ??
+        authUserResult.data?.user?.email ??
+        null;
+    }
+
+    const updatedSectionSet = new Set(input.updatedSectionIds ?? []);
+    exportInput.metadata.updatedSections = exportInput.sections
+      .filter((section) => updatedSectionSet.has(section.id))
+      .map((section) => ({ sectionNumber: section.section_number, title: section.title }));
+
+    const proposedUpdateId = input.proposedUpdateId ?? null;
+    if (proposedUpdateId) {
+      const { data: proposal } = await admin
+        .from("proposed_updates")
+        .select("id, reg_change_id")
+        .eq("id", proposedUpdateId)
+        .eq("organization_id", input.organizationId)
+        .maybeSingle();
+      const regChangeId = (proposal?.reg_change_id as string | null | undefined) ?? null;
+      if (regChangeId) {
+        const { data: regChange } = await admin
+          .from("reg_changes")
+          .select("section_ref, reg_documents ( reg_number, part ), ai_findings ( rss_items ( published_at ) )")
+          .eq("id", regChangeId)
+          .eq("organization_id", input.organizationId)
+          .maybeSingle();
+
+        const regDocuments = Array.isArray((regChange as Record<string, unknown> | null)?.reg_documents)
+          ? (((regChange as Record<string, unknown>).reg_documents as unknown[])[0] as Record<string, unknown> | null)
+          : (((regChange as Record<string, unknown> | null)?.reg_documents as Record<string, unknown> | null) ?? null);
+        const aiFindings = Array.isArray((regChange as Record<string, unknown> | null)?.ai_findings)
+          ? (((regChange as Record<string, unknown>).ai_findings as unknown[])[0] as Record<string, unknown> | null)
+          : (((regChange as Record<string, unknown> | null)?.ai_findings as Record<string, unknown> | null) ?? null);
+        const rssItems = Array.isArray(aiFindings?.rss_items)
+          ? ((aiFindings?.rss_items as unknown[])[0] as Record<string, unknown> | null)
+          : ((aiFindings?.rss_items as Record<string, unknown> | null) ?? null);
+
+        const regNumber = (regDocuments?.reg_number as string | null | undefined) ?? null;
+        const regPart = (regDocuments?.part as string | null | undefined) ?? null;
+        const sectionRef = ((regChange as Record<string, unknown> | null)?.section_ref as string | null | undefined) ?? null;
+        exportInput.metadata.easaReference = [regPart, regNumber, sectionRef].filter(Boolean).join(" · ") || null;
+        exportInput.metadata.easaPublishedAt =
+          ((rssItems?.published_at as string | null | undefined) ?? null) ? String(rssItems?.published_at).slice(0, 10) : null;
+      }
+    }
+  }
 
   const markdown = buildMarkdown(exportInput);
   const text = buildText(exportInput);

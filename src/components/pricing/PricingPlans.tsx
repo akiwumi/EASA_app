@@ -13,7 +13,7 @@ type BillingCycle = "monthly" | "annual";
 type PlanKey = "monthly" | "annual";
 
 const features = [
-  "30-day free trial — card held, not charged until day 31",
+  "30-day free trial. Card held, not charged until day 31",
   "50 student accounts included (add 10 more anytime)",
   "EASA change monitoring across 40+ regulatory families",
   "AI impact assessment and plain-language draft updates",

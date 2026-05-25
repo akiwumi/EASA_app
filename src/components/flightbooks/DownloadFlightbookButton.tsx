@@ -19,7 +19,7 @@ export default function DownloadFlightbookButton({
 }: Props) {
   const [loading, setLoading] = useState(false);
 
-  async function download(format: "md" | "txt" | "doc" | "pdf") {
+async function download(format: "md" | "txt" | "docx" | "pdf") {
     if (loading) return;
     setLoading(true);
     try {
@@ -51,7 +51,7 @@ export default function DownloadFlightbookButton({
         className="rounded-lg p-2 text-[var(--easa-color-text-muted)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-brand-primary)] disabled:opacity-50"
         title="Download flight book"
         disabled={loading}
-        onClick={() => download("doc")}
+        onClick={() => download("docx")}
       >
         {loading
           ? <Loader2 size={15} strokeWidth={1.75} className="animate-spin" />
@@ -66,12 +66,12 @@ export default function DownloadFlightbookButton({
         type="button"
         className="easa-btn secondary flex items-center gap-2 text-sm disabled:opacity-50"
         disabled={loading}
-        onClick={() => download("doc")}
+        onClick={() => download("docx")}
       >
         {loading
           ? <Loader2 size={15} strokeWidth={1.75} className="animate-spin" />
           : <Download size={15} strokeWidth={1.75} />}
-        {label ?? "Download Word"}
+        {label ?? "Download DOCX"}
       </button>
       <button
         type="button"

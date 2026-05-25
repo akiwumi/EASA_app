@@ -25,7 +25,7 @@ const welcomeSteps = [
 ];
 
 export const metadata: Metadata = {
-  title: "Welcome — Flight Lyceum",
+  title: "Welcome | Flight Lyceum",
   description:
     "Welcome to Flight Lyceum. Verify your account, then choose a Stripe subscription to open your school workspace.",
   alternates: {

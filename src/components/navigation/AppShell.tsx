@@ -5,17 +5,25 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
+  BadgeCheck,
   Bell,
   BookOpen,
+  ChevronDown,
+  ChevronRight,
   GraduationCap,
   HelpCircle,
   History,
   Home,
   LayoutDashboard,
+  Layers,
+  Library,
+  ListTodo,
   ListChecks,
   LogOut,
   Mail,
   Menu,
+  MoreHorizontal,
+  ShieldCheck,
   Search,
   Settings,
   User,
@@ -30,29 +38,58 @@ type NavItem = {
   label: string;
   icon: typeof LayoutDashboard;
   adminOnly?: boolean;
+  managerOrAdmin?: boolean;
 };
 
-const PRIMARY_NAV: NavItem[] = [
-  { href: "/dashboard",           label: "Dashboard",    icon: LayoutDashboard },
-  { href: "/updates",             label: "Review queue", icon: ListChecks },
-  { href: "/history",             label: "Time machine", icon: History },
-  { href: "/flightbooks",         label: "Flight books", icon: BookOpen },
-  { href: "/training/programmes", label: "Training",     icon: GraduationCap },
-  { href: "/settings",            label: "Settings",     icon: Settings, adminOnly: true },
+const COMPLIANCE_NAV: NavItem[] = [
+  { href: "/updates", label: "Today's work", icon: ListChecks },
+  { href: "/flightbooks", label: "Flight books", icon: BookOpen },
+  { href: "/history", label: "History", icon: History },
 ];
 
-const MOBILE_NAV: NavItem[] = [
-  { href: "/dashboard",           label: "Home",         icon: LayoutDashboard },
-  { href: "/updates",             label: "Review",       icon: ListChecks },
-  { href: "/history",             label: "Time",         icon: History },
-  { href: "/flightbooks",         label: "Books",        icon: BookOpen },
-  { href: "/training/programmes", label: "Training",     icon: GraduationCap },
-  { href: "/settings",            label: "Settings",     icon: Settings, adminOnly: true },
+const TRAINING_NAV: NavItem[] = [
+  { href: "/training/programmes", label: "Programmes", icon: Layers },
+  { href: "/training/lessons", label: "Lessons", icon: Library },
+  { href: "/training/forms", label: "Forms", icon: ListTodo },
+  { href: "/training/assignments", label: "Assignments", icon: BadgeCheck },
+  { href: "/training/signoffs", label: "Signoffs", icon: GraduationCap },
+];
+
+const ADMIN_NAV: NavItem[] = [
+  { href: "/settings", label: "Setup", icon: Settings, adminOnly: true },
+  { href: "/settings?tab=sources", label: "Sources", icon: Settings, adminOnly: true },
+  { href: "/settings?tab=ai", label: "AI settings", icon: Settings, adminOnly: true },
+  { href: "/settings/scope", label: "Regulatory scope", icon: ShieldCheck, adminOnly: true },
+  { href: "/settings?tab=automation", label: "Automation", icon: Settings, adminOnly: true },
+  { href: "/settings?tab=users", label: "Users", icon: User, adminOnly: true },
+  { href: "/settings?tab=billing", label: "Billing", icon: Settings, adminOnly: true },
+];
+
+const MOBILE_PRIMARY_NAV: NavItem[] = [
+  { href: "/updates", label: "Today's Work", icon: ListChecks },
+  { href: "/flightbooks", label: "Flight Books", icon: BookOpen },
+  { href: "/history", label: "History", icon: History },
+];
+
+const MOBILE_MORE_NAV: NavItem[] = [
+  ...TRAINING_NAV,
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: true },
+  ...ADMIN_NAV,
+  { href: "/search", label: "Search", icon: Search },
+  { href: "/profile", label: "Profile", icon: User },
+  { href: "/help", label: "Help center", icon: HelpCircle },
+  { href: "/contact", label: "Contact", icon: Mail },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/reports", label: "Reports", icon: ShieldCheck, managerOrAdmin: true },
 ];
 
 function navItemActive(pathname: string, href: string) {
   if (href === "/flightbooks") {
     return pathname.startsWith("/flightbooks") && !pathname.startsWith("/flightbooks/upload");
+  }
+  if (href.includes("?")) {
+    const [base] = href.split("?");
+    return pathname === base || pathname.startsWith(`${base}/`);
   }
   if (pathname === href) return true;
   if (href === "/dashboard") return false;
@@ -80,6 +117,8 @@ export default function AppShell({
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [trainingOpen, setTrainingOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -88,6 +127,42 @@ export default function AppShell({
     const timer = window.setTimeout(() => setMenuOpen(false), 0);
     return () => window.clearTimeout(timer);
   }, [pathname]);
+
+  useEffect(() => {
+    const trainingPath = pathname.startsWith("/training/");
+    if (trainingPath) setTrainingOpen(true);
+  }, [pathname]);
+
+  const canSeeManagerReports = role === "compliance_manager" || role === "admin";
+
+  const canAccessNavItem = useCallback((item: NavItem) => {
+    if (item.adminOnly && role !== "admin") return false;
+    if (item.managerOrAdmin && !canSeeManagerReports) return false;
+    return true;
+  }, [canSeeManagerReports, role]);
+
+  const renderNavLink = useCallback(
+    (item: NavItem, iconSize = 17) => {
+      if (!canAccessNavItem(item)) return null;
+      const active = navItemActive(pathname, item.href);
+      const Icon = item.icon;
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+            active
+              ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
+              : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
+          }`}
+        >
+          <Icon size={iconSize} strokeWidth={active ? 2.25 : 1.85} className="shrink-0" />
+          {item.label}
+        </Link>
+      );
+    },
+    [canAccessNavItem, pathname],
+  );
 
   // Initial unread count
   useEffect(() => {
@@ -162,7 +237,7 @@ export default function AppShell({
 
         {/* Brand / org header */}
         <div className="border-b border-[var(--easa-color-border)] px-4 py-3">
-          <Link href="/dashboard" className="flex items-center gap-2.5 rounded-xl p-1 transition-opacity hover:opacity-80">
+          <Link href="/updates" className="flex items-center gap-2.5 rounded-xl p-1 transition-opacity hover:opacity-80">
             <Image
               alt="Flight Lyceum logo"
               className="object-contain"
@@ -186,25 +261,42 @@ export default function AppShell({
 
         {/* Primary navigation */}
         <nav aria-label="Primary navigation" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
-          {PRIMARY_NAV.map((item) => {
-            if (item.adminOnly && role !== "admin") return null;
-            const active = navItemActive(pathname, item.href);
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-                  active
-                    ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
-                    : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
-                }`}
-              >
-                <Icon size={17} strokeWidth={active ? 2.25 : 1.85} className="shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
+          <div className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+            Regulation compliance
+          </div>
+          {COMPLIANCE_NAV.map((item) => renderNavLink(item))}
+
+          <button
+            type="button"
+            onClick={() => setTrainingOpen((open) => !open)}
+            className="mt-3 flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--easa-color-text-muted)] transition hover:bg-[var(--easa-color-surface-2)]"
+          >
+            <span>Training management</span>
+            {trainingOpen ? <ChevronDown size={14} strokeWidth={1.85} /> : <ChevronRight size={14} strokeWidth={1.85} />}
+          </button>
+          {trainingOpen ? (
+            <div className="space-y-1">
+              {TRAINING_NAV.map((item) => renderNavLink(item))}
+            </div>
+          ) : null}
+
+          {role === "admin" ? (
+            <>
+              <div className="mt-3 px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+                Admin
+              </div>
+              {ADMIN_NAV.map((item) => renderNavLink(item))}
+            </>
+          ) : null}
+
+          {canSeeManagerReports ? (
+            <>
+              <div className="mt-3 px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+                Reports
+              </div>
+              {renderNavLink({ href: "/reports", label: "Compliance report", icon: ShieldCheck, managerOrAdmin: true })}
+            </>
+          ) : null}
         </nav>
 
         {/* Utility / bottom section */}
@@ -224,47 +316,17 @@ export default function AppShell({
             )}
           </button>
 
-          <Link
-            href="/search"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
-          >
-            <Search size={17} strokeWidth={1.85} className="shrink-0" />
-            Search
-          </Link>
+            {renderNavLink({ href: "/search", label: "Search", icon: Search })}
 
-          <Link
-            href="/profile"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
-          >
-            <User size={17} strokeWidth={1.85} className="shrink-0" />
-            Profile
-          </Link>
+            {renderNavLink({ href: "/profile", label: "Profile", icon: User })}
 
           <div className="my-1 border-t border-[var(--easa-color-border)]" />
 
-          <Link
-            href="/"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
-          >
-            <Home size={17} strokeWidth={1.85} className="shrink-0" />
-            Home
-          </Link>
+            {renderNavLink({ href: "/", label: "Home", icon: Home })}
 
-          <Link
-            href="/help"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
-          >
-            <HelpCircle size={17} strokeWidth={1.85} className="shrink-0" />
-            Help Center
-          </Link>
+            {renderNavLink({ href: "/help", label: "Help center", icon: HelpCircle })}
 
-          <Link
-            href="/contact"
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
-          >
-            <Mail size={17} strokeWidth={1.85} className="shrink-0" />
-            Contact
-          </Link>
+            {renderNavLink({ href: "/contact", label: "Contact", icon: Mail })}
 
           <div className="my-1 border-t border-[var(--easa-color-border)]" />
 
@@ -295,7 +357,7 @@ export default function AppShell({
 
             {/* Logo + title */}
             <Link
-              href="/dashboard"
+              href="/updates"
               className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-80"
             >
               <Image
@@ -351,8 +413,8 @@ export default function AppShell({
               style={{ backdropFilter: "blur(16px)" }}
             >
               <nav className="grid gap-1 sm:grid-cols-2">
-                {PRIMARY_NAV.map((item) => {
-                  if (item.adminOnly && role !== "admin") return null;
+                {[...COMPLIANCE_NAV, ...TRAINING_NAV, ...(role === "admin" ? ADMIN_NAV : [])].map((item) => {
+                  if (!canAccessNavItem(item)) return null;
                   const active = navItemActive(pathname, item.href);
                   const Icon = item.icon;
                   return (
@@ -427,8 +489,8 @@ export default function AppShell({
         className="fixed inset-x-0 bottom-0 z-50 border-t border-[var(--easa-color-border)] bg-white px-2 pb-[max(env(safe-area-inset-bottom),0.25rem)] pt-1.5 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] lg:hidden"
       >
         <div className="flex w-full items-center">
-          {MOBILE_NAV.map((item) => {
-            if (item.adminOnly && role !== "admin") return null;
+          {MOBILE_PRIMARY_NAV.map((item) => {
+            if (!canAccessNavItem(item)) return null;
             const active = navItemActive(pathname, item.href);
             const Icon = item.icon;
             return (
@@ -447,7 +509,50 @@ export default function AppShell({
               </Link>
             );
           })}
+          <button
+            type="button"
+            aria-label="More navigation items"
+            className={`flex h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl transition ${
+              mobileMoreOpen ? "text-[var(--easa-color-brand-primary)]" : "text-[var(--easa-color-text-muted)]"
+            }`}
+            onClick={() => setMobileMoreOpen((open) => !open)}
+          >
+            <MoreHorizontal size={19} strokeWidth={mobileMoreOpen ? 2.25 : 1.85} />
+            <span className="text-[10px] font-medium leading-none">More</span>
+          </button>
         </div>
+        {mobileMoreOpen ? (
+          <div className="mt-2 max-h-72 overflow-y-auto rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-2">
+            {MOBILE_MORE_NAV.map((item) => {
+              if (!canAccessNavItem(item)) return null;
+              const active = navItemActive(pathname, item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileMoreOpen(false)}
+                  className={`mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm ${
+                    active
+                      ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
+                      : "text-[var(--easa-color-text-secondary)] hover:bg-white"
+                  }`}
+                >
+                  <Icon size={16} strokeWidth={active ? 2.25 : 1.85} />
+                  {item.label}
+                </Link>
+              );
+            })}
+            <button
+              type="button"
+              onClick={signOut}
+              className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[var(--easa-color-text-secondary)] hover:bg-white"
+            >
+              <LogOut size={16} strokeWidth={1.85} />
+              Sign out
+            </button>
+          </div>
+        ) : null}
       </nav>
 
       <NotificationDrawer

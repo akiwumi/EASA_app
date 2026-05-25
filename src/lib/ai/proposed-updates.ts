@@ -6,6 +6,7 @@ import {
   retrieveRegulationChunks,
   type RetrievedChunk,
 } from "@/lib/ai/retrieval";
+import { createHash } from "crypto";
 import {
   buildRevisionPrompt,
   extractGeneratedDraft,
@@ -26,6 +27,7 @@ type FindingRow = {
   confidence: string | null;
   mapped_section: string | null;
   summary: string | null;
+  rss_item_id?: string | null;
   organization_id: string | null;
   category: string | null;
   rss_items:
@@ -105,6 +107,7 @@ async function updateProposedDraftWithFallback(
 type ProposedUpdateInsertInput = {
   organization_id: string;
   reg_change_id?: string | null;
+  dedup_key?: string | null;
   flightbook_section_id?: string | null;
   classification: string;
   risk_level: string;
@@ -128,17 +131,35 @@ export async function insertProposedUpdateWithFallback(
 
   const fallbackRow = { ...row };
   delete fallbackRow.reg_change_id;
+  delete fallbackRow.dedup_key;
   return admin.from("proposed_updates").insert(fallbackRow).select("id").single();
 }
 
 export async function findLatestQueuedProposal(
   admin: SupabaseClient,
   organizationId: string,
-  options: { regChangeId?: string | null; rationale?: string | null },
+  options: { regChangeId?: string | null; rationale?: string | null; dedupKey?: string | null },
 ): Promise<
   | { data: { id: string } | null; usedFallback: boolean; error?: undefined }
   | { data?: undefined; usedFallback?: undefined; error: { message: string } }
 > {
+  if (options.dedupKey) {
+    const byDedupKey = await admin
+      .from("proposed_updates")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("dedup_key", options.dedupKey)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!byDedupKey.error) {
+      if (byDedupKey.data) return { data: byDedupKey.data, usedFallback: false };
+    } else if (!isMissingColumnError(byDedupKey.error, "dedup_key")) {
+      return { error: { message: byDedupKey.error.message } };
+    }
+  }
+
   if (options.regChangeId) {
     const byRegChange = await admin
       .from("proposed_updates")
@@ -191,6 +212,11 @@ function mapClassification(impact: string | null): "mandatory" | "recommended" |
   if (value === "high") return "mandatory";
   if (value === "medium") return "recommended";
   return "watchlist";
+}
+
+function buildDedupKey(input: { organizationId: string; rssItemId: string; mappedSection: string }) {
+  const base = `${input.organizationId}:${input.rssItemId}:${input.mappedSection}`;
+  return createHash("sha256").update(base).digest("hex");
 }
 
 function unwrapMaybeArray<T>(value: T | T[] | null | undefined): T | null {
@@ -351,10 +377,48 @@ async function loadAiConfig(
   return apiKey ? { provider, model, apiKey } : null;
 }
 
+async function loadOrgFindingFilters(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<
+  | { ok: true; categoryFilters: Set<string>; regPartFilters: Set<string> }
+  | { ok: false; error: string }
+> {
+  const { data, error } = await admin
+    .from("org_finding_filters")
+    .select("filter_type, filter_value")
+    .eq("organization_id", organizationId);
+
+  if (error) {
+    if (isMissingSchemaError(error)) {
+      return { ok: true, categoryFilters: new Set(), regPartFilters: new Set() };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  const categoryFilters = new Set<string>();
+  const regPartFilters = new Set<string>();
+
+  for (const row of data ?? []) {
+    const filterType = String((row as { filter_type?: string | null }).filter_type ?? "").toLowerCase();
+    const filterValue = String((row as { filter_value?: string | null }).filter_value ?? "").trim();
+    if (!filterValue) continue;
+    if (filterType === "category") categoryFilters.add(filterValue.toLowerCase());
+    if (filterType === "reg_part") regPartFilters.add(filterValue.toLowerCase());
+  }
+
+  return { ok: true, categoryFilters, regPartFilters };
+}
+
 export async function ensureQueuedUpdatesForOrg(
   admin: SupabaseClient,
   organizationId: string,
 ) {
+  const filterLoad = await loadOrgFindingFilters(admin, organizationId);
+  if (!filterLoad.ok) {
+    return { ok: false as const, error: filterLoad.error };
+  }
+
   const { data: schedule } = await admin
     .from("schedules")
     .select("auto_approve_low, auto_approve_delay_hours")
@@ -373,6 +437,7 @@ export async function ensureQueuedUpdatesForOrg(
         confidence,
         mapped_section,
         summary,
+        rss_item_id,
         organization_id,
         category,
         rss_items ( title, summary, link, published_at, category )
@@ -457,15 +522,60 @@ export async function ensureQueuedUpdatesForOrg(
 
   const rowsToInsert: Record<string, unknown>[] = [];
   let linkedExisting = 0;
+  let skippedKnown = 0;
+  let skippedFiltered = 0;
+  const partStats = new Map<string, { checked: number; added: number; skippedKnown: number; skippedFiltered: number }>();
 
   for (const row of (regChanges ?? []) as ProposalSourceRow[]) {
     const regChangeId = String(row.id);
     const finding = unwrapMaybeArray(row.ai_findings);
     if (!finding) continue;
+    const regPartForFinding = categoryToPart(finding.category ?? null).toLowerCase().trim();
+    const currentStats = partStats.get(regPartForFinding) ?? {
+      checked: 0,
+      added: 0,
+      skippedKnown: 0,
+      skippedFiltered: 0,
+    };
+    currentStats.checked += 1;
+    partStats.set(regPartForFinding, currentStats);
 
-    if (existingByRegChangeId.has(regChangeId)) continue;
+    const rssItemId = finding.rss_item_id ?? null;
+    const mappedSectionForDedup = (finding.mapped_section ?? "__unmapped__").trim() || "__unmapped__";
+    const dedupKey =
+      rssItemId
+        ? buildDedupKey({
+            organizationId,
+            rssItemId,
+            mappedSection: mappedSectionForDedup,
+          })
+        : null;
+
+    if (existingByRegChangeId.has(regChangeId)) {
+      skippedKnown += 1;
+      currentStats.skippedKnown += 1;
+      continue;
+    }
+
+    if (dedupKey) {
+      const byDedup = await findLatestQueuedProposal(admin, organizationId, {
+        dedupKey,
+        regChangeId,
+      });
+      if (byDedup.error) return { ok: false as const, error: byDedup.error.message };
+      if (byDedup.data?.id) {
+        skippedKnown += 1;
+        currentStats.skippedKnown += 1;
+        continue;
+      }
+    }
 
     const rationale = finding.summary ?? "";
+    if (!rssItemId && !rationale) {
+      skippedKnown += 1;
+      currentStats.skippedKnown += 1;
+      continue;
+    }
     const matchingExisting = rationale ? existingByRationale.get(rationale) : null;
     if (matchingExisting?.id && !matchingExisting.reg_change_id) {
       const updateResult = await admin
@@ -481,6 +591,15 @@ export async function ensureQueuedUpdatesForOrg(
       } else {
         return { ok: false as const, error: updateResult.error.message };
       }
+      skippedKnown += 1;
+      currentStats.skippedKnown += 1;
+      continue;
+    }
+
+    const category = (finding.category ?? "").toLowerCase().trim();
+    if (filterLoad.categoryFilters.has(category) || filterLoad.regPartFilters.has(regPartForFinding)) {
+      skippedFiltered += 1;
+      currentStats.skippedFiltered += 1;
       continue;
     }
 
@@ -495,6 +614,7 @@ export async function ensureQueuedUpdatesForOrg(
     rowsToInsert.push({
       organization_id: organizationId,
       reg_change_id: regChangeId,
+      dedup_key: dedupKey,
       classification: mapClassification(finding.impact),
       risk_level: riskLevel,
       ai_rationale: finding.summary,
@@ -504,6 +624,7 @@ export async function ensureQueuedUpdatesForOrg(
       ai_model: "pipeline-auto-queue",
       ai_generated_at: new Date().toISOString(),
     });
+    currentStats.added += 1;
   }
 
   if (rowsToInsert.length > 0) {
@@ -516,6 +637,7 @@ export async function ensureQueuedUpdatesForOrg(
       const fallbackRows = rowsToInsert.map((row) => {
         const fallbackRow = { ...row };
         delete fallbackRow.reg_change_id;
+        delete fallbackRow.dedup_key;
         return fallbackRow;
       });
       const { error: fallbackInsertError } = await admin.from("proposed_updates").insert(fallbackRows);
@@ -529,6 +651,12 @@ export async function ensureQueuedUpdatesForOrg(
     ok: true as const,
     created: rowsToInsert.length,
     linkedExisting,
+    skippedKnown,
+    skippedFiltered,
+    partStats: Array.from(partStats.entries()).map(([regPart, stats]) => ({
+      regPart,
+      ...stats,
+    })),
   };
 }
 

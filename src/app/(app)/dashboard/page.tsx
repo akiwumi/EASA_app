@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
 import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
-import PipelineStatusCard from "@/components/dashboard/PipelineStatusCard";
 import ComplianceTimelinePanel from "@/components/dashboard/ComplianceTimelinePanel";
+import RegulationMonitoringTable from "@/components/dashboard/RegulationMonitoringTable";
 import { buildDashboardSetupTasks } from "@/components/dashboard/DashboardSectionPanels";
 import {
   loadDashboardSetupSummary,
@@ -11,6 +11,7 @@ import {
   loadOrgContext,
   loadRecentPipelineRun,
   loadComplianceTimeline,
+  loadRegulationMonitoringRows,
 } from "@/services/dashboard";
 import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
 
@@ -21,11 +22,12 @@ export default async function DashboardPage() {
     redirect("/settings?tab=setup");
   }
 
-  const [setupSummary, stats, lastRun, timeline] = await Promise.all([
+  const [setupSummary, stats, lastRun, timeline, regulationRows] = await Promise.all([
     loadDashboardSetupSummary(org.organizationId),
     loadDashboardStats(org.organizationId),
     loadRecentPipelineRun(org.organizationId),
     loadComplianceTimeline(org.organizationId),
+    loadRegulationMonitoringRows(org.organizationId),
   ]);
 
   const setupTasks = buildDashboardSetupTasks(setupSummary);
@@ -42,6 +44,8 @@ export default async function DashboardPage() {
         flightbookCount={setupSummary.flightbookCount}
         newAlertsThisWeek={stats.newChanges7d}
       />
+
+      <RegulationMonitoringTable rows={regulationRows} />
 
       {/* Pipeline trigger + quick links */}
       <DashboardHeaderActions />
@@ -122,9 +126,6 @@ export default async function DashboardPage() {
               <p className="text-xs text-[var(--easa-color-text-muted)]">controlled docs</p>
             </Link>
           </div>
-
-          {/* Pipeline status */}
-          <PipelineStatusCard lastRun={lastRun} />
 
           {/* Quick actions */}
           <div className="easa-card divide-y divide-[var(--easa-color-border)] p-0 overflow-hidden">

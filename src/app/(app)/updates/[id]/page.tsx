@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import DiffViewer from "@/components/updates/DiffViewer";
 import { getOptionalSupabaseAdminClient, getOrgAccessContext, ORG_APPROVER_ROLES } from "@/lib/supabase/access";
+import { buildReviewPreview } from "@/lib/ai/review-preview";
 
 type JoinedUpdateRow = {
   id: string;
@@ -151,6 +152,14 @@ export default async function UpdateDetailPage({
       ? ((fbSection as Record<string, unknown>).flightbooks as unknown[])[0]
       : (fbSection as Record<string, unknown>).flightbooks
     : null;
+  const findingId = ((regChange as Record<string, unknown> | null)?.ai_finding_id as string | null) ?? null;
+  const reviewPreview = findingId
+    ? await buildReviewPreview(admin, {
+        findingId,
+        flightbookId: null,
+        defaultOrgId: orgId ?? "00000000-0000-4000-8000-000000000001",
+      })
+    : null;
 
   return (
     <div className="space-y-6">
@@ -177,7 +186,7 @@ export default async function UpdateDetailPage({
         sectionRef={((regChange as Record<string, unknown> | null)?.section_ref as string | null) ?? null}
         changeType={((regChange as Record<string, unknown> | null)?.change_type as string) ?? "unknown"}
         diffText={((regChange as Record<string, unknown> | null)?.diff_text as string | null) ?? null}
-        findingId={((regChange as Record<string, unknown> | null)?.ai_finding_id as string | null) ?? null}
+        findingId={findingId}
         rssTitle={((rssItem as Record<string, unknown> | null)?.title as string | null) ?? null}
         rssSummary={((rssItem as Record<string, unknown> | null)?.summary as string | null) ?? null}
         rssLink={((rssItem as Record<string, unknown> | null)?.link as string | null) ?? null}
@@ -189,6 +198,8 @@ export default async function UpdateDetailPage({
         sectionTitle={((fbSection as Record<string, unknown> | null)?.title as string | null) ?? null}
         sectionBody={((fbSection as Record<string, unknown> | null)?.body as string | null) ?? null}
         flightbookName={((flightbook as Record<string, unknown> | null)?.name as string | null) ?? null}
+        whyThisSection={reviewPreview?.ok ? reviewPreview.data.whyThisSection : null}
+        sourceCitations={reviewPreview?.ok ? reviewPreview.data.sourceCitations : []}
         canManage={canManage}
       />
     </div>

@@ -391,12 +391,12 @@ export default function UsersTab() {
       </div>
 
       <div className="flex flex-wrap gap-4 text-xs text-[var(--easa-color-text-muted)]">
-        <span className="flex items-center gap-1"><ShieldCheck size={13} /> Admin — invites users, manages billing, and can delete other users</span>
-        <span className="flex items-center gap-1"><GraduationCap size={13} /> Student — learner access for assigned reading, acknowledgements, and training workflows</span>
-        <span className="flex items-center gap-1"><GraduationCap size={13} /> Instructor — staff access without billing control</span>
-        <span className="flex items-center gap-1"><PencilLine size={13} /> Editor — can review and prepare updates</span>
-        <span className="flex items-center gap-1"><ShieldCheck size={13} /> Compliance manager — can approve and roll back updates</span>
-        <span className="flex items-center gap-1"><Eye size={13} /> Viewer — read-only access</span>
+        <span className="flex items-center gap-1"><ShieldCheck size={13} /> Admin:invites users, manages billing, and can delete other users</span>
+        <span className="flex items-center gap-1"><GraduationCap size={13} /> Student:learner access for assigned reading, acknowledgements, and training workflows</span>
+        <span className="flex items-center gap-1"><GraduationCap size={13} /> Instructor:staff access without billing control</span>
+        <span className="flex items-center gap-1"><PencilLine size={13} /> Editor:can review and prepare updates</span>
+        <span className="flex items-center gap-1"><ShieldCheck size={13} /> Compliance manager:can approve and roll back updates</span>
+        <span className="flex items-center gap-1"><Eye size={13} /> Viewer:read-only access</span>
       </div>
     </div>
   );

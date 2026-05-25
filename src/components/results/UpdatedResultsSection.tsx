@@ -545,6 +545,14 @@ export default function UpdatedResultsSection({
                         <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
                           Deleted {item.deletedAt ? new Date(item.deletedAt).toLocaleString("en-GB") : "recently"} · {item.category}
                         </p>
+                        {item.dismissedAt || item.dismissalReason ? (
+                          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                            Dismissed
+                            {item.dismissedBy ? ` by ${item.dismissedBy}` : ""}
+                            {item.dismissedAt ? ` on ${new Date(item.dismissedAt).toLocaleString("en-GB")}` : ""}
+                            {item.dismissalReason ? ` — ${item.dismissalReason}` : ""}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">

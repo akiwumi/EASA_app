@@ -8,7 +8,7 @@ import { ArrowRight, BookOpen, Clock } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Help Center",
-  description: "Step-by-step guides and articles covering every workflow in Flight Lyceum — from your first upload to exporting audit records.",
+  description: "Step-by-step guides and articles covering every workflow in Flight Lyceum, from your first upload to exporting audit records.",
 };
 
 export default async function HelpIndexPage() {

@@ -126,7 +126,9 @@ export async function POST(request: Request) {
       flightbookId: section.flightbook_id as string,
       changeSource: "approved_finding",
       createdBy: ctx.userId,
+      approverId: ctx.userId,
       note: `Generated automatically from approved finding ${findingId}.`,
+      updatedSectionIds: [sectionId],
     });
   }
 

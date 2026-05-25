@@ -108,7 +108,7 @@ export default function AiSettingsTab() {
         <h2 className="mb-1 text-sm font-semibold">AI provider</h2>
         <p className="mb-5 text-xs text-[var(--easa-color-text-muted)]">
           Configure the AI model used for RSS analysis and regulation mapping.
-          All schools are provisioned with a built-in OpenAI key — no setup required.
+          All schools are provisioned with a built-in OpenAI key, no setup required.
         </p>
 
         {loading ? (
@@ -123,7 +123,7 @@ export default function AiSettingsTab() {
                 <div>
                   <p className="text-xs font-medium text-[var(--easa-color-accent-green)]">App key active</p>
                   <p className="text-[11px] text-[var(--easa-color-accent-green)]/80">
-                    Managed by the platform — not visible to schools or admins.
+                    Managed by the platform. Not visible to schools or admins.
                   </p>
                 </div>
               </div>

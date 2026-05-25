@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOrgAccessContext, getSupabaseAdminClient } from "@/lib/supabase/access";
+import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 
 function sanitizeFilename(value: string) {
   return value
@@ -37,61 +38,53 @@ function buildMarkdown(input: {
   return lines.join("\n");
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function buildWordDoc(input: {
+async function buildDocx(input: {
   name: string;
   docType: string;
   versionLabel: string | null;
   exportedAt: string;
   sections: { section_number: string | null; title: string | null; body: string; updated?: boolean }[];
 }) {
-  const sectionHtml = input.sections
-    .map((section) => {
-      const heading = [section.section_number, section.title].filter(Boolean).join(" ") || "Untitled section";
-      const body = escapeHtml(section.body)
-        .split(/\n{2,}/)
-        .map((paragraph) => `<p>${paragraph.replace(/\n/g, "<br>")}</p>`)
-        .join("");
-      const updatedClass = section.updated ? " updated-section" : "";
-      const updatedBadge = section.updated ? `<div class="updated-badge">UPDATED SECTION</div>` : "";
-      return `<section class="flightbook-section${updatedClass}">${updatedBadge}<h2>${escapeHtml(heading)}</h2>${body}</section>`;
-    })
-    .join("");
+  const children: Paragraph[] = [
+    new Paragraph({ text: input.name, heading: HeadingLevel.HEADING_1 }),
+    new Paragraph({ text: `Document type: ${input.docType}` }),
+    new Paragraph({ text: `Revision: ${input.versionLabel ?? "Current"}` }),
+    new Paragraph({ text: `Exported at: ${input.exportedAt}` }),
+    new Paragraph({ text: "" }),
+  ];
 
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${escapeHtml(input.name)}</title>
-  <style>
-    body { font-family: Aptos, Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #111827; }
-    h1 { font-size: 22pt; margin-bottom: 8pt; }
-    h2 { font-size: 14pt; margin-top: 20pt; border-bottom: 1px solid #d1d5db; padding-bottom: 4pt; }
-    .meta { color: #4b5563; margin-bottom: 18pt; }
-    .flightbook-section { margin-bottom: 14pt; padding: 0 0 8pt; }
-    .updated-section { border: 2px solid #dc2626; background: #fef2f2; padding: 10pt 12pt; }
-    .updated-section h2 { color: #b91c1c; border-bottom-color: #fca5a5; margin-top: 0; }
-    .updated-badge { color: #991b1b; font-size: 9pt; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 6pt; text-transform: uppercase; }
-    p { margin: 0 0 10pt; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(input.name)}</h1>
-  <div class="meta">
-    <div>Document type: ${escapeHtml(input.docType)}</div>
-    <div>Revision: ${escapeHtml(input.versionLabel ?? "Current")}</div>
-    <div>Exported at: ${escapeHtml(input.exportedAt)}</div>
-  </div>
-  ${sectionHtml}
-</body>
-</html>`;
+  for (const section of input.sections) {
+    const heading = [section.section_number, section.title].filter(Boolean).join(" ") || "Untitled section";
+    if (section.updated) {
+      children.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "UPDATED SECTION",
+              bold: true,
+              color: "B91C1C",
+            }),
+          ],
+        }),
+      );
+    }
+    children.push(new Paragraph({ text: heading, heading: HeadingLevel.HEADING_2 }));
+
+    const blocks = section.body.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+    if (blocks.length === 0) {
+      children.push(new Paragraph({ text: "" }));
+    } else {
+      for (const block of blocks) {
+        children.push(new Paragraph({ children: [new TextRun({ text: block })] }));
+      }
+    }
+  }
+
+  const doc = new Document({
+    sections: [{ children }],
+  });
+
+  return Packer.toBuffer(doc);
 }
 
 function wrapText(text: string, maxChars: number) {
@@ -118,6 +111,10 @@ function wrapText(text: string, maxChars: number) {
 
 function escapePdfText(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+function toBinaryBody(content: Buffer) {
+  return new Uint8Array(content);
 }
 
 function buildPdf(input: {
@@ -280,7 +277,7 @@ export async function GET(
   const { id } = await params;
   const { searchParams } = new URL(request.url);
   const requestedFormat = searchParams.get("format");
-  const format = requestedFormat === "txt" || requestedFormat === "doc" || requestedFormat === "pdf" ? requestedFormat : "md";
+  const format = requestedFormat === "txt" || requestedFormat === "docx" || requestedFormat === "pdf" ? requestedFormat : "md";
   const exportId = searchParams.get("exportId");
 
   const admin = getSupabaseAdminClient();
@@ -317,20 +314,20 @@ export async function GET(
     const text = await storageObject.text();
     const filenameBase = sanitizeFilename(objectPath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "flightbook");
 
-    if (format === "doc") {
+    if (format === "docx") {
       const parsedExport = parseRetainedMarkdownExport(text);
-      const content = buildWordDoc({
+      const content = await buildDocx({
         name: parsedExport.name,
         docType: "flightbook",
         versionLabel: "Retained export",
         exportedAt: new Date().toISOString(),
         sections: parsedExport.sections,
       });
-      return new Response(content, {
+      return new Response(toBinaryBody(content), {
         status: 200,
         headers: {
-          "Content-Type": "application/msword; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${filenameBase}.doc"`,
+          "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "Content-Disposition": `attachment; filename="${filenameBase}.docx"`,
         },
       });
     }
@@ -343,7 +340,7 @@ export async function GET(
         exportedAt: new Date().toISOString(),
         sections: [{ section_number: null, title: "Retained export", body: text }],
       });
-      return new Response(content, {
+      return new Response(toBinaryBody(content), {
         status: 200,
         headers: {
           "Content-Type": "application/pdf",
@@ -402,22 +399,26 @@ export async function GET(
   const content =
     format === "txt"
       ? buildText(exportPayload)
-      : format === "doc"
-        ? buildWordDoc(exportPayload)
+      : format === "docx"
+        ? await buildDocx(exportPayload)
         : format === "pdf"
           ? buildPdf(exportPayload)
           : buildMarkdown(exportPayload);
+  const responseBody =
+    typeof content === "string"
+      ? content
+      : toBinaryBody(content);
   const filenameBase = sanitizeFilename(exportPayload.name || "flightbook");
   const filename = `${filenameBase}-current.${format}`;
 
-  return new Response(content, {
+  return new Response(responseBody, {
     status: 200,
     headers: {
       "Content-Type":
         format === "txt"
           ? "text/plain; charset=utf-8"
-          : format === "doc"
-            ? "application/msword; charset=utf-8"
+          : format === "docx"
+            ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             : format === "pdf"
               ? "application/pdf"
               : "text/markdown; charset=utf-8",

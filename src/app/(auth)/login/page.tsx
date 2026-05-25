@@ -39,8 +39,23 @@ export default function LoginPage() {
       return;
     }
 
+    let defaultPath = "/updates";
+    try {
+      const orgsResponse = await fetch("/api/orgs", { cache: "no-store" });
+      if (orgsResponse.ok) {
+        const payload = (await orgsResponse.json()) as {
+          memberships?: Array<{ role?: string | null }>;
+        };
+        const memberships = Array.isArray(payload.memberships) ? payload.memberships : [];
+        const isAdmin = memberships.some((membership) => membership.role === "admin");
+        defaultPath = isAdmin ? "/dashboard" : "/updates";
+      }
+    } catch {
+      // Fallback to non-admin landing if org role lookup fails.
+    }
+
     const next = new URLSearchParams(window.location.search).get("next");
-    const nextPath = next && next.startsWith("/") ? next : "/dashboard";
+    const nextPath = next && next.startsWith("/") ? next : defaultPath;
     window.location.assign(nextPath);
   };
 

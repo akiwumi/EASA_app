@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, Upload, CheckCircle, XCircle, FileText, ArrowDownUp } from "lucide-react";
-import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
 import DownloadFlightbookButton from "@/components/flightbooks/DownloadFlightbookButton";
 import type { FlightbookExportSummary, FlightbookSummary } from "@/lib/types/domain";
 
@@ -38,19 +37,23 @@ export default function FlightbooksBrowser({ books }: Props) {
   );
 
   const generatedCopies = useMemo<GeneratedCopy[]>(
-    () =>
-      sortByDate(
-        books.flatMap((book) =>
-          (book.generatedCopies ?? []).map((copy) => ({
-            ...copy,
-            flightbookId: book.id,
-            flightbookName: book.name,
-            docType: book.doc_type,
-          })),
-        ),
-        generatedSort,
-        (copy) => copy.created_at,
-      ),
+    () => sortByDate(
+      books.flatMap((book) => {
+        const sorted = [...(book.generatedCopies ?? [])].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        );
+        const latest = sorted[0];
+        if (!latest) return [];
+        return [{
+          ...latest,
+          flightbookId: book.id,
+          flightbookName: book.name,
+          docType: book.doc_type,
+        }];
+      }),
+      generatedSort,
+      (copy) => copy.created_at,
+    ),
     [books, generatedSort],
   );
 
@@ -95,9 +98,9 @@ export default function FlightbooksBrowser({ books }: Props) {
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold">Created flight books</h2>
+              <h2 className="text-lg font-semibold">Current revised copies</h2>
               <p className="text-sm text-[var(--easa-color-text-muted)]">
-                Date-stamped copies generated after approved updates.
+                One latest generated revision per book.
               </p>
             </div>
             <label className="flex items-center gap-2 text-sm text-[var(--easa-color-text-muted)]">
@@ -115,10 +118,7 @@ export default function FlightbooksBrowser({ books }: Props) {
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {generatedCopies.map((copy) => (
-              <div
-                key={copy.id}
-                className="easa-card p-4"
-              >
+              <div key={copy.id} className="easa-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -126,7 +126,7 @@ export default function FlightbooksBrowser({ books }: Props) {
                       <p className="truncate text-sm font-semibold">{copy.flightbookName}</p>
                     </div>
                     <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-                      v{String(copy.version_number).padStart(4, "0")} · {new Date(copy.created_at).toLocaleString("en-GB")}
+                      Current revision · v{String(copy.version_number).padStart(4, "0")} · {new Date(copy.created_at).toLocaleString("en-GB")}
                     </p>
                     <p className="mt-1 text-xs capitalize text-[var(--easa-color-text-muted)]">
                       {copy.change_source.replace(/_/g, " ")} · {copy.docType}
@@ -143,7 +143,7 @@ export default function FlightbooksBrowser({ books }: Props) {
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">Original flight books</h2>
+            <h2 className="text-lg font-semibold">Source flight books</h2>
             <p className="text-sm text-[var(--easa-color-text-muted)]">
               Uploaded source books parsed into indexed sections.
             </p>
@@ -237,13 +237,9 @@ export default function FlightbooksBrowser({ books }: Props) {
 
                 {book.sectionCount === 0 && (
                   <p className="mt-2 text-xs text-[var(--easa-color-accent-orange)]">
-                    No sections — upload content so the AI can compare
+                    No sections. Upload content so the AI can compare.
                   </p>
                 )}
-              </div>
-              {/* stopPropagation so delete click doesn't navigate to the book */}
-              <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-                <DeleteFlightbookButton id={book.id} name={book.name} compact />
               </div>
             </div>
           </div>

@@ -171,7 +171,7 @@ export default async function ArticlePage({ params }: Props) {
                     href="/contact"
                     className="rounded-xl border border-[var(--easa-color-border)] bg-white px-4 py-2 text-xs font-medium text-[var(--easa-color-text-secondary)] transition hover:border-[var(--easa-color-brand-primary)] hover:text-[var(--easa-color-brand-primary)]"
                   >
-                    No — I need more help
+                    No, I need more help
                   </Link>
                   <Link
                     href="/help"

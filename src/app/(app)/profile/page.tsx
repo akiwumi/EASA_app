@@ -307,7 +307,7 @@ export default function ProfilePage() {
               <option value="weekly">Weekly digest (Mondays, 07:00 UTC)</option>
             </select>
             <p className="mt-2 text-xs text-[var(--easa-color-text-muted)]">
-              Priority digest sends only approval, rejection, revision, and rollback activity. Weekly digest batches the last 7 days each Monday.
+              Priority digest sends only approval, rejection, revision, and rollback activity. Weekly summary is sent Monday at 07:00 UTC to admins and compliance managers.
             </p>
           </div>
         </div>

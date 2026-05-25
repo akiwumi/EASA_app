@@ -26,7 +26,7 @@ export default async function ContactPage() {
             We&rsquo;d love to hear from you
           </h1>
           <p className="mt-4 text-lg leading-relaxed text-[var(--easa-color-text-muted)]">
-            Whether you have a question about the platform, want to book a demo, or just want to say hello — our team is ready to help.
+            Whether you have a question about the platform, want to book a demo, or just want to say hello, our team is ready to help.
           </p>
         </div>
 

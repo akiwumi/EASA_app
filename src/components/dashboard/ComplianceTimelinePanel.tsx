@@ -40,7 +40,7 @@ export default function ComplianceTimelinePanel({ data }: { data: ComplianceTime
         <div className="px-5 py-4">
           <div className="mb-3 flex items-baseline justify-between">
             <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
-              Changes detected — last 30 days
+              Changes detected, last 30 days
             </p>
             <span className="text-lg font-semibold text-[var(--easa-color-text-primary)]">
               {data.detectedLast30d}

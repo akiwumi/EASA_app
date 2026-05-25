@@ -24,6 +24,18 @@ function compactCitation(chunk: RetrievedChunk) {
   };
 }
 
+function buildWhyThisSection(primaryFlightbook: RetrievedChunk, regulationChunks: RetrievedChunk[]) {
+  const topFlightbookScore = Number(primaryFlightbook.score.toFixed(3));
+  const topRegulationScore = regulationChunks[0] ? Number(regulationChunks[0].score.toFixed(3)) : null;
+  const sectionRef = primaryFlightbook.sectionNumber ?? primaryFlightbook.title ?? "this section";
+
+  if (topRegulationScore != null) {
+    return `Matched to ${sectionRef} because it had the strongest flightbook similarity (${topFlightbookScore}) and aligned regulation evidence (${topRegulationScore}).`;
+  }
+
+  return `Matched to ${sectionRef} because it had the strongest flightbook similarity score (${topFlightbookScore}).`;
+}
+
 export async function buildReviewPreview(
   admin: SupabaseClient,
   input: { findingId: string; flightbookId?: string | null; defaultOrgId: string },
@@ -36,7 +48,9 @@ export async function buildReviewPreview(
       summary,
       mapped_section,
       category,
-      rss_items ( title, summary, category )
+      confidence,
+      rss_item_id,
+      rss_items ( title, summary, category, link, published_at )
     `)
     .eq("id", input.findingId)
     .maybeSingle();
@@ -49,7 +63,15 @@ export async function buildReviewPreview(
     title?: string | null;
     summary?: string | null;
     category?: string | null;
-  } | { title?: string | null; summary?: string | null; category?: string | null }[] | null);
+    link?: string | null;
+    published_at?: string | null;
+  } | {
+    title?: string | null;
+    summary?: string | null;
+    category?: string | null;
+    link?: string | null;
+    published_at?: string | null;
+  }[] | null);
   const orgId = (finding.organization_id as string | null) ?? input.defaultOrgId;
   const regPart = categoryToPart((finding.category as string | null) ?? rss?.category ?? null);
   const retrievalQuery = buildRetrievalQuery({
@@ -91,7 +113,24 @@ export async function buildReviewPreview(
       sectionNumber: primaryFlightbook.sectionNumber,
       flightbookName: primaryFlightbook.flightbookName ?? "Unknown",
       currentBody: primaryFlightbook.body,
-      whyThisSection: "Chosen because it was the strongest retrieved flightbook match.",
+      whyThisSection: buildWhyThisSection(primaryFlightbook, regulationChunks),
+      rssTitle: rss?.title ?? null,
+      rssSummary: rss?.summary ?? null,
+      rssLink: (rss?.link as string | null | undefined) ?? null,
+      rssPublishedAt: (rss?.published_at as string | null | undefined) ?? null,
+      regPart,
+      sourceCitations: [
+        ...regulationChunks.slice(0, 3).map(compactCitation),
+        ...flightbookChunks.slice(0, 3).map(compactCitation),
+      ],
+      trigger: {
+        title: rss?.title ?? "EASA update",
+        summary: rss?.summary ?? null,
+        link: (rss?.link as string | null | undefined) ?? null,
+        publishedAt: (rss?.published_at as string | null | undefined) ?? null,
+        category: (rss?.category as string | null | undefined) ?? (finding.category as string | null | undefined) ?? null,
+        confidence: (finding.confidence as string | null | undefined) ?? null,
+      },
       citations: [
         ...regulationChunks.map(compactCitation),
         ...flightbookChunks.slice(1).map(compactCitation),

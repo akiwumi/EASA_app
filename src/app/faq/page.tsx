@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "FAQ",
-  description: "Frequently asked questions about Flight Lyceum — the compliance and training platform built for EASA Approved Training Organisations.",
+  description: "Frequently asked questions about Flight Lyceum, the compliance and training platform built for EASA Approved Training Organisations.",
 };
 
 const faqs = [
@@ -15,7 +15,7 @@ const faqs = [
     items: [
       {
         q: "What is Flight Lyceum?",
-        a: "Flight Lyceum is a compliance and training management platform built specifically for EASA Approved Training Organisations (ATOs) and flight schools. It helps you monitor regulation changes, control your manuals, assign reading by lesson, and track every student and instructor acknowledgement — all in one place.",
+        a: "Flight Lyceum is a compliance and training management platform built specifically for EASA Approved Training Organisations (ATOs) and flight schools. It helps you monitor regulation changes, control your manuals, assign reading by lesson, and track every student and instructor acknowledgement, all in one place.",
       },
       {
         q: "How do I get my school on the platform?",
@@ -23,11 +23,11 @@ const faqs = [
       },
       {
         q: "Is there a free trial?",
-        a: "Yes — new schools get a 30-day free trial with full access to all features. A card is required to start but you won't be charged until day 31. After the trial, choose monthly or annual billing.",
+        a: "Yes, new schools get a 30-day free trial with full access to all features. A card is required to start but you won't be charged until day 31. After the trial, choose monthly or annual billing.",
       },
       {
         q: "Do I need to install anything?",
-        a: "No. Flight Lyceum is a fully web-based platform — it works in any modern browser on desktop, tablet, or mobile. There is nothing to install or maintain.",
+        a: "No. Flight Lyceum is a fully web-based platform. It works in any modern browser on desktop, tablet, or mobile. There is nothing to install or maintain.",
       },
     ],
   },
@@ -74,11 +74,11 @@ const faqs = [
     items: [
       {
         q: "How is pricing structured?",
-        a: "Flight Lyceum is priced per organisation. See the pricing page for current plans. All plans include unlimited manuals, compliance monitoring, and student tracking — plans differ by the number of active users.",
+        a: "Flight Lyceum is priced per organisation. See the pricing page for current plans. All plans include unlimited manuals, compliance monitoring, and student tracking. Plans differ by the number of active users.",
       },
       {
         q: "Can I add multiple admins to my school account?",
-        a: "Yes. You can invite as many administrators and instructors as your plan allows. Each person gets their own login and role-based access — admins manage settings and manuals, instructors manage training, students access their assigned reading.",
+        a: "Yes. You can invite as many administrators and instructors as your plan allows. Each person gets their own login and role-based access. Admins manage settings and manuals, instructors manage training, students access their assigned reading.",
       },
       {
         q: "What happens to my data if I cancel?",

@@ -148,6 +148,11 @@ export async function applyApprovedUpdates(
       flightbookId,
       changeSource: "approved_update",
       createdBy: input.userId,
+      approverId: input.userId,
+      proposedUpdateId: updateRows.find((row) => {
+        const sectionId = row.flightbook_section_id as string;
+        return (updatedSectionIdsByBook.get(flightbookId) ?? new Set<string>()).has(sectionId);
+      })?.id ?? null,
       note: `Generated automatically after ${applied} approved update${applied === 1 ? "" : "s"}.`,
       updatedSectionIds: Array.from(updatedSectionIdsByBook.get(flightbookId) ?? []),
     });

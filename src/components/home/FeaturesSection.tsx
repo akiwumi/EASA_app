@@ -1,5 +1,8 @@
+ "use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 
 const cards = [
   {
@@ -45,6 +48,18 @@ const cards = [
 ];
 
 export default function FeaturesSection() {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  function goToNext() {
+    setActiveIndex((current) => (current + 1) % cards.length);
+  }
+
+  function goToPrevious() {
+    setActiveIndex((current) => (current - 1 + cards.length) % cards.length);
+  }
+
+  const activeCard = cards[activeIndex];
+
   return (
     <section
       id="features"
@@ -66,39 +81,74 @@ export default function FeaturesSection() {
           </h2>
         </div>
 
-        <div className="easa-mobile-carousel grid gap-6 md:grid-cols-2">
-          {cards.map((card) => (
-            <div
-              key={card.title}
-              className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card"
-            >
-              <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
-                <Image
-                  src={card.image}
-                  alt={card.alt}
-                  fill
-                  sizes="(min-width: 768px) 44vw, 92vw"
-                  className="h-full w-full object-cover"
-                />
-              </div>
-
-              <div className="flex flex-1 flex-col p-6">
-                <h3 className="text-lg font-semibold text-foreground">
-                  {card.title}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  {card.body}
-                </p>
-                <Link
-                  href={card.href}
-                  aria-label={card.linkLabel}
-                  className="mt-4 text-sm font-medium text-foreground hover:underline"
-                >
-                  Learn more →
-                </Link>
-              </div>
+        <div className="mx-auto max-w-3xl">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
+              <Image
+                src={activeCard.image}
+                alt={activeCard.alt}
+                fill
+                sizes="(min-width: 768px) 55vw, 92vw"
+                className="h-full w-full object-cover"
+              />
             </div>
-          ))}
+
+            <div className="flex flex-1 flex-col p-6">
+              <h3 className="text-lg font-semibold text-foreground">
+                {activeCard.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {activeCard.body}
+              </p>
+              <Link
+                href={activeCard.href}
+                aria-label={activeCard.linkLabel}
+                className="mt-4 text-sm font-medium text-foreground hover:underline"
+              >
+                Learn more →
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={goToPrevious}
+              aria-label="Previous feature image"
+              className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
+            >
+              Previous
+            </button>
+
+            <div className="flex items-center gap-2">
+              {cards.map((card, index) => {
+                const isActive = index === activeIndex;
+                return (
+                  <button
+                    key={card.title}
+                    type="button"
+                    aria-label={`Go to ${card.title}`}
+                    aria-current={isActive}
+                    onClick={() => setActiveIndex(index)}
+                    className={`h-2.5 rounded-full transition ${
+                      isActive
+                        ? "w-7 bg-foreground"
+                        : "w-2.5 bg-muted-foreground/40 hover:bg-muted-foreground/60"
+                    }`}
+                  />
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={goToNext}
+              aria-label="Next feature image"
+              className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:bg-secondary"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
     </section>

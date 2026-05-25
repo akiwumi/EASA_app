@@ -40,10 +40,19 @@ export type FlightbookMappingRow = {
 };
 
 export type PipelinePreview = {
+  id?: string;
   status: string;
   startedAt: string | null;
   finishedAt: string | null;
   steps: Record<string, unknown> | null;
+};
+
+export type RegulationMonitoringRow = {
+  regPart: string;
+  lastCheckedAt: string | null;
+  result: "no_changes" | "new_items" | "error";
+  count: number;
+  nextScheduledScan: string | null;
 };
 
 export type DashboardSetupSummary = {
@@ -365,7 +374,7 @@ export async function loadRecentPipelineRun(
 
   const { data } = await supabase
     .from("pipeline_runs")
-    .select("status, started_at, finished_at, steps")
+    .select("id, status, started_at, finished_at, steps")
     .eq("organization_id", organizationId)
     .order("started_at", { ascending: false })
     .limit(1)
@@ -374,11 +383,126 @@ export async function loadRecentPipelineRun(
   if (!data) return null;
 
   return {
+    id: data.id as string,
     status: data.status as string,
     startedAt: data.started_at as string | null,
     finishedAt: data.finished_at as string | null,
     steps: (data.steps as Record<string, unknown> | null) ?? null,
   };
+}
+
+function normalizeRegPart(part: string) {
+  const key = String(part).toLowerCase();
+  if (key === "part-fcl") return "Part-FCL";
+  if (key === "part-med") return "Part-MED";
+  if (key === "part-ora") return "Part-ORA";
+  if (key === "part-dto") return "Part-DTO";
+  if (key === "part-ara") return "Part-ARA";
+  if (key === "part-oro") return "Part-ORO";
+  if (key === "part-cat") return "Part-CAT";
+  if (key === "part-ncc") return "Part-NCC";
+  if (key === "part-nco") return "Part-NCO";
+  if (key === "cs-fstd(a)") return "CS-FSTD(A)";
+  if (key === "cs-ftl.1") return "CS-FTL.1";
+  return String(part);
+}
+
+export async function loadRegulationMonitoringRows(
+  organizationId: string,
+): Promise<RegulationMonitoringRow[]> {
+  const admin = getSupabaseAdminClient();
+  const inScopeParts = new Set([
+    "Part-FCL",
+    "Part-MED",
+    "Part-ORA",
+    "Part-DTO",
+    "Part-ARA",
+    "Part-ORO",
+    "Part-CAT",
+    "Part-NCC",
+    "Part-NCO",
+    "CS-FSTD(A)",
+    "CS-FTL.1",
+  ]);
+
+  const { data: filters } = await admin
+    .from("org_finding_filters")
+    .select("filter_type, filter_value")
+    .eq("organization_id", organizationId);
+
+  for (const filter of filters ?? []) {
+    const type = String(filter.filter_type ?? "").toLowerCase();
+    const value = normalizeRegPart(String(filter.filter_value ?? ""));
+    if (type === "reg_part" && value) inScopeParts.delete(value);
+  }
+
+  const { data: runs } = await admin
+    .from("pipeline_runs")
+    .select("started_at, status, steps")
+    .eq("organization_id", organizationId)
+    .order("started_at", { ascending: false })
+    .limit(20);
+
+  const latestWithParts = (runs ?? []).find((row) => {
+    const steps = (row.steps as Record<string, unknown> | null) ?? null;
+    const parts = (steps?.parts as { breakdown?: unknown } | null)?.breakdown;
+    return Array.isArray(parts);
+  });
+
+  const latestStartedAt = (latestWithParts?.started_at as string | null) ?? null;
+  const partsBreakdown =
+    ((latestWithParts?.steps as Record<string, unknown> | null)?.parts as { breakdown?: Array<{
+      regPart: string;
+      checked: number;
+      added: number;
+      skippedKnown: number;
+      skippedFiltered: number;
+    }> } | null)?.breakdown ?? [];
+
+  const byPart = new Map(partsBreakdown.map((entry) => [normalizeRegPart(entry.regPart), entry]));
+
+  const { data: schedule } = await admin
+    .from("schedules")
+    .select("run_times_utc, run_time_utc, enabled")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  let nextScheduledScan: string | null = null;
+  if (schedule?.enabled) {
+    const runTimesRaw = Array.isArray(schedule.run_times_utc) && schedule.run_times_utc.length > 0
+      ? schedule.run_times_utc.map((value) => String(value).slice(0, 5))
+      : schedule.run_time_utc
+        ? [String(schedule.run_time_utc).slice(0, 5)]
+        : [];
+    const now = new Date();
+    const nowHHMM = `${String(now.getUTCHours()).padStart(2, "0")}:${String(now.getUTCMinutes()).padStart(2, "0")}`;
+    const next = runTimesRaw.find((value) => value > nowHHMM) ?? runTimesRaw[0] ?? null;
+    nextScheduledScan = next ? `${next} UTC` : null;
+  }
+
+  return Array.from(inScopeParts)
+    .sort((a, b) => a.localeCompare(b))
+    .map((part) => {
+      const breakdown = byPart.get(part);
+      const status = String(latestWithParts?.status ?? "").toLowerCase();
+      if (status === "error" || status === "failed") {
+        return {
+          regPart: part,
+          lastCheckedAt: latestStartedAt,
+          result: "error" as const,
+          count: 0,
+          nextScheduledScan,
+        };
+      }
+      const added = Number(breakdown?.added ?? 0);
+      return {
+        regPart: part,
+        lastCheckedAt: latestStartedAt,
+        result: added > 0 ? ("new_items" as const) : ("no_changes" as const),
+        count: added,
+        nextScheduledScan,
+      };
+    });
 }
 
 export async function loadRecentSectionVersions(

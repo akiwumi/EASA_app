@@ -6,6 +6,7 @@ import {
 import { enrichRssItemEmbeddings } from "@/lib/ai/embeddings";
 import { aggregateRegChangesForOrg } from "@/lib/pipeline/aggregate-reg-changes";
 import { ensureDefaultAiConfig, seedDefaultSources } from "@/lib/seed-default-sources";
+import { loadQueuedFindingSummaries, sendPipelineNewFindingsEmail } from "@/lib/pipeline/notifications";
 
 type FunctionSuccess<T> = {
   ok: true;
@@ -35,6 +36,15 @@ export type PipelineExecutionResult = {
   itemsProcessed?: number;
   changesFound?: number;
   updateCount?: number;
+  skippedKnown?: number;
+  skippedFiltered?: number;
+  partStats?: Array<{
+    regPart: string;
+    checked: number;
+    added: number;
+    skippedKnown: number;
+    skippedFiltered: number;
+  }>;
 };
 
 export function normalizePipelineError(error: string) {
@@ -126,9 +136,9 @@ async function insertAdminPipelineNotification(
 ) {
   const { data: admins } = await admin
     .from("org_users")
-    .select("user_id")
+    .select("user_id, role")
     .eq("organization_id", orgId)
-    .eq("role", "admin");
+    .in("role", ["admin", "compliance_manager"]);
 
   if (!admins?.length) return;
 
@@ -337,6 +347,15 @@ export async function runPipelineForOrganization(
     await updateRun({ steps });
 
     let queueData: { created?: number; linkedExisting?: number } | null = null;
+    let skippedKnown = 0;
+    let skippedFiltered = 0;
+    let partStats: Array<{
+      regPart: string;
+      checked: number;
+      added: number;
+      skippedKnown: number;
+      skippedFiltered: number;
+    }> = [];
     let draftData: { generated?: number; attempted?: number; errors?: { id: string; error: string }[] } | null = null;
 
     const queueStart = new Date().toISOString();
@@ -357,6 +376,9 @@ export async function runPipelineForOrganization(
         created: queueResult.created,
         linkedExisting: queueResult.linkedExisting,
       };
+      skippedKnown = Number(queueResult.skippedKnown ?? 0);
+      skippedFiltered = Number(queueResult.skippedFiltered ?? 0);
+      partStats = Array.isArray(queueResult.partStats) ? queueResult.partStats : [];
 
       const draftsResult = await generateDraftsForOrg(admin, orgId, 20);
       if (!draftsResult.ok) {
@@ -387,7 +409,23 @@ export async function runPipelineForOrganization(
     await updateRun({
       status: "complete",
       finished_at: new Date().toISOString(),
-      steps,
+      steps: {
+        ...steps,
+        queue: {
+          status: "complete",
+          created: Number(queueData?.created ?? 0),
+          linked_existing: Number(queueData?.linkedExisting ?? 0),
+        },
+        dedup: {
+          status: "complete",
+          skipped_known: skippedKnown,
+          skipped_filtered: skippedFiltered,
+        },
+        parts: {
+          status: "complete",
+          breakdown: partStats,
+        },
+      },
       items_processed: itemsProcessed,
       changes_found: changesFound,
     });
@@ -401,6 +439,22 @@ export async function runPipelineForOrganization(
           `${options.runLabel ?? "Scheduled scan"} found ${updateCount} flight book update candidate${updateCount === 1 ? "" : "s"} from the latest RSS and regulation scan.`,
           runId,
         );
+        try {
+          const { data: org } = await admin
+            .from("organizations")
+            .select("name")
+            .eq("id", orgId)
+            .maybeSingle();
+          const findings = await loadQueuedFindingSummaries(admin, orgId, ingestStart);
+          await sendPipelineNewFindingsEmail(admin, {
+            organizationId: orgId,
+            schoolName: ((org?.name as string | null) ?? "School").trim(),
+            findingCount: updateCount,
+            findings,
+          });
+        } catch {
+          // best effort only
+        }
       } else {
         await insertAdminPipelineNotification(
           admin,
@@ -424,6 +478,9 @@ export async function runPipelineForOrganization(
       itemsProcessed,
       changesFound,
       updateCount,
+      skippedKnown,
+      skippedFiltered,
+      partStats,
     };
   } catch (error) {
     const message =

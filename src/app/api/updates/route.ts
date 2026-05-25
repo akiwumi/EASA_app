@@ -28,6 +28,8 @@ type UpdateQueueViewRow = {
   confidence_score: number | null;
   status: string | null;
   ai_rationale: string | null;
+  ai_suggested_text: string | null;
+  ai_confidence_text: string | null;
   created_at: string;
   updated_at: string;
   reg_section_ref: string | null;
@@ -37,6 +39,7 @@ type UpdateQueueViewRow = {
   flightbook_section_title: string | null;
   reg_number: string | null;
   regulation_part: string | null;
+  finding_id: string | null;
 };
 
 type UpdateQueueLegacyRow = {
@@ -59,6 +62,9 @@ type FilterableQuery = {
   eq: (column: string, value: string) => FilterableQuery;
   neq: (column: string, value: string) => FilterableQuery;
   in: (column: string, values: string[]) => FilterableQuery;
+  gte: (column: string, value: string) => FilterableQuery;
+  is: (column: string, value: null) => FilterableQuery;
+  not: (column: string, operator: string, value: null) => FilterableQuery;
   order: (column: string, options: { ascending: boolean }) => FilterableQuery;
   range: (from: number, to: number) => FilterableQuery;
 };
@@ -85,6 +91,10 @@ function mapQueueRow(row: UpdateQueueViewRow): UpdateQueueItem {
     confidence_score: row.confidence_score,
     status: row.status ?? "pending",
     ai_rationale: row.ai_rationale,
+    ai_suggested_text: row.ai_suggested_text,
+    ai_confidence_label: row.ai_confidence_text,
+    finding_id: row.finding_id,
+    reg_part: row.regulation_part,
     created_at: row.created_at,
     updated_at: row.updated_at,
     reg_changes: {
@@ -232,19 +242,32 @@ export async function GET(request: Request) {
   const risk = searchParams.get("risk");
   const classification = searchParams.get("classification");
   const regulation = searchParams.get("regulation");
+  const actionOnly = searchParams.get("actionOnly") === "1";
+  const hasDraft = searchParams.get("hasDraft");
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
   const limit = Math.min(100, Math.max(10, Number(searchParams.get("limit") ?? 50)));
   const offset = (page - 1) * limit;
+  const queryLimit = actionOnly ? 500 : limit;
+  const queryOffset = actionOnly ? 0 : offset;
+  const actionableSince = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
   const admin = getSupabaseAdminClient();
   const untypedAdmin = admin as unknown as UntypedSupabaseClient;
   const applyFilters = (query: FilterableQuery, includeRegulation = false) => {
     let next: FilterableQuery = query
       .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(queryOffset, queryOffset + queryLimit - 1);
     if (ctx.orgId) next = next.eq("organization_id", ctx.orgId);
-    if (status) next = next.eq("status", status);
-    else next = next.neq("status", "boneyard");
+    if (actionOnly) {
+      next = next.eq("status", "pending");
+      next = next.gte("created_at", actionableSince);
+      if (hasDraft === "1") next = next.not("ai_suggested_text", "is", null);
+      if (hasDraft === "0") next = next.is("ai_suggested_text", null);
+    } else if (status) {
+      next = next.eq("status", status);
+    } else {
+      next = next.neq("status", "boneyard");
+    }
     if (risk) next = next.eq("risk_level", risk);
     if (classification) next = next.eq("classification", classification);
     if (includeRegulation && regulation) next = next.eq("reg_number", regulation);
@@ -256,8 +279,16 @@ export async function GET(request: Request) {
       .from("v_update_queue")
       .select("reg_number") as FilterableQuery;
     if (ctx.orgId) query = query.eq("organization_id", ctx.orgId);
-    if (status) query = query.eq("status", status);
-    else query = query.neq("status", "boneyard");
+    if (actionOnly) {
+      query = query.eq("status", "pending");
+      query = query.gte("created_at", actionableSince);
+      if (hasDraft === "1") query = query.not("ai_suggested_text", "is", null);
+      if (hasDraft === "0") query = query.is("ai_suggested_text", null);
+    } else if (status) {
+      query = query.eq("status", status);
+    } else {
+      query = query.neq("status", "boneyard");
+    }
     if (risk) query = query.eq("risk_level", risk);
     if (classification) query = query.eq("classification", classification);
     return query.order("reg_number", { ascending: true });
@@ -284,6 +315,8 @@ export async function GET(request: Request) {
         confidence_score,
         status,
         ai_rationale,
+        ai_suggested_text,
+        ai_confidence_text,
         created_at,
         updated_at,
         reg_section_ref,
@@ -292,16 +325,36 @@ export async function GET(request: Request) {
         section_number,
         flightbook_section_title,
         reg_number,
-        regulation_part
+        regulation_part,
+        finding_id
       `, { count: "exact" }) as FilterableQuery,
     true,
   );
 
   const viewResult = (await viewQuery) as unknown as QueryResult<UpdateQueueViewRow>;
+  const sortQueueRows = (rows: UpdateQueueItem[]) => {
+    if (!actionOnly) return rows;
+    const rank = (riskLevel: string) => {
+      if (riskLevel === "high") return 1;
+      if (riskLevel === "medium") return 2;
+      return 3;
+    };
+    return [...rows].sort((a, b) => {
+      const riskDelta = rank(a.risk_level) - rank(b.risk_level);
+      if (riskDelta !== 0) return riskDelta;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  };
+
   if (!viewResult.error && hasRows(viewResult)) {
+    const allItems = ((viewResult.data ?? []) as UpdateQueueViewRow[]).map(mapQueueRow);
+    const sortedItems = sortQueueRows(allItems);
+    const pagedItems = actionOnly
+      ? sortedItems.slice(offset, offset + limit)
+      : sortedItems;
     return NextResponse.json({
-      items: ((viewResult.data ?? []) as UpdateQueueViewRow[]).map(mapQueueRow),
-      total: viewResult.count ?? 0,
+      items: pagedItems,
+      total: actionOnly ? sortedItems.length : (viewResult.count ?? 0),
       page,
       limit,
       regulations,
@@ -385,7 +438,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     items: await hydrateFlatQueueRows(admin, (fallbackResult.data ?? []) as UpdateQueueFlatRow[]),
-    total: fallbackResult.count ?? 0,
+    total: actionOnly ? ((fallbackResult.data ?? []) as UpdateQueueFlatRow[]).length : (fallbackResult.count ?? 0),
     page,
     limit,
     regulations,

@@ -2,58 +2,27 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Archive, CheckSquare, Square, Filter, Download, CheckCircle, XCircle, Clock, RefreshCw, FileText, Sparkles, Eye, Trash2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, Download, RefreshCw } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
+import { confidenceConfig, getConfidenceLevel } from "@/lib/utils/confidence";
 
-const TABS = [
-  { value: "pending",   label: "Pending" },
-  { value: "watchlist", label: "Watchlist" },
-  { value: "approved",  label: "Approved" },
-  { value: "boneyard",  label: "Archived" },
-] as const;
-
-const RISK_OPTIONS = [
-  { value: "", label: "All risk levels" },
-  { value: "high", label: "High" },
-  { value: "medium", label: "Medium" },
-  { value: "low", label: "Low" },
-];
-
-const CLASS_OPTIONS = [
-  { value: "", label: "All classifications" },
-  { value: "mandatory", label: "Mandatory" },
-  { value: "recommended", label: "Recommended" },
-  { value: "watchlist", label: "Watchlist" },
-  { value: "no_action", label: "No action" },
-];
-
-function riskColor(risk: string) {
-  if (risk === "high") return "text-[var(--easa-color-accent-pink)] bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_12%,transparent)]";
-  if (risk === "medium") return "text-[var(--easa-color-accent-orange)] bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_12%,transparent)]";
-  return "text-[var(--easa-color-accent-green)] bg-[color-mix(in_srgb,var(--easa-color-accent-green)_12%,transparent)]";
-}
-
-function statusColor(status: string) {
-  if (status === "approved") return "text-[var(--easa-color-accent-green)] bg-[color-mix(in_srgb,var(--easa-color-accent-green)_12%,transparent)]";
-  if (status === "rejected") return "text-[var(--easa-color-accent-pink)] bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_12%,transparent)]";
-  if (status === "watchlist") return "text-[var(--easa-color-accent-blue)] bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_12%,transparent)]";
-  if (status === "boneyard") return "text-[var(--easa-color-text-muted)] bg-[var(--easa-color-surface-2)]";
-  return "text-[var(--easa-color-accent-orange)] bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_12%,transparent)]";
+function riskBadgeClass(risk: string) {
+  if (risk === "high") return "easa-badge is-pink";
+  if (risk === "medium") return "easa-badge is-orange";
+  return "easa-badge is-blue";
 }
 
 function exportCsv(items: UpdateQueueItem[]) {
-  const headers = ["ID", "Status", "Risk", "Classification", "Confidence", "Regulation", "Section Ref", "Change Type", "Flightbook Section", "Date"];
+  const headers = ["ID", "Risk", "Confidence", "Regulation", "Section Ref", "Flightbook Section", "Drafted", "Created At"];
   const rows = items.map((item) => [
     item.id,
-    item.status,
     item.risk_level,
-    item.classification,
-    item.confidence_score ?? "",
+    confidenceConfig[getConfidenceLevel(item.confidence_score, item.ai_confidence_label)].label,
     item.reg_changes?.reg_documents?.reg_number ?? "",
     item.reg_changes?.section_ref ?? "",
-    item.reg_changes?.change_type ?? "",
     item.flightbook_sections?.title ?? "",
-    new Date(item.created_at).toLocaleDateString(),
+    item.ai_suggested_text ? "Yes" : "No",
+    new Date(item.created_at).toISOString(),
   ]);
 
   const csv = [headers, ...rows]
@@ -74,56 +43,87 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [filterStatus, setFilterStatus] = useState("pending");
-  const [filterRisk, setFilterRisk] = useState("");
-  const [filterClass, setFilterClass] = useState("");
-  const [filterRegulation, setFilterRegulation] = useState("");
-  const [regulationOptions, setRegulationOptions] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const limit = 50;
-
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [bulkMsg, setBulkMsg] = useState<string | null>(null);
-  const [exportLoading, setExportLoading] = useState(false);
-  const [exportMsg, setExportMsg] = useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [draftLoading, setDraftLoading] = useState(false);
-  const [draftMsg, setDraftMsg] = useState<string | null>(null);
-  const [quickMsg, setQuickMsg] = useState<{ text: string; ok: boolean } | null>(null);
-
-  function updateFilter(
-    setter: React.Dispatch<React.SetStateAction<string>>,
-    value: string,
-  ) {
-    setter(value);
-    setPage(1);
-  }
+  const [summaryText, setSummaryText] = useState<string>("Loading latest scan summary…");
+  const [summaryBusy, setSummaryBusy] = useState(false);
+  const [dismissOpenId, setDismissOpenId] = useState<string | null>(null);
+  const [dismissMode, setDismissMode] = useState<"item" | "future">("item");
+  const [dismissReason, setDismissReason] = useState("This regulation part does not apply to our operation.");
+  const [dismissLoading, setDismissLoading] = useState(false);
+  const [dismissError, setDismissError] = useState<string | null>(null);
+  const [summaryHidden, setSummaryHidden] = useState(false);
+  const [summaryRunId, setSummaryRunId] = useState<string | null>(null);
 
   const load = useCallback(async (overrides?: { page?: number; status?: string; regulation?: string }) => {
     setLoading(true);
     setError(null);
     const nextPage = overrides?.page ?? page;
-    const nextStatus = overrides?.status ?? filterStatus;
-    const nextRegulation = overrides?.regulation ?? filterRegulation;
-    const params = new URLSearchParams({ page: String(nextPage), limit: String(limit) });
-    if (nextStatus) params.set("status", nextStatus);
-    if (filterRisk) params.set("risk", filterRisk);
-    if (filterClass) params.set("classification", filterClass);
-    if (nextRegulation) params.set("regulation", nextRegulation);
+    const params = new URLSearchParams({
+      page: String(nextPage),
+      limit: String(limit),
+      actionOnly: "1",
+      hasDraft: "1",
+    });
 
     const res = await fetch(`/api/updates?${params}`);
     if (!res.ok) { setError("Failed to load updates"); setLoading(false); return; }
     const json = await res.json();
     setItems(json.items ?? []);
     setTotal(json.total ?? 0);
-    setRegulationOptions(json.regulations ?? []);
-    setSelected(new Set());
     setLoading(false);
-  }, [page, filterStatus, filterRisk, filterClass, filterRegulation]);
+  }, [page]);
 
-  const displayedItems = items;
+  const refreshSummary = useCallback(async () => {
+    setSummaryBusy(true);
+    try {
+      const response = await fetch("/api/pipeline/summary");
+      if (!response.ok) {
+        setSummaryText("Last scan summary unavailable right now.");
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        summary?: string | null;
+        summaryLines?: string[] | null;
+        status?: string | null;
+        createdAt?: string | null;
+        dismissed?: boolean;
+        runId?: string | null;
+      };
+      if (!payload.summary) {
+        setSummaryText("No recent scan found. Run the pipeline from dashboard.");
+        return;
+      }
+
+      const lines = Array.isArray(payload.summaryLines) && payload.summaryLines.length > 0
+        ? payload.summaryLines
+        : [payload.summary];
+      const statusPart = payload.status ? ` (${payload.status})` : "";
+      setSummaryText(`${lines.filter(Boolean).join(" · ")}${statusPart}`);
+      setSummaryHidden(Boolean(payload.dismissed));
+      setSummaryRunId(payload.runId ?? null);
+    } catch {
+      setSummaryText("Last scan summary unavailable right now.");
+    } finally {
+      setSummaryBusy(false);
+    }
+  }, []);
+
+  const dismissSummaryCard = useCallback(async () => {
+    if (!summaryRunId) return;
+    try {
+      const response = await fetch("/api/pipeline/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dismiss", runId: summaryRunId }),
+      });
+      if (!response.ok) return;
+      setSummaryHidden(true);
+    } catch {
+      // keep card visible if dismiss fails
+    }
+  }, [summaryRunId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -131,229 +131,62 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     }, 0);
     return () => window.clearTimeout(timer);
   }, [load]);
-
-  function toggleAll() {
-    if (selected.size === displayedItems.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(displayedItems.map((i) => i.id)));
-    }
-  }
-
-  function toggleOne(id: string) {
-    const next = new Set(selected);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelected(next);
-  }
-
-  const isBoneyardView = filterStatus === "boneyard";
-
-  async function bulkAction(action: string) {
-    const requestedAction = action === "boneyard" && isBoneyardView ? "delete" : action;
-    if (!selected.size) {
-      if ((requestedAction === "boneyard" || requestedAction === "delete") && filterRegulation) {
-        await eraseSelectedRegulation();
-        return;
-      }
-      setBulkMsg("Select one or more updates first.");
-      return;
-    }
-    setBulkLoading(true);
-    setBulkMsg(null);
-    const res = await fetch("/api/updates", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ids: Array.from(selected),
-        action: requestedAction,
-        status: requestedAction === "delete" ? "boneyard" : undefined,
-        clearAfterApproval: action === "approved",
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setBulkMsg(
-        json.conflict
-          ? (json.error ?? "The flight book has been updated since this AI update was proposed. Review the current section text before approving.")
-          : `Error: ${json.error}`,
-      );
-    } else {
-      setBulkMsg(
-        action === "approved"
-          ? `${json.affected} item${json.affected !== 1 ? "s" : ""} approved and removed from the active queue.`
-          : requestedAction === "delete"
-            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} permanently deleted.`
-          : requestedAction === "boneyard"
-            ? `${json.affected} item${json.affected !== 1 ? "s" : ""} archived.`
-          : `${json.affected} item${json.affected !== 1 ? "s" : ""} ${action}.`,
-      );
-      if (requestedAction === "delete") {
-        await load({ page, status: "boneyard" });
-      } else if (action === "approved" || action === "boneyard") {
-        setFilterStatus("pending");
-        setPage(1);
-        await load({ page: 1, status: "pending" });
-      } else {
-        await load();
-      }
-    }
-    setBulkLoading(false);
-  }
-
-  async function eraseSelectedRegulation() {
-    if (!filterRegulation) {
-      setBulkMsg("Choose a regulation before erasing it from the queue.");
-      return;
-    }
-
-    setBulkLoading(true);
-    setBulkMsg(null);
-    const res = await fetch("/api/updates", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: isBoneyardView ? "delete" : "boneyard",
-        status: filterStatus || undefined,
-        risk: filterRisk || undefined,
-        classification: filterClass || undefined,
-        regulation: filterRegulation,
-      }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setBulkMsg(`Error: ${json.error}`);
-    } else {
-      setBulkMsg(
-        isBoneyardView
-          ? `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} permanently deleted.`
-          : `${json.affected ?? 0} ${filterRegulation} update${json.affected === 1 ? "" : "s"} archived.`,
-      );
-      if (isBoneyardView) {
-        setPage(1);
-        await load({ page: 1, status: "boneyard" });
-      } else {
-        setFilterStatus("pending");
-        setFilterRegulation("");
-        setPage(1);
-        await load({ page: 1, status: "pending", regulation: "" });
-      }
-    }
-    setBulkLoading(false);
-  }
-
-  async function createUpdatedFlightbooks() {
-    setExportLoading(true);
-    setExportMsg(null);
-    const res = await fetch("/api/flightbooks/exports/updated", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ approvePending: true }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setExportMsg(`Error: ${json.error ?? "Could not create updated flight books."}`);
-    } else if (json.exported === 0) {
-      setExportMsg(json.message ?? "No approved mapped updates found.");
-    } else {
-      setExportMsg(
-        json.message ??
-          `${json.approved ?? 0} update${json.approved === 1 ? "" : "s"} approved. ` +
-            `${json.exported} updated flight book${json.exported === 1 ? "" : "s"} created.`,
-      );
-      setFilterStatus("pending");
-      setPage(1);
-      await load({ page: 1, status: "pending" });
-    }
-    setExportLoading(false);
-  }
-
-  async function generateDrafts() {
-    setDraftLoading(true);
-    setDraftMsg(null);
-    const res = await fetch("/api/updates/generate-drafts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ limit: 20 }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setDraftMsg(`Error: ${json.error}`);
-    } else {
-      const { generated, attempted } = json as { generated: number; attempted: number };
-      if (attempted === 0) {
-        setDraftMsg("No pending items without drafts found.");
-      } else {
-        setDraftMsg(`${generated} of ${attempted} draft${attempted !== 1 ? "s" : ""} generated.`);
-        await load();
-      }
-    }
-    setDraftLoading(false);
-  }
-
-  async function quickAction(id: string, action: string) {
-    setQuickMsg(null);
-    const res = await fetch("/api/updates", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids: [id], action }),
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      setQuickMsg({ text: json.error ?? "Action failed", ok: false });
-      return;
-    }
-    const labels: Record<string, string> = {
-      approved: "Approved",
-      watchlist: "Moved to watchlist",
-      boneyard: "Archived",
-      delete: "Erased permanently",
-      pending: "Reset to pending",
-    };
-    setQuickMsg({ text: labels[action] ?? "Done", ok: true });
-    setTimeout(() => setQuickMsg(null), 3000);
-    await load();
-  }
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void refreshSummary();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [refreshSummary]);
 
   const totalPages = Math.ceil(total / limit);
-  const allSelected = displayedItems.length > 0 && selected.size === displayedItems.length;
+  const draftedItems = items.filter((item) => Boolean(item.ai_suggested_text));
+  const draftedCount = draftedItems.length;
+  const queuedCount = draftedItems.length;
+
+  const dismissNotRelevant = useCallback(async (item: UpdateQueueItem) => {
+    setDismissLoading(true);
+    setDismissError(null);
+    try {
+      const response = await fetch("/api/findings/mark-not-relevant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          findingId: item.finding_id ?? null,
+          proposedUpdateId: item.id,
+          dismissalReason: dismissReason,
+          ...(dismissMode === "future"
+            ? {
+                filterRegPart: item.reg_part ?? item.reg_changes?.reg_documents?.part ?? null,
+                filterCategory: item.classification ?? null,
+              }
+            : {}),
+        }),
+      });
+      const payload = await response.json().catch(() => ({} as { error?: string }));
+      if (!response.ok) {
+        setDismissError(payload.error ?? "Failed to dismiss item.");
+        return;
+      }
+      setDismissOpenId(null);
+      await load();
+      await refreshSummary();
+    } catch {
+      setDismissError("Failed to dismiss item.");
+    } finally {
+      setDismissLoading(false);
+    }
+  }, [dismissMode, load, refreshSummary]);
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Review queue</h1>
+          <h1 className="text-xl font-semibold">Today&apos;s review queue</h1>
           <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-            {total} update{total !== 1 ? "s" : ""} · review and approve changes to your flight books
-          </p>
-          <p className="mt-1 max-w-2xl text-xs leading-5 text-[var(--easa-color-text-muted)]">
-            AI-generated recommendations are never applied automatically. Review, edit, approve,
-            reject, or archive each item before it changes a controlled manual.
+            Only pending updates from the last 90 days are shown here.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {canManage && (
-            <button
-              className="easa-btn secondary flex items-center gap-2 text-sm"
-              disabled={draftLoading}
-              onClick={() => void generateDrafts()}
-              title="Generate AI revision drafts for pending items that don't have one yet"
-            >
-              <Sparkles size={15} strokeWidth={1.75} />
-              {draftLoading ? "Generating…" : "Generate AI drafts"}
-            </button>
-          )}
-          {canManage && (
-            <button
-              className="easa-btn primary flex items-center gap-2 text-sm"
-              disabled={exportLoading}
-              onClick={() => setConfirmOpen(true)}
-            >
-              <FileText size={15} strokeWidth={1.75} />
-              {exportLoading ? "Completing..." : "Approve pending & create flight books"}
-            </button>
-          )}
           <button
             className="easa-btn secondary flex items-center gap-2 text-sm"
             onClick={() => exportCsv(items)}
@@ -363,7 +196,10 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           </button>
           <button
             className="easa-btn secondary flex items-center gap-2 text-sm"
-            onClick={() => void load()}
+            onClick={() => {
+              void load();
+              void refreshSummary();
+            }}
           >
             <RefreshCw size={15} strokeWidth={1.75} />
             Refresh
@@ -371,346 +207,198 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
         </div>
       </div>
 
-      {exportMsg && (
-        <p className={`rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-sm ${
-          exportMsg.startsWith("Error") ? "text-[var(--easa-color-accent-pink)]" : "text-[var(--easa-color-text-secondary)]"
-        }`}>
-          {exportMsg}
-        </p>
-      )}
-
-      {draftMsg && (
-        <p className={`rounded-[10px] border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-3 py-2 text-sm ${
-          draftMsg.startsWith("Error") ? "text-[var(--easa-color-accent-pink)]" : "text-[var(--easa-color-text-secondary)]"
-        }`}>
-          {draftMsg}
-        </p>
-      )}
-
-      {quickMsg && (
-        <p className={`rounded-[10px] border px-3 py-2 text-sm ${
-          quickMsg.ok
-            ? "border-[var(--easa-color-accent-green)] bg-[color-mix(in_srgb,var(--easa-color-accent-green)_8%,transparent)] text-[var(--easa-color-accent-green)]"
-            : "border-[var(--easa-color-accent-pink)] bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_8%,transparent)] text-[var(--easa-color-accent-pink)]"
-        }`}>
-          {quickMsg.text}
-        </p>
-      )}
-
-      {/* Status tabs */}
-      <div className="flex gap-1 border-b border-[var(--easa-color-border)]">
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => { updateFilter(setFilterStatus, tab.value); }}
-            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              filterStatus === tab.value
-                ? "border-[var(--easa-color-brand-primary)] text-[var(--easa-color-brand-primary)]"
-                : "border-transparent text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)]"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="easa-card flex flex-wrap gap-3 p-4">
-        <Filter size={15} strokeWidth={1.75} className="mt-2 shrink-0 text-[var(--easa-color-text-muted)]" />
-        <select className="easa-input flex-1 min-w-[140px]" value={filterRisk} onChange={(e) => updateFilter(setFilterRisk, e.target.value)}>
-          {RISK_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="easa-input flex-1 min-w-[160px]" value={filterClass} onChange={(e) => updateFilter(setFilterClass, e.target.value)}>
-          {CLASS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select
-          className="easa-input flex-1 min-w-[170px]"
-          value={filterRegulation}
-          onChange={(e) => updateFilter(setFilterRegulation, e.target.value)}
-        >
-          <option value="">All regulations</option>
-          {regulationOptions.map((regulation) => (
-            <option key={regulation} value={regulation}>{regulation}</option>
-          ))}
-        </select>
-        {canManage && (
-          <button
-            className="easa-btn secondary flex items-center gap-1.5 px-3 py-2 text-xs"
-            disabled={bulkLoading || !filterRegulation}
-            onClick={eraseSelectedRegulation}
-            title={
-              isBoneyardView
-                ? "Permanently delete every archived item matching the selected regulation and current filters"
-                : "Archive every queue item matching the selected regulation and current filters"
-            }
-            type="button"
-          >
-            <Archive size={14} strokeWidth={1.75} />
-            {isBoneyardView ? "Delete regulation" : "Archive regulation"}
-          </button>
-        )}
-        {(filterRisk || filterClass || filterRegulation) && (
-          <button
-            className="text-xs text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-primary)]"
-            onClick={() => {
-              setFilterRisk("");
-              setFilterClass("");
-              setFilterRegulation("");
-              setPage(1);
-            }}
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      {/* Bulk action bar */}
-      {canManage && selected.size > 0 && (
-        <div className="easa-card flex flex-wrap items-center gap-3 p-3">
-          <span className="text-sm font-medium">{selected.size} selected</span>
-          <div className="ml-auto flex flex-wrap gap-2">
-            <button
-              className="easa-btn secondary flex items-center gap-1.5 text-xs"
-              disabled={bulkLoading}
-              onClick={() => bulkAction("approved")}
-            >
-              <CheckCircle size={14} strokeWidth={1.75} className="text-[var(--easa-color-accent-green)]" />
-              Approve
-            </button>
-            <button
-              className="easa-btn secondary flex items-center gap-1.5 text-xs"
-              disabled={bulkLoading}
-              onClick={() => bulkAction("rejected")}
-            >
-              <XCircle size={14} strokeWidth={1.75} className="text-[var(--easa-color-accent-pink)]" />
-              Reject
-            </button>
-            <button
-              className="easa-btn secondary flex items-center gap-1.5 text-xs"
-              disabled={bulkLoading}
-              onClick={() => bulkAction("watchlist")}
-            >
-              <Clock size={14} strokeWidth={1.75} className="text-[var(--easa-color-accent-blue)]" />
-              Watchlist
-            </button>
-            <button
-              className="easa-btn secondary flex items-center gap-1.5 text-xs"
-              disabled={bulkLoading}
-              onClick={() => bulkAction("boneyard")}
-              title={
-                isBoneyardView
-                  ? "Permanently delete selected archived updates"
-                  : "Archive selected updates without approving them"
-              }
-            >
-              <Archive size={14} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
-              {isBoneyardView ? "Delete permanently" : "Archive selected"}
-            </button>
-            <button
-              className="easa-btn secondary flex items-center gap-1.5 text-xs"
-              disabled={bulkLoading}
-              onClick={() => bulkAction("pending")}
-            >
-              Reset to pending
-            </button>
+      {!summaryHidden ? (
+        <div className="easa-card p-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Clock3 size={15} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />
+              <p className="text-sm font-medium">Latest scan</p>
+              {summaryBusy ? <span className="text-xs text-[var(--easa-color-text-muted)]">updating…</span> : null}
+            </div>
+            {summaryRunId ? (
+              <button
+                type="button"
+                className="easa-btn secondary px-2 py-1 text-xs"
+                onClick={() => {
+                  void dismissSummaryCard();
+                }}
+              >
+                Dismiss
+              </button>
+            ) : null}
           </div>
-          {bulkMsg && (
-            <p className={`w-full text-xs ${bulkMsg.startsWith("Error") ? "text-[var(--easa-color-accent-pink)]" : "text-[var(--easa-color-accent-green)]"}`}>
-              {bulkMsg}
-            </p>
-          )}
+          <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">{summaryText}</p>
         </div>
-      )}
+      ) : null}
 
-      {/* Table */}
-      <div className="easa-card overflow-hidden p-0">
-        {!canManage && (
-          <div className="border-b border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-3 text-xs text-[var(--easa-color-text-muted)]">
-            Read-only view. Approval and rollback controls are limited to admin, editor, and compliance manager roles.
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="easa-card p-4">
+          <p className="text-xs uppercase tracking-wide text-[var(--easa-color-text-muted)]">Needs review</p>
+          <p className="mt-1 text-2xl font-semibold">{queuedCount}</p>
+        </div>
+        <div className="easa-card p-4">
+          <p className="text-xs uppercase tracking-wide text-[var(--easa-color-text-muted)]">Drafts ready</p>
+          <p className="mt-1 text-2xl font-semibold">{draftedCount}</p>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="easa-card p-6 text-sm text-[var(--easa-color-text-muted)]">Loading queue…</div>
+      ) : error ? (
+        <div className="easa-card flex items-start gap-2 p-4 text-sm text-[var(--easa-color-accent-pink)]">
+          <AlertCircle size={15} strokeWidth={1.75} className="mt-0.5" />
+          <span>{error}</span>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="easa-card p-10 text-center">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--easa-color-accent-green)_12%,transparent)]">
+            <CheckCircle2 size={20} strokeWidth={1.75} className="text-[var(--easa-color-accent-green)]" />
           </div>
-        )}
-        {loading ? (
-          <p className="p-6 text-sm text-[var(--easa-color-text-muted)]">Loading…</p>
-        ) : error ? (
-          <p className="p-6 text-sm text-[var(--easa-color-accent-pink)]">{error}</p>
-        ) : displayedItems.length === 0 ? (
-          <div className="p-10 text-center">
-            <p className="text-sm font-medium">No updates found</p>
-            <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-              Run the RSS ingest + AI analysis from the dashboard to populate the queue.
-            </p>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)]">
-                <th className="w-10 px-4 py-3">
-                  {canManage ? (
-                    <button onClick={toggleAll}>
-                      {allSelected
-                        ? <CheckSquare size={16} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
-                        : <Square size={16} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />}
-                    </button>
-                  ) : null}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)]">Regulation</th>
-                <th className="px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)]">Change</th>
-                <th className="hidden px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)] md:table-cell">Flight book section</th>
-                <th className="px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)]">Risk</th>
-                <th className="hidden px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)] lg:table-cell">Confidence</th>
-                <th className="px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)]">Status</th>
-                <th className="hidden px-4 py-3 text-left font-medium text-[var(--easa-color-text-muted)] lg:table-cell">Date</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {displayedItems.map((item) => (
-                <tr
-                  key={item.id}
-                  className={`border-b border-[var(--easa-color-border)] last:border-0 transition hover:bg-[var(--easa-color-surface-2)] ${selected.has(item.id) ? "bg-[color-mix(in_srgb,var(--easa-color-brand-primary)_5%,transparent)]" : ""}`}
-                >
-                  <td className="px-4 py-3">
+          <p className="text-sm font-semibold">All caught up</p>
+          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+            No pending updates in the last 90 days need action.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {draftedItems.map((item) => {
+            const confidenceLevel = getConfidenceLevel(item.confidence_score, item.ai_confidence_label);
+            const confidenceMeta = confidenceConfig[confidenceLevel];
+            const regulationLabel = [
+              item.reg_changes?.reg_documents?.part,
+              item.reg_changes?.reg_documents?.reg_number,
+              item.reg_changes?.section_ref,
+            ].filter(Boolean).join(" · ");
+
+            return (
+              <div
+                key={item.id}
+                className={`easa-card p-4 ${confidenceMeta.borderClass}`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className={riskBadgeClass(item.risk_level)}>{item.risk_level} risk</span>
+                      <span className={confidenceMeta.badgeClass}>{confidenceMeta.label}</span>
+                      {item.ai_suggested_text ? (
+                        <span className="easa-badge is-green">Draft ready</span>
+                      ) : (
+                        <span className="easa-badge is-muted">Draft pending</span>
+                      )}
+                    </div>
+                    <p className="text-sm font-semibold text-[var(--easa-color-text-primary)]">
+                      {regulationLabel || "Regulatory update requires review"}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                      {item.flightbook_sections?.section_number
+                        ? `Mapped to §${item.flightbook_sections.section_number}`
+                        : "Mapped section pending"}
+                      {item.flightbook_sections?.title ? ` · ${item.flightbook_sections.title}` : ""}
+                    </p>
+                    <p className="mt-2 line-clamp-2 text-sm text-[var(--easa-color-text-secondary)]">
+                      {item.ai_rationale ?? "Open the review screen to see full trigger and proposed draft."}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link href={`/updates/${item.id}`} className="easa-btn primary text-sm">
+                      Review &amp; approve
+                    </Link>
                     {canManage ? (
-                      <button onClick={() => toggleOne(item.id)}>
-                        {selected.has(item.id)
-                          ? <CheckSquare size={16} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
-                          : <Square size={16} strokeWidth={1.75} className="text-[var(--easa-color-text-muted)]" />}
+                      <button
+                        type="button"
+                        className="easa-btn secondary text-sm"
+                        onClick={() => {
+                          setDismissOpenId(item.id);
+                          setDismissMode("item");
+                          setDismissReason("This regulation part does not apply to our operation.");
+                          setDismissError(null);
+                        }}
+                      >
+                        Not relevant — dismiss
                       </button>
                     ) : null}
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium">{item.reg_changes?.reg_documents?.reg_number ?? "—"}</p>
-                    <p className="text-xs text-[var(--easa-color-text-muted)]">{item.reg_changes?.section_ref ?? "No section ref"}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-[var(--easa-color-surface-2)] px-2 py-0.5 text-xs font-medium capitalize">
-                      {item.reg_changes?.change_type ?? item.classification}
-                    </span>
-                  </td>
-                  <td className="hidden px-4 py-3 md:table-cell">
-                    <p className="max-w-[200px] truncate text-xs text-[var(--easa-color-text-secondary)]">
-                      {item.flightbook_sections?.title ?? "—"}
+                  </div>
+                </div>
+                {dismissOpenId === item.id && canManage ? (
+                  <div className="mt-3 rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3">
+                    <p className="text-sm">
+                      Dismiss this item only, or also hide future{" "}
+                      <span className="font-medium">{item.reg_part ?? item.reg_changes?.reg_documents?.part ?? "similar"}</span>{" "}
+                      findings for your school?
                     </p>
-                    {item.flightbook_sections?.section_number && (
-                      <p className="text-xs text-[var(--easa-color-text-muted)]">§{item.flightbook_sections.section_number}</p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${riskColor(item.risk_level)}`}>
-                      {item.risk_level}
-                    </span>
-                  </td>
-                  <td className="hidden px-4 py-3 lg:table-cell">
-                    <span className="text-xs text-[var(--easa-color-text-muted)]">
-                      {item.confidence_score != null ? `${Math.round(Number(item.confidence_score))}%` : "—"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${statusColor(item.status)}`}>
-                      {item.status === "boneyard" ? "archived" : item.status}
-                    </span>
-                  </td>
-                  <td className="hidden px-4 py-3 text-xs text-[var(--easa-color-text-muted)] lg:table-cell">
-                    {new Date(item.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {canManage && (
-                        <>
-                          {filterStatus !== "approved" && (
-                            <button
-                              title="Approve"
-                              onClick={() => void quickAction(item.id, "approved")}
-                              className="rounded-md p-1.5 text-[var(--easa-color-accent-green)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-green)_12%,transparent)]"
-                            >
-                              <CheckCircle size={15} strokeWidth={1.75} />
-                            </button>
-                          )}
-                          {filterStatus !== "watchlist" && filterStatus !== "boneyard" && (
-                            <button
-                              title="Move to watchlist"
-                              onClick={() => void quickAction(item.id, "watchlist")}
-                              className="rounded-md p-1.5 text-[var(--easa-color-accent-blue)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_12%,transparent)]"
-                            >
-                              <Eye size={15} strokeWidth={1.75} />
-                            </button>
-                          )}
-                          {filterStatus !== "boneyard" && (
-                            <button
-                              title="Archive"
-                              onClick={() => void quickAction(item.id, "boneyard")}
-                              className="rounded-md p-1.5 text-[var(--easa-color-text-muted)] hover:bg-[var(--easa-color-surface-2)]"
-                            >
-                              <Archive size={15} strokeWidth={1.75} />
-                            </button>
-                          )}
-                          <button
-                            title="Erase permanently"
-                            onClick={() => void quickAction(item.id, "delete")}
-                            className="rounded-md p-1.5 text-[var(--easa-color-accent-pink)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_12%,transparent)]"
-                          >
-                            <Trash2 size={15} strokeWidth={1.75} />
-                          </button>
-                        </>
-                      )}
-                      <Link
-                        href={`/updates/${item.id}`}
-                        className="easa-btn secondary px-3 py-1.5 text-xs"
-                      >
-                        Review
-                      </Link>
+                    <div className="mt-2 space-y-1">
+                      <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+                        Confirm no action needed
+                      </p>
+                      <p className="text-sm">
+                        Confirm: I have reviewed this change and confirm no update to our manuals is required.
+                      </p>
+                      <label className="block text-xs text-[var(--easa-color-text-muted)]">
+                        Reason (optional)
+                      </label>
+                      <input
+                        className="easa-input w-full text-sm"
+                        value={dismissReason}
+                        onChange={(event) => setDismissReason(event.target.value)}
+                        placeholder="This regulation part does not apply to our operation."
+                      />
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                    <div className="mt-2 space-y-2 text-sm">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={dismissMode === "item"}
+                          onChange={() => setDismissMode("item")}
+                        />
+                        Dismiss this item only
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          checked={dismissMode === "future"}
+                          onChange={() => setDismissMode("future")}
+                        />
+                        Dismiss and hide future related findings
+                      </label>
+                    </div>
+                    {dismissError ? (
+                      <p className="mt-2 text-xs text-[var(--easa-color-accent-pink)]">{dismissError}</p>
+                    ) : null}
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        type="button"
+                        className="easa-btn secondary text-sm"
+                        disabled={dismissLoading}
+                        onClick={() => setDismissOpenId(null)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="easa-btn primary text-sm"
+                        disabled={dismissLoading}
+                        onClick={() => {
+                          void dismissNotRelevant(item);
+                        }}
+                      >
+                        {dismissLoading ? "Dismissing…" : "Confirm dismiss"}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
 
-      {/* Confirm modal — Approve pending & create flight books */}
-      {confirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={() => setConfirmOpen(false)}>
-          <div
-            className="w-full max-w-md rounded-2xl border border-[var(--easa-color-border)] bg-white p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-base font-semibold">Approve pending updates?</h2>
-            <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">
-              This will approve <strong>all {total} pending</strong> update{total !== 1 ? "s" : ""} and write new versions of the affected flight book sections.
-            </p>
-            <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">
-              Approved sections are saved to the version history. You can restore any section from the Time machine at any time.
-            </p>
-            <p className="mt-2 text-sm text-[var(--easa-color-text-secondary)]">
-              Final human approval is required before AI-drafted text becomes controlled manual content.
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                className="easa-btn secondary text-sm"
-                onClick={() => setConfirmOpen(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="easa-btn primary text-sm"
-                disabled={exportLoading}
-                onClick={() => { setConfirmOpen(false); void createUpdatedFlightbooks(); }}
-              >
-                {exportLoading ? "Completing…" : "Approve & create flight books"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <p className="text-[var(--easa-color-text-muted)]">
             Page {page} of {totalPages} · {total} total
-          </p>
-          <div className="flex gap-2">
+        </p>
+          <div className="ml-auto flex flex-wrap gap-2">
             <button
               className="easa-btn secondary px-3 py-1.5 text-xs"
               disabled={page <= 1}

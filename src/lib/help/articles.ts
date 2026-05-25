@@ -32,14 +32,14 @@ export const ARTICLES: Article[] = [
   {
     slug: "getting-started",
     title: "Getting started: your first 10 minutes on Flight Lyceum",
-    description: "A step-by-step walkthrough to get your school set up, your manuals uploaded, and your team invited — all in under 10 minutes.",
+    description: "A step-by-step walkthrough to get your school set up, your manuals uploaded, and your team invited: all in under 10 minutes.",
     category: "Getting Started",
     categorySlug: "getting-started",
     readingTime: 4,
     intro: "Flight Lyceum is designed so you can go from signup to a fully configured compliance workspace in a single session. This guide walks you through the essential first steps.",
     sections: [
       {
-        heading: "Step 1 — Register your organisation",
+        heading: "Step 1: Register your organisation",
         body: "When you first sign up, you'll create an organisation account for your school. This is the central workspace that all your instructors and students will join.",
         steps: [
           "Visit flightlyceum.com and click Start free trial.",
@@ -50,19 +50,19 @@ export const ARTICLES: Article[] = [
         tip: "Use your official school email domain. This makes it easier to recognise and approve future team member invitations.",
       },
       {
-        heading: "Step 2 — Upload your first manual",
+        heading: "Step 2: Upload your first manual",
         body: "The fastest way to make Flight Lyceum useful is to upload your Operations Manual or Training Manual. The system parses it into indexed sections so the AI can compare them against regulation updates.",
         steps: [
           "Navigate to Flight Books in the sidebar.",
           "Click Upload flight book.",
           "Choose PDF, TXT, or Markdown format and select your file.",
           "Give it a clear title (e.g. 'Operations Manual Rev 4.2') and click Upload.",
-          "Wait for the indexing pipeline to process — usually under two minutes.",
+          "Wait for the indexing pipeline to process: usually under two minutes.",
         ],
         tip: "You can upload multiple manuals at once. Start with your most frequently updated documents.",
       },
       {
-        heading: "Step 3 — Configure your regulation sources",
+        heading: "Step 3: Configure your regulation sources",
         body: "Flight Lyceum monitors official EASA publications for changes. You choose which regulatory areas matter to your school.",
         steps: [
           "Go to Settings → Sources.",
@@ -71,7 +71,7 @@ export const ARTICLES: Article[] = [
         ],
       },
       {
-        heading: "Step 4 — Invite your team",
+        heading: "Step 4: Invite your team",
         body: "Add your instructors and compliance officer so they can start reviewing updates and assigning training.",
         steps: [
           "Go to Settings → Users.",
@@ -100,9 +100,9 @@ export const ARTICLES: Article[] = [
         heading: "Understanding roles",
         body: "There are three roles in Flight Lyceum:",
         bullets: [
-          "Admin — full access to settings, manuals, training programmes, users, and billing. Typically your head of training or compliance officer.",
-          "Instructor — can manage training programmes, assign reading to lessons, review compliance items, and view student progress. Cannot change billing or organisation settings.",
-          "Student — can read assigned material, mark acknowledgements, and view their training plan. Cannot access compliance monitoring or settings.",
+          "Admin: full access to settings, manuals, training programmes, users, and billing. Typically your head of training or compliance officer.",
+          "Instructor: can manage training programmes, assign reading to lessons, review compliance items, and view student progress. Cannot change billing or organisation settings.",
+          "Student: can read assigned material, mark acknowledgements, and view their training plan. Cannot access compliance monitoring or settings.",
         ],
       },
       {
@@ -144,7 +144,7 @@ export const ARTICLES: Article[] = [
   {
     slug: "understanding-your-dashboard",
     title: "Understanding your dashboard",
-    description: "A tour of the Flight Lyceum dashboard — what each panel shows, what the numbers mean, and how to use it as your daily compliance starting point.",
+    description: "A tour of the Flight Lyceum dashboard: what each panel shows, what the numbers mean, and how to use it as your daily compliance starting point.",
     category: "Getting Started",
     categorySlug: "getting-started",
     readingTime: 3,
@@ -152,7 +152,7 @@ export const ARTICLES: Article[] = [
     sections: [
       {
         heading: "The pipeline status card",
-        body: "This card shows the current state of the AI monitoring pipeline — when it last ran, how many items it found, and whether any issues need your attention. A green status means the pipeline completed its last run successfully and your monitoring is active.",
+        body: "This card shows the current state of the AI monitoring pipeline: when it last ran, how many items it found, and whether any issues need your attention. A green status means the pipeline completed its last run successfully and your monitoring is active.",
         tip: "If you see a warning or error, check that your regulation sources are still configured correctly in Settings → Sources.",
       },
       {
@@ -165,7 +165,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "Training progress",
-        body: "The training panel gives you a snapshot of student acknowledgement rates across your active programmes. A number below 80% warrants a closer look — use the drill-down link to see which students haven't completed their assigned reading.",
+        body: "The training panel gives you a snapshot of student acknowledgement rates across your active programmes. A number below 80% warrants a closer look: use the drill-down link to see which students haven't completed their assigned reading.",
       },
       {
         heading: "EASA Watch digest",
@@ -183,19 +183,19 @@ export const ARTICLES: Article[] = [
   {
     slug: "how-regulation-monitoring-works",
     title: "How regulation monitoring works",
-    description: "A clear explanation of the AI monitoring pipeline — what it watches, how it detects changes, and what triggers a review item in your queue.",
+    description: "A clear explanation of the AI monitoring pipeline: what it watches, how it detects changes, and what triggers a review item in your queue.",
     category: "Compliance Monitoring",
     categorySlug: "compliance",
     readingTime: 5,
     intro: "Flight Lyceum's regulation monitoring is built on a three-stage pipeline: ingestion, comparison, and classification. Understanding each stage helps you configure it well and trust its output.",
     sections: [
       {
-        heading: "Stage 1 — Ingestion",
+        heading: "Stage 1: Ingestion",
         body: "The pipeline periodically fetches the latest versions of the EASA documents you've subscribed to: Part-FCL, Part-ORA, AMC/GM documents, and EASA Opinions. It stores each version with a timestamp so changes can be tracked over time.",
         tip: "The default schedule is daily. You can trigger a manual run from the Dashboard or from Settings → Automation.",
       },
       {
-        heading: "Stage 2 — Change detection",
+        heading: "Stage 2: Change detection",
         body: "Each new document version is compared against the previous version using a semantic diff algorithm. This identifies not just word-for-word edits, but also restructuring, renumbering, and requirement additions that a simple text diff would miss.",
         bullets: [
           "Added or removed regulatory requirements",
@@ -205,12 +205,12 @@ export const ARTICLES: Article[] = [
         ],
       },
       {
-        heading: "Stage 3 — Classification and impact scoring",
+        heading: "Stage 3: Classification and impact scoring",
         body: "For each detected change, the AI assesses its likely impact on your organisation based on the specific manuals you've uploaded. It assigns a priority level:",
         bullets: [
-          "Critical — a requirement directly referenced in your uploaded manuals has changed. Immediate review recommended.",
-          "Notable — a related requirement or AMC has changed. May require manual update.",
-          "Informational — a change in scope or area relevant to your school type, but unlikely to require a manual revision.",
+          "Critical: a requirement directly referenced in your uploaded manuals has changed. Immediate review recommended.",
+          "Notable: a related requirement or AMC has changed. May require manual update.",
+          "Informational: a change in scope or area relevant to your school type, but unlikely to require a manual revision.",
         ],
         tip: "The priority classification improves over time as you approve or dismiss items. Each action you take helps the AI understand what your school cares about.",
       },
@@ -220,7 +220,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "What the pipeline does not do",
-        body: "The pipeline identifies changes and flags likely impact — it does not make compliance decisions on your behalf. Every review item requires a human decision: approve the proposed update, dismiss it, or schedule a review for later. The audit trail records who reviewed each item and when.",
+        body: "The pipeline identifies changes and flags likely impact: it does not make compliance decisions on your behalf. Every review item requires a human decision: approve the proposed update, dismiss it, or schedule a review for later. The audit trail records who reviewed each item and when.",
         warning: "Flight Lyceum is a compliance monitoring tool, not a legal compliance guarantee. Always verify critical changes with your accountable manager or legal counsel before updating your manuals.",
       },
     ],
@@ -230,7 +230,7 @@ export const ARTICLES: Article[] = [
   {
     slug: "reviewing-regulation-changes",
     title: "Reviewing and approving a regulation change",
-    description: "How to work through a review item — reading the diff, assessing impact, approving an AI-generated manual update, or dismissing the item.",
+    description: "How to work through a review item: reading the diff, assessing impact, approving an AI-generated manual update, or dismissing the item.",
     category: "Compliance Monitoring",
     categorySlug: "compliance",
     readingTime: 5,
@@ -263,15 +263,15 @@ export const ARTICLES: Article[] = [
           "Log your approval with your user ID and timestamp.",
           "Mark the review item as complete.",
         ],
-        warning: "Always read the proposed update text carefully before approving. The AI drafts updates based on pattern matching — it may not capture the full intent of a regulatory change in complex cases.",
+        warning: "Always read the proposed update text carefully before approving. The AI drafts updates based on pattern matching: it may not capture the full intent of a regulatory change in complex cases.",
       },
       {
         heading: "Editing the proposed update before approving",
-        body: "If the AI suggestion needs adjustment, click Edit before approving. You can modify the proposed text directly in the editor. Your edited version — not the AI draft — will be applied to the manual.",
+        body: "If the AI suggestion needs adjustment, click Edit before approving. You can modify the proposed text directly in the editor. Your edited version, not the AI draft, will be applied to the manual.",
       },
       {
         heading: "Dismissing an item",
-        body: "If a review item is not relevant to your school (e.g. it relates to an aircraft type you don't operate), click Dismiss. You can add a dismissal reason for your audit trail. Dismissed items are archived and can be reviewed later.",
+        body: "If a review item is not relevant to your school (e.g. it relates to an aircraft type you don't operate), click Dismiss and confirm that no manual change is required. Add or keep the dismissal reason for your audit trail. Dismissed items are archived and can be reviewed later.",
       },
       {
         heading: "Deferring for later",
@@ -294,18 +294,18 @@ export const ARTICLES: Article[] = [
         heading: "Available source types",
         body: "Flight Lyceum currently supports the following official EASA publication types:",
         bullets: [
-          "Part-FCL — Flight crew licensing requirements",
-          "Part-ORA — Organisation requirements for ATOs",
-          "AMC/GM publications — Acceptable Means of Compliance and Guidance Material",
-          "EASA Opinions and Decisions — proposed rule changes and final decisions",
-          "Air Operations (Part-ORO/CAT/SPA) — relevant for ATOs operating aircraft commercially",
-          "EASA Safety Information Bulletins — non-regulatory but operationally relevant",
+          "Part-FCL: Flight crew licensing requirements",
+          "Part-ORA: Organisation requirements for ATOs",
+          "AMC/GM publications: Acceptable Means of Compliance and Guidance Material",
+          "EASA Opinions and Decisions: proposed rule changes and final decisions",
+          "Air Operations (Part-ORO/CAT/SPA): relevant for ATOs operating aircraft commercially",
+          "EASA Safety Information Bulletins: non-regulatory but operationally relevant",
         ],
       },
       {
         heading: "Enabling and disabling sources",
         body: "Go to Settings → Sources. Each source type has a toggle. Enable only the sources relevant to your school's scope and aircraft types.",
-        tip: "If you're unsure which sources to enable, start with Part-FCL and Part-ORA — these cover the core requirements for most PPL/CPL/IR ATOs.",
+        tip: "If you're unsure which sources to enable, start with Part-FCL and Part-ORA: these cover the core requirements for most PPL/CPL/IR ATOs.",
         steps: [
           "Navigate to Settings → Sources.",
           "Toggle each source type on or off.",
@@ -315,7 +315,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "Adding custom RSS feeds",
-        body: "In addition to built-in EASA sources, you can add any RSS or Atom feed — national CAA publications, your country's transposition notices, or industry news sources.",
+        body: "In addition to built-in EASA sources, you can add any RSS or Atom feed: national CAA publications, your country's transposition notices, or industry news sources.",
         steps: [
           "In Settings → Sources, scroll to Custom feeds.",
           "Click Add feed.",
@@ -324,12 +324,12 @@ export const ARTICLES: Article[] = [
           "Click Test connection to verify the feed is reachable.",
           "Save and enable the feed.",
         ],
-        warning: "Custom feeds are parsed as informational only — the AI does not automatically compare them against your manuals. Use them to stay aware of upcoming changes without creating review queue noise.",
+        warning: "Custom feeds are parsed as informational only: the AI does not automatically compare them against your manuals. Use them to stay aware of upcoming changes without creating review queue noise.",
       },
       {
         heading: "Configuring the pipeline schedule",
         body: "By default, the monitoring pipeline runs daily at 04:00 UTC. You can change this to twice-daily or weekly in Settings → Automation.",
-        tip: "More frequent runs mean faster detection of changes. For most ATOs, daily is sufficient — EASA rarely publishes updates more frequently than that.",
+        tip: "More frequent runs mean faster detection of changes. For most ATOs, daily is sufficient: EASA rarely publishes updates more frequently than that.",
       },
     ],
     relatedSlugs: ["how-regulation-monitoring-works", "reviewing-regulation-changes"],
@@ -339,7 +339,7 @@ export const ARTICLES: Article[] = [
   {
     slug: "uploading-manuals",
     title: "Uploading and indexing your manuals",
-    description: "A complete guide to uploading your Operations Manual, Training Manual, or any other flight book — including supported formats, size limits, and indexing tips.",
+    description: "A complete guide to uploading your Operations Manual, Training Manual, or any other flight book: including supported formats, size limits, and indexing tips.",
     category: "Flight Books & Manuals",
     categorySlug: "flight-books",
     readingTime: 4,
@@ -349,16 +349,16 @@ export const ARTICLES: Article[] = [
         heading: "Supported formats",
         body: "The following file formats are supported for upload:",
         bullets: [
-          "PDF — the most common format for flight school manuals. Text is extracted automatically; scanned documents may have reduced accuracy.",
-          "Markdown (.md) — ideal for version-controlled documentation. Headings become section titles automatically.",
-          "Plain text (.txt) — works well for simpler documents.",
-          "JSON — structured data format supported for integration with other document management systems.",
+          "PDF: the most common format for flight school manuals. Text is extracted automatically; scanned documents may have reduced accuracy.",
+          "Markdown (.md): ideal for version-controlled documentation. Headings become section titles automatically.",
+          "Plain text (.txt): works well for simpler documents.",
+          "JSON: structured data format supported for integration with other document management systems.",
         ],
         tip: "PDF is recommended for most schools. If your manual is stored in Word or Pages format, export it as PDF before uploading.",
       },
       {
         heading: "Upload size limits",
-        body: "Individual files can be up to 50 MB. For very large manuals (over 500 pages), consider splitting the document by chapter or volume before uploading — this improves indexing accuracy and makes section references more precise.",
+        body: "Individual files can be up to 50 MB. For very large manuals (over 500 pages), consider splitting the document by chapter or volume before uploading: this improves indexing accuracy and makes section references more precise.",
       },
       {
         heading: "Uploading a manual",
@@ -369,7 +369,7 @@ export const ARTICLES: Article[] = [
           "Select your file or drag and drop it onto the upload area.",
           "Enter a title, document type (e.g. Operations Manual), and optional version number.",
           "Click Upload.",
-          "Wait for the indexing pipeline to complete — a progress indicator will appear.",
+          "Wait for the indexing pipeline to complete: a progress indicator will appear.",
         ],
       },
       {
@@ -380,7 +380,7 @@ export const ARTICLES: Article[] = [
       {
         heading: "Managing uploaded manuals",
         body: "All uploaded manuals appear in the Flight Books browser. You can view each manual's sections, download the original file, create a new version, or delete an outdated document.",
-        warning: "Deleting a manual is permanent. If you're replacing an old version, use Create new version instead — this preserves the history.",
+        warning: "Deleting a manual is permanent. If you're replacing an old version, use Create new version instead: this preserves the history.",
       },
     ],
     relatedSlugs: ["manual-section-mapping", "creating-manual-versions", "reviewing-regulation-changes"],
@@ -397,7 +397,7 @@ export const ARTICLES: Article[] = [
     sections: [
       {
         heading: "How automatic mapping works",
-        body: "When your manual is indexed, each section is converted into a vector embedding — a mathematical representation of its meaning. These embeddings are compared against the embeddings of each regulation to find semantically similar passages.",
+        body: "When your manual is indexed, each section is converted into a vector embedding: a mathematical representation of its meaning. These embeddings are compared against the embeddings of each regulation to find semantically similar passages.",
         tip: "This approach catches regulatory references that aren't explicit citations. For example, a section titled 'Pre-flight checks' will be linked to relevant Part-FCL requirements even if it doesn't mention 'FCL.050' by name.",
       },
       {
@@ -412,7 +412,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "Adding explicit regulation citations",
-        body: "The most reliable way to improve mapping accuracy is to add explicit regulation references within your manual text. Citations in the format 'FCL.050', 'ORA.ATO.100', or 'AMC1 FCL.050' are automatically detected and create a direct mapping — stronger than a semantic match.",
+        body: "The most reliable way to improve mapping accuracy is to add explicit regulation references within your manual text. Citations in the format 'FCL.050', 'ORA.ATO.100', or 'AMC1 FCL.050' are automatically detected and create a direct mapping: stronger than a semantic match.",
         tip: "Many EASA-compliant ATOs already include regulation citations in their manuals. If yours doesn't, adding them is good compliance practice regardless of Flight Lyceum.",
       },
       {
@@ -427,7 +427,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "Sections with no mappings",
-        body: "Some sections — administrative front matter, definitions, list of amendments — may have no regulation mappings. This is expected. These sections will not generate review queue items when regulations change.",
+        body: "Some sections (administrative front matter, definitions, list of amendments) may have no regulation mappings. This is expected. These sections will not generate review queue items when regulations change.",
       },
     ],
     relatedSlugs: ["uploading-manuals", "reviewing-regulation-changes", "creating-manual-versions"],
@@ -444,7 +444,7 @@ export const ARTICLES: Article[] = [
     sections: [
       {
         heading: "Versions created automatically",
-        body: "When you approve an AI-generated update from the review queue, Flight Lyceum automatically creates a new version of the affected manual with the approved changes applied. You don't need to manually trigger this — it happens as part of the approval workflow.",
+        body: "When you approve an AI-generated update from the review queue, Flight Lyceum automatically creates a new version of the affected manual with the approved changes applied. You don't need to manually trigger this: it happens as part of the approval workflow.",
       },
       {
         heading: "Creating a manual version manually",
@@ -456,7 +456,7 @@ export const ARTICLES: Article[] = [
           "Enter a version label (e.g. 'Rev 4.3') and optional change notes.",
           "Click Save.",
         ],
-        tip: "Version labels are searchable, so use a consistent naming convention — the ISO date format (YYYY-MM-DD) or your school's existing revision numbering works well.",
+        tip: "Version labels are searchable, so use a consistent naming convention: the ISO date format (YYYY-MM-DD) or your school's existing revision numbering works well.",
       },
       {
         heading: "Viewing version history",
@@ -464,7 +464,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "Downloading a specific version",
-        body: "You can download any version of a manual — not just the current one. This is useful when you need to provide a specific revision to an authority or auditor.",
+        body: "You can download any version of a manual: not just the current one. This is useful when you need to provide a specific revision to an authority or auditor.",
         steps: [
           "Open the manual's version history.",
           "Find the version you need.",
@@ -478,9 +478,9 @@ export const ARTICLES: Article[] = [
           "Open the manual's version history.",
           "Click the version you want to restore.",
           "Click Restore this version.",
-          "Confirm the rollback — this creates a new version that is identical to the selected one.",
+          "Confirm the rollback: this creates a new version that is identical to the selected one.",
         ],
-        warning: "Rolling back doesn't delete the intervening versions — they remain in the history. The rollback itself is recorded as a new version entry.",
+        warning: "Rolling back doesn't delete the intervening versions: they remain in the history. The rollback itself is recorded as a new version entry.",
       },
     ],
     relatedSlugs: ["uploading-manuals", "reviewing-regulation-changes", "exporting-data"],
@@ -500,9 +500,9 @@ export const ARTICLES: Article[] = [
         heading: "Programme structure",
         body: "Before creating a programme in the app, it helps to understand the hierarchy:",
         bullets: [
-          "Programme — the top-level container (e.g. PPL(A) Integrated Course).",
-          "Phase — a grouping of lessons within a programme (e.g. Phase 1: Pre-Solo, Phase 2: Cross Country).",
-          "Lesson — an individual training event with defined objectives and reading requirements.",
+          "Programme: the top-level container (e.g. PPL(A) Integrated Course).",
+          "Phase: a grouping of lessons within a programme (e.g. Phase 1: Pre-Solo, Phase 2: Cross Country).",
+          "Lesson: an individual training event with defined objectives and reading requirements.",
         ],
       },
       {
@@ -561,7 +561,7 @@ export const ARTICLES: Article[] = [
     category: "Training Management",
     categorySlug: "training",
     readingTime: 3,
-    intro: "One of Flight Lyceum's most useful features is linking specific manual sections to lessons — not just 'read Chapter 4', but precisely the paragraphs each student needs for that lesson. Here's how to configure it.",
+    intro: "One of Flight Lyceum's most useful features is linking specific manual sections to lessons: not just 'read Chapter 4', but precisely the paragraphs each student needs for that lesson. Here's how to configure it.",
     sections: [
       {
         heading: "Assigning sections to a lesson",
@@ -601,7 +601,7 @@ export const ARTICLES: Article[] = [
     category: "Training Management",
     categorySlug: "training",
     readingTime: 3,
-    intro: "The acknowledgement system gives you the documented evidence that each student has read the required material — a key requirement for EASA ATO audits. Here's how to use it effectively.",
+    intro: "The acknowledgement system gives you the documented evidence that each student has read the required material: a key requirement for EASA ATO audits. Here's how to use it effectively.",
     sections: [
       {
         heading: "What is an acknowledgement?",
@@ -659,7 +659,7 @@ export const ARTICLES: Article[] = [
     category: "Account & Billing",
     categorySlug: "account-billing",
     readingTime: 3,
-    intro: "All billing in Flight Lyceum is handled through Stripe. You can manage everything — plan changes, payment details, invoices — directly from Settings → Billing.",
+    intro: "All billing in Flight Lyceum is handled through Stripe. You can manage everything: plan changes, payment details, invoices, directly from Settings → Billing.",
     sections: [
       {
         heading: "Viewing your current plan",
@@ -686,7 +686,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "What happens when your trial ends",
-        body: "Your trial lasts 30 days from the date you registered. On day 31, your card is charged for the first month. If no card is on file, your account is paused — your data is preserved, but logins are blocked until a payment method is added.",
+        body: "Your trial lasts 30 days from the date you registered. On day 31, your card is charged for the first month. If no card is on file, your account is paused: your data is preserved, but logins are blocked until a payment method is added.",
       },
       {
         heading: "Cancelling your subscription",
@@ -704,7 +704,7 @@ export const ARTICLES: Article[] = [
     category: "Account & Billing",
     categorySlug: "account-billing",
     readingTime: 3,
-    intro: "Flight Lyceum uses three roles to ensure each person sees exactly what they need — no more, no less. Here's a full breakdown of permissions by role.",
+    intro: "Flight Lyceum uses three roles to ensure each person sees exactly what they need: no more, no less. Here's a full breakdown of permissions by role.",
     sections: [
       {
         heading: "Admin",
@@ -722,7 +722,7 @@ export const ARTICLES: Article[] = [
         heading: "Instructor",
         body: "Instructors can manage training and review compliance but cannot change organisation settings or billing.",
         bullets: [
-          "View and process items in the compliance review queue (but not approve major manual updates — admin approval is required for those).",
+          "View and process items in the compliance review queue (but not approve major manual updates: admin approval is required for those).",
           "View flight books and section content.",
           "Create and edit training programmes, phases, and lessons.",
           "Assign reading to lessons.",
@@ -781,7 +781,7 @@ export const ARTICLES: Article[] = [
           "Select the version you need.",
           "Click Download PDF.",
         ],
-        tip: "Keep a record of which manual revision was current on the date of each student's first solo or type rating check — this is commonly requested during EASA ATO oversight visits.",
+        tip: "Keep a record of which manual revision was current on the date of each student's first solo or type rating check: this is commonly requested during EASA ATO oversight visits.",
       },
       {
         heading: "Compliance review history",
@@ -796,7 +796,7 @@ export const ARTICLES: Article[] = [
       {
         heading: "Full data export",
         body: "Admins can request a complete export of all organisation data from Settings → Data Export. This includes all manuals, training data, compliance records, and user activity. The export is prepared as a ZIP archive and emailed to your admin address within one hour.",
-        warning: "Full data exports are available once per 24-hour period and are limited to the account admin. The archive contains personally identifiable information — handle it in accordance with your privacy policy.",
+        warning: "Full data exports are available once per 24-hour period and are limited to the account admin. The archive contains personally identifiable information: handle it in accordance with your privacy policy.",
       },
     ],
     relatedSlugs: ["tracking-acknowledgements", "creating-manual-versions", "managing-billing"],

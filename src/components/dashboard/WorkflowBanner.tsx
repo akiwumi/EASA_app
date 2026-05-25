@@ -93,11 +93,11 @@ export default function WorkflowBanner({
     },
     {
       number: 3,
-      label: "Review queue",
+      label: "Today's work",
       sublabel:
         pendingReview > 0
           ? `${pendingReview} pending`
-          : "All reviewed",
+          : "All caught up",
       href: "/updates",
       state: reviewState,
     },

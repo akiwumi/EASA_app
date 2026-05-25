@@ -22,6 +22,9 @@ export type EasaUpdate = {
   queuedUpdateId?: string | null;
   queuedDraftReady?: boolean;
   deletedAt?: string | null;
+  dismissedBy?: string | null;
+  dismissedAt?: string | null;
+  dismissalReason?: string | null;
 };
 
 export const EASA_RSS_FEEDS = [
@@ -168,6 +171,9 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
         organization_id,
         created_at,
         deleted_at,
+        dismissed_by,
+        dismissed_at,
+        dismissal_reason,
         rss_items (
           title,
           summary,
@@ -224,7 +230,13 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
     }
 
     const fallbackResult = await fallbackQuery;
-    data = fallbackResult.data?.map((finding) => ({ ...finding, deleted_at: null })) ?? null;
+    data = fallbackResult.data?.map((finding) => ({
+      ...finding,
+      deleted_at: null,
+      dismissed_by: null,
+      dismissed_at: null,
+      dismissal_reason: null,
+    })) ?? null;
     error = fallbackResult.error;
   }
 
@@ -357,6 +369,9 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
         organization_id,
         created_at,
         deleted_at,
+        dismissed_by,
+        dismissed_at,
+        dismissal_reason,
         rss_items (
           title,
           summary,
@@ -373,6 +388,43 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
 
   const deletedResult = await deletedQuery;
   if (!deletedResult.error) {
+    const dismissedUserIds = Array.from(
+      new Set(
+        (deletedResult.data ?? [])
+          .map((finding) => (finding.dismissed_by as string | null) ?? null)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    const dismissedUserMap = new Map<string, string>();
+
+    if (dismissedUserIds.length > 0) {
+      const [{ data: profiles }, authUsers] = await Promise.all([
+        supabase
+          .from("user_profiles")
+          .select("id, display_name")
+          .in("id", dismissedUserIds),
+        Promise.all(
+          dismissedUserIds.map(async (id) => ({
+            id,
+            result: await supabase.auth.admin.getUserById(id),
+          })),
+        ),
+      ]);
+
+      for (const profile of profiles ?? []) {
+        if (profile.id && profile.display_name) {
+          dismissedUserMap.set(String(profile.id), String(profile.display_name));
+        }
+      }
+
+      for (const authUser of authUsers) {
+        if (!dismissedUserMap.has(authUser.id)) {
+          const email = authUser.result.data?.user?.email;
+          if (email) dismissedUserMap.set(authUser.id, email);
+        }
+      }
+    }
+
     deletedItems = deletedResult.data.map((finding) => {
       const rssItem = Array.isArray(finding.rss_items)
         ? finding.rss_items[0]
@@ -391,6 +443,12 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
         mappedSection: finding.mapped_section,
         status: finding.status as EasaUpdate["status"],
         deletedAt: (finding.deleted_at as string | null) ?? null,
+        dismissedBy:
+          ((finding.dismissed_by as string | null) ?? null)
+            ? dismissedUserMap.get(String(finding.dismissed_by)) ?? String(finding.dismissed_by)
+            : null,
+        dismissedAt: (finding.dismissed_at as string | null) ?? null,
+        dismissalReason: (finding.dismissal_reason as string | null) ?? null,
       };
     });
   }

@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle, XCircle, RotateCcw, Copy, ExternalLink, Loader2, GitCompare } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw, Copy, ExternalLink, Loader2, GitCompare, AlertCircle } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { diffLines, hasChanges } from "@/lib/utils/text-diff";
+import { confidenceConfig, getConfidenceLevel } from "@/lib/utils/confidence";
 
 interface Note {
   id: string;
@@ -57,7 +58,21 @@ interface Props {
   sectionBody: string | null;
   flightbookName: string | null;
   canManage?: boolean;
+  whyThisSection?: string | null;
+  sourceCitations?: Array<{
+    kind?: string | null;
+    id?: string | null;
+    score?: number | null;
+    section_number?: string | null;
+    title?: string | null;
+    flightbook_name?: string | null;
+    quote?: string | null;
+  }>;
 }
+
+type ReviewSection = "trigger" | "match" | "draft";
+
+type SwipeIntent = "approve" | "dismiss" | null;
 
 function riskBadgeClass(risk: string) {
   if (risk === "high") return "easa-badge is-red";
@@ -118,9 +133,12 @@ export default function DiffViewer({
   sectionBody,
   flightbookName,
   canManage = false,
+  whyThisSection,
+  sourceCitations = [],
 }: Props) {
   const [status, setStatus] = useState(initialStatus);
   const [suggestedText, setSuggestedText] = useState(initialSuggestedText);
+  const [draftText, setDraftText] = useState(initialSuggestedText ?? "");
 
   // Notes state
   const [notes, setNotes] = useState<Note[]>([]);
@@ -136,7 +154,8 @@ export default function DiffViewer({
 
   // Inline inputs for reject / revision
   const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
+  const [rejectMode, setRejectMode] = useState<"item" | "future">("item");
+  const [dismissReason, setDismissReason] = useState("This regulation part does not apply to our operation.");
   const [revisionOpen, setRevisionOpen] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
 
@@ -149,9 +168,16 @@ export default function DiffViewer({
 
   // Inline diff toggle
   const [showDiff, setShowDiff] = useState(false);
+  const [activeSection, setActiveSection] = useState<ReviewSection>("trigger");
+  const [swipeIntent, setSwipeIntent] = useState<SwipeIntent>(null);
+  const touchStartXRef = useRef<number | null>(null);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const realtimeRef = useRef<any>(null);
+
+  useEffect(() => {
+    setDraftText(suggestedText ?? "");
+  }, [suggestedText]);
 
   const loadNotes = useCallback(async () => {
     if (!updateId) {
@@ -247,9 +273,9 @@ export default function DiffViewer({
 
     const body: Record<string, unknown> = { ids: [updateId], action, comment };
     // When approving, pass section details so the API can apply the text to the flight book
-    if (action === "approved" && flightbookSectionId && suggestedText) {
+    if (action === "approved" && flightbookSectionId && draftText.trim()) {
       body.flightbookSectionId = flightbookSectionId;
-      body.aiSuggestedText = suggestedText;
+      body.aiSuggestedText = draftText.trim();
       body.clearAfterApproval = true;
     }
 
@@ -267,6 +293,9 @@ export default function DiffViewer({
       );
     } else {
       setStatus(typeof json.status === "string" ? json.status : action);
+      if (action === "approved") {
+        setSuggestedText(draftText.trim());
+      }
       const messages: Record<string, string> = {
         approved: "Update approved. Flight book section updated.",
         boneyard: "Update approved, flight book section updated, and queue item archived.",
@@ -278,7 +307,8 @@ export default function DiffViewer({
       setActionMsg(messages[action] ?? `Update ${action}.`);
       setRejectOpen(false);
       setRevisionOpen(false);
-      setRejectReason("");
+      setRejectMode("item");
+      setDismissReason("This regulation part does not apply to our operation.");
       setRevisionNote("");
     }
     setActionLoading(false);
@@ -321,6 +351,34 @@ export default function DiffViewer({
   }
 
   const actionsDone = status === "approved" || status === "boneyard" || status === "rejected";
+  const confidenceLevel = getConfidenceLevel(confidenceScore, aiConfidence);
+  const confidenceMeta = confidenceConfig[confidenceLevel];
+  const lowConfidence = confidenceLevel === "low";
+  const swipeEnabled = !actionsDone && canManage;
+
+  function onCardTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (!swipeEnabled) return;
+    touchStartXRef.current = event.touches[0]?.clientX ?? null;
+  }
+
+  function onCardTouchEnd(event: React.TouchEvent<HTMLDivElement>) {
+    if (!swipeEnabled) return;
+    if (touchStartXRef.current == null) return;
+    const endX = event.changedTouches[0]?.clientX ?? touchStartXRef.current;
+    const deltaX = endX - touchStartXRef.current;
+    touchStartXRef.current = null;
+    if (Math.abs(deltaX) < 60) return;
+    if (deltaX > 0) {
+      setSwipeIntent("approve");
+      setRejectOpen(false);
+      setRevisionOpen(false);
+    } else {
+      setSwipeIntent("dismiss");
+      setRejectOpen(true);
+      setRejectMode("item");
+      setRevisionOpen(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -329,18 +387,39 @@ export default function DiffViewer({
         <span className={riskBadgeClass(riskLevel)}>{riskLevel} risk</span>
         <span className="easa-badge is-blue capitalize">{classification.replace(/_/g, " ")}</span>
         <span className={statusBadgeClass(status)}>{(status === "boneyard" ? "archived" : status).replace(/_/g, " ")}</span>
-        {confidenceScore != null && (
-          <span className="easa-badge is-muted">
-            {Math.round(Number(confidenceScore))}% confidence
-          </span>
-        )}
+        <span className={confidenceMeta.badgeClass}>{confidenceMeta.label}</span>
+        {confidenceScore != null && <span className="easa-badge is-muted">{Math.round(Number(confidenceScore))}%</span>}
       </div>
 
-      {/* Two-column grid */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={`easa-btn secondary text-sm ${activeSection === "trigger" ? "ring-1 ring-[var(--easa-color-brand-primary)]" : ""}`}
+          onClick={() => setActiveSection("trigger")}
+        >
+          1) Trigger
+        </button>
+        <button
+          type="button"
+          className={`easa-btn secondary text-sm ${activeSection === "match" ? "ring-1 ring-[var(--easa-color-brand-primary)]" : ""}`}
+          onClick={() => setActiveSection("match")}
+        >
+          2) Match
+        </button>
+        <button
+          type="button"
+          className={`easa-btn secondary text-sm ${activeSection === "draft" ? "ring-1 ring-[var(--easa-color-brand-primary)]" : ""}`}
+          onClick={() => setActiveSection("draft")}
+        >
+          3) Draft
+        </button>
+      </div>
+
+      {/* Trigger + Match */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left panel — EASA regulatory change */}
-        <div className="easa-card space-y-4 p-6">
-          <h2 className="text-base font-semibold">EASA regulatory change</h2>
+        <div className={`easa-card space-y-4 p-6 ${activeSection !== "trigger" ? "opacity-70" : ""}`}>
+          <h2 className="text-base font-semibold">1) Trigger</h2>
 
           {/* Reg part + section ref */}
           <div className="flex flex-wrap gap-2">
@@ -432,8 +511,8 @@ export default function DiffViewer({
         </div>
 
         {/* Right panel — flight book section */}
-        <div className="easa-card space-y-4 p-6">
-          <h2 className="text-base font-semibold">Flight book section</h2>
+        <div className={`easa-card space-y-4 p-6 ${activeSection !== "match" ? "opacity-70" : ""}`}>
+          <h2 className="text-base font-semibold">2) Match</h2>
 
           {/* Section identifier */}
           <div>
@@ -464,96 +543,160 @@ export default function DiffViewer({
             <p className="text-sm text-[var(--easa-color-text-muted)]">No section body available.</p>
           )}
 
-          {/* AI suggested revision */}
-          {suggestedText ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-accent-green)]">
-                  AI suggested revision
-                </p>
-                <div className="flex items-center gap-1.5">
-                  {sectionBody && hasChanges(diffLines(sectionBody, suggestedText)) && (
-                    <button
-                      type="button"
-                      className={`easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs ${showDiff ? "ring-1 ring-[var(--easa-color-brand-primary)]" : ""}`}
-                      onClick={() => setShowDiff((v) => !v)}
-                      title="Toggle inline diff"
-                    >
-                      <GitCompare size={13} strokeWidth={1.75} />
-                      {showDiff ? "Hide diff" : "Show diff"}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs"
-                    onClick={() => copyText(suggestedText)}
-                  >
-                    <Copy size={13} strokeWidth={1.75} />
-                    {copied ? "Copied!" : "Copy"}
-                  </button>
-                </div>
-              </div>
-              <p className="text-xs leading-5 text-[var(--easa-color-text-muted)]">
-                AI draft only. Check the source evidence and manual wording before approval.
-                Your approval creates the controlled version.
-              </p>
-
-              {showDiff && sectionBody ? (
-                <div className="max-h-72 overflow-auto rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3 font-mono text-xs leading-relaxed">
-                  {diffLines(sectionBody, suggestedText).map((token, i) => (
-                    <div
-                      key={i}
-                      className={
-                        token.type === "delete"
-                          ? "bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_15%,transparent)] text-[var(--easa-color-accent-pink)] line-through"
-                          : token.type === "insert"
-                          ? "bg-[color-mix(in_srgb,var(--easa-color-accent-green)_15%,transparent)] text-[var(--easa-color-accent-green)]"
-                          : "text-[var(--easa-color-text-secondary)]"
-                      }
-                    >
-                      <span className="mr-2 select-none text-[var(--easa-color-text-muted)] opacity-50">
-                        {token.type === "delete" ? "−" : token.type === "insert" ? "+" : " "}
-                      </span>
-                      {token.text || <span className="opacity-0">_</span>}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <pre
-                  className="max-h-60 overflow-auto rounded-xl border border-[var(--easa-color-accent-green)] p-3 text-xs leading-relaxed whitespace-pre-wrap"
-                  style={{ background: "color-mix(in srgb, var(--easa-color-accent-green) 8%, transparent)" }}
-                >
-                  {suggestedText}
-                </pre>
-              )}
-            </div>
-          ) : (
+          {whyThisSection ? (
             <div>
-              {generateError && (
-                <p className="mb-2 text-xs text-[var(--easa-color-accent-pink)]">{generateError}</p>
-              )}
-              <button
-                type="button"
-                className="easa-btn secondary flex items-center gap-2 text-sm"
-                disabled={generating || !findingId}
-                onClick={generateDraft}
-              >
-                {generating ? (
-                  <Loader2 size={15} strokeWidth={1.75} className="animate-spin" />
-                ) : (
-                  <RotateCcw size={15} strokeWidth={1.75} />
-                )}
-                {generating ? "Generating…" : "Generate AI draft"}
-              </button>
-              {!findingId && (
-                <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-                  No AI finding linked. Cannot generate draft.
-                </p>
-              )}
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+                Why this section
+              </p>
+              <p className="text-sm leading-relaxed text-[var(--easa-color-text-secondary)]">
+                {whyThisSection}
+              </p>
             </div>
-          )}
+          ) : null}
+
+          {sourceCitations.length > 0 ? (
+            <div>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+                Top source citations
+              </p>
+              <div className="space-y-2">
+                {sourceCitations.slice(0, 3).map((citation, index) => (
+                  <div
+                    key={`${citation.id ?? "citation"}-${index}`}
+                    className="rounded-lg border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-2"
+                  >
+                    <p className="text-xs font-medium text-[var(--easa-color-text-secondary)]">
+                      {(citation.kind ?? "source").replace(/_/g, " ")}
+                      {citation.section_number ? ` · §${citation.section_number}` : ""}
+                      {citation.title ? ` · ${citation.title}` : ""}
+                    </p>
+                    {citation.quote ? (
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--easa-color-text-muted)]">
+                        “{citation.quote}”
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
         </div>
       </div>
+
+      {/* Draft */}
+      <div className={`easa-card space-y-4 p-6 ${activeSection !== "draft" ? "opacity-70" : ""}`}>
+        <h2 className="text-base font-semibold">3) Draft</h2>
+        {suggestedText ? (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-accent-green)]">
+                AI suggested revision
+              </p>
+              <div className="flex items-center gap-1.5">
+                {sectionBody && hasChanges(diffLines(sectionBody, suggestedText)) && (
+                  <button
+                    type="button"
+                    className={`easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs ${showDiff ? "ring-1 ring-[var(--easa-color-brand-primary)]" : ""}`}
+                    onClick={() => setShowDiff((v) => !v)}
+                    title="Toggle inline diff"
+                  >
+                    <GitCompare size={13} strokeWidth={1.75} />
+                    {showDiff ? "Hide diff" : "Show diff"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="easa-btn secondary flex items-center gap-1.5 px-2 py-1 text-xs"
+                  onClick={() => copyText(suggestedText)}
+                >
+                  <Copy size={13} strokeWidth={1.75} />
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+            <p className="text-xs leading-5 text-[var(--easa-color-text-muted)]">
+              AI draft only. Check the source evidence and manual wording before approval.
+              Your approval creates the controlled version.
+            </p>
+
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+                Editable draft
+              </p>
+              <textarea
+                className="easa-input w-full resize-y text-sm leading-relaxed"
+                rows={10}
+                value={draftText}
+                onChange={(event) => setDraftText(event.target.value)}
+                disabled={!canManage || actionLoading || actionsDone}
+              />
+            </div>
+
+            {showDiff && sectionBody ? (
+              <div className="max-h-72 overflow-auto rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3 font-mono text-xs leading-relaxed">
+                {diffLines(sectionBody, draftText).map((token, i) => (
+                  <div
+                    key={i}
+                    className={
+                      token.type === "delete"
+                        ? "bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_15%,transparent)] text-[var(--easa-color-accent-pink)] line-through"
+                        : token.type === "insert"
+                        ? "bg-[color-mix(in_srgb,var(--easa-color-accent-green)_15%,transparent)] text-[var(--easa-color-accent-green)]"
+                        : "text-[var(--easa-color-text-secondary)]"
+                    }
+                  >
+                    <span className="mr-2 select-none text-[var(--easa-color-text-muted)] opacity-50">
+                      {token.type === "delete" ? "−" : token.type === "insert" ? "+" : " "}
+                    </span>
+                    {token.text || <span className="opacity-0">_</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <pre
+                className="max-h-60 overflow-auto rounded-xl border border-[var(--easa-color-accent-green)] p-3 text-xs leading-relaxed whitespace-pre-wrap"
+                style={{ background: "color-mix(in srgb, var(--easa-color-accent-green) 8%, transparent)" }}
+              >
+                {draftText}
+              </pre>
+            )}
+          </div>
+        ) : (
+          <div>
+            {generateError && (
+              <p className="mb-2 text-xs text-[var(--easa-color-accent-pink)]">{generateError}</p>
+            )}
+            <button
+              type="button"
+              className="easa-btn secondary flex items-center gap-2 text-sm"
+              disabled={generating || !findingId}
+              onClick={generateDraft}
+            >
+              {generating ? (
+                <Loader2 size={15} strokeWidth={1.75} className="animate-spin" />
+              ) : (
+                <RotateCcw size={15} strokeWidth={1.75} />
+              )}
+              {generating ? "Generating…" : "Generate AI draft"}
+            </button>
+            {!findingId && (
+              <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                No AI finding linked. Cannot generate draft.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
+      {lowConfidence ? (
+        <div className="rounded-xl border border-[var(--easa-color-accent-orange)] bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_10%,transparent)] px-4 py-3">
+          <p className="flex items-center gap-2 text-sm">
+            <AlertCircle size={15} strokeWidth={1.75} />
+            Low confidence match — please verify this section is the correct one before approving.
+          </p>
+        </div>
+      ) : null}
 
       {/* Notes thread */}
       <div className="easa-card space-y-4 p-5">
@@ -611,7 +754,7 @@ export default function DiffViewer({
       </div>
 
       {/* Action bar */}
-      <div className="easa-card p-5">
+      <div className="easa-card p-5" onTouchStart={onCardTouchStart} onTouchEnd={onCardTouchEnd}>
         {!canManage && (
           <p className="mb-3 text-sm text-[var(--easa-color-text-muted)]">
             Read-only view. Approval actions are limited to admin, editor, and compliance manager roles.
@@ -632,49 +775,123 @@ export default function DiffViewer({
 
         <div className="flex flex-wrap items-start gap-3">
           {/* Approve */}
-          <button
-            type="button"
-            className="easa-btn primary flex items-center gap-2 text-sm"
-            disabled={!canManage || actionLoading || actionsDone}
-            onClick={() => performAction("approved")}
-            style={
-              actionsDone
-                ? undefined
-                : { background: "var(--easa-color-accent-green)", color: "#fff", borderColor: "var(--easa-color-accent-green)" }
-            }
-          >
-            <CheckCircle size={16} strokeWidth={1.75} />
-            Approve
-          </button>
+          {swipeIntent === "approve" ? (
+            <button
+              type="button"
+              className="easa-btn primary flex items-center gap-2 text-sm"
+              disabled={!canManage || actionLoading || actionsDone}
+              onClick={() => {
+                void performAction("approved");
+                setSwipeIntent(null);
+              }}
+              style={
+                actionsDone
+                  ? undefined
+                  : { background: "var(--easa-color-accent-green)", color: "#fff", borderColor: "var(--easa-color-accent-green)" }
+              }
+            >
+              <CheckCircle size={16} strokeWidth={1.75} />
+              Confirm approve
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="easa-btn primary flex items-center gap-2 text-sm"
+              disabled={!canManage || actionLoading || actionsDone}
+              onClick={() => performAction("approved")}
+              style={
+                actionsDone
+                  ? undefined
+                  : { background: "var(--easa-color-accent-green)", color: "#fff", borderColor: "var(--easa-color-accent-green)" }
+              }
+            >
+              <CheckCircle size={16} strokeWidth={1.75} />
+              Approve
+            </button>
+          )}
 
-          {/* Reject */}
+          {/* Not relevant dismiss */}
           {!rejectOpen ? (
             <button
               type="button"
               className="easa-btn secondary flex items-center gap-2 text-sm"
               disabled={!canManage || actionLoading || actionsDone}
               onClick={() => { setRejectOpen(true); setRevisionOpen(false); }}
-              style={actionsDone ? undefined : { color: "var(--easa-color-accent-pink)", borderColor: "var(--easa-color-accent-pink)" }}
             >
               <XCircle size={16} strokeWidth={1.75} />
-              Reject
+              Not relevant — dismiss
             </button>
           ) : (
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-              <input
-                className="easa-input text-sm"
-                placeholder="Reason (optional)"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-              />
+            <div className="flex w-full flex-col gap-2 rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3">
+              <p className="text-sm">
+                Dismiss this item only, or also hide future related findings for your school?
+              </p>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  checked={rejectMode === "item"}
+                  onChange={() => setRejectMode("item")}
+                />
+                Dismiss this item only
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  checked={rejectMode === "future"}
+                  onChange={() => setRejectMode("future")}
+                />
+                Dismiss and hide future related findings
+              </label>
+              <div className="space-y-1">
+                <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">
+                  Confirm no action needed
+                </p>
+                <p className="text-sm">
+                  Confirm: I have reviewed this change and confirm no update to our manuals is required.
+                </p>
+                <label className="block text-xs text-[var(--easa-color-text-muted)]">
+                  Reason (optional)
+                </label>
+                <input
+                  className="easa-input w-full text-sm"
+                  value={dismissReason}
+                  onChange={(event) => setDismissReason(event.target.value)}
+                  placeholder="This regulation part does not apply to our operation."
+                />
+              </div>
               <button
                 type="button"
                 className="easa-btn secondary text-sm"
-                style={{ color: "var(--easa-color-accent-pink)", borderColor: "var(--easa-color-accent-pink)" }}
                 disabled={!canManage || actionLoading}
-                onClick={() => performAction("rejected", rejectReason || undefined)}
+                onClick={async () => {
+                  setActionLoading(true);
+                  setActionError(null);
+
+                  const response = await fetch("/api/findings/mark-not-relevant", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      findingId,
+                      proposedUpdateId: updateId,
+                      dismissalReason: dismissReason,
+                      ...(rejectMode === "future"
+                        ? { filterRegPart: regPart, filterCategory: classification }
+                        : {}),
+                    }),
+                  });
+                  const payload = await response.json().catch(() => ({} as { error?: string }));
+
+                  if (!response.ok) {
+                    setActionError(payload.error ?? "Dismiss action failed.");
+                  } else {
+                    setStatus("boneyard");
+                    setActionMsg("Item dismissed and removed from active queue.");
+                    setRejectOpen(false);
+                  }
+                  setActionLoading(false);
+                }}
               >
-                Confirm reject
+                {swipeIntent === "dismiss" ? "Confirm dismissal" : "Confirm dismiss"}
               </button>
               <button
                 type="button"
@@ -725,6 +942,11 @@ export default function DiffViewer({
             </div>
           )}
         </div>
+        {swipeEnabled ? (
+          <p className="mt-3 text-xs text-[var(--easa-color-text-muted)]">
+            Mobile swipe: right to reveal approve confirm, left to reveal dismiss confirm.
+          </p>
+        ) : null}
 
         {actionsDone && (
           <p className="mt-3 text-xs text-[var(--easa-color-text-muted)]">

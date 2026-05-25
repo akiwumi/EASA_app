@@ -11,6 +11,7 @@ import AutomationTab from "@/components/admin/AutomationTab";
 import BrandingTab from "@/components/admin/BrandingTab";
 import OnboardingTab from "@/components/admin/OnboardingTab";
 import ExportsTab from "@/components/admin/ExportsTab";
+import RegulatoryScopeSettings from "@/components/admin/RegulatoryScopeSettings";
 
 const TABS = [
   { id: "setup", label: "Setup", icon: Rocket },
