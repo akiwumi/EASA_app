@@ -355,9 +355,11 @@ serve(async (request) => {
     return envKey && envKey.startsWith("sk-") && !envKey.startsWith("sk-ant-") ? envKey : null;
   })();
 
-  const findingsPayload = [];
+  const CONCURRENCY = 5;
+  type FindingRow = { rss_item_id: string; organization_id: string | null; impact: string; confidence: string; mapped_section: string; status: string; category: string; summary: string };
+  const findingsPayload: FindingRow[] = [];
 
-  for (const item of pendingItems) {
+  async function processItem(item: typeof pendingItems[number]) {
     let similarItems: SimilarItem[] = [];
     let retrievedSections: RetrievedFlightbookSection[] = [];
     if (openAiKey && item.organization_id) {
@@ -382,7 +384,7 @@ serve(async (request) => {
       similarItems,
       retrievedSections,
     );
-    findingsPayload.push({
+    return {
       rss_item_id: item.id,
       organization_id: item.organization_id ?? null,
       impact: analysis.impact,
@@ -391,7 +393,13 @@ serve(async (request) => {
       status: analysis.status,
       category: analysis.category,
       summary: analysis.summary,
-    });
+    };
+  }
+
+  for (let i = 0; i < pendingItems.length; i += CONCURRENCY) {
+    const batch = pendingItems.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(batch.map(processItem));
+    findingsPayload.push(...results);
   }
 
   if (findingsPayload.length > 0) {

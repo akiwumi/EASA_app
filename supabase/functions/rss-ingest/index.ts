@@ -89,10 +89,13 @@ serve(async (request) => {
     );
   }
 
-  const ingestResults: { feed: string; inserted: number; error: string | null }[] = [];
-  let totalInserted = 0;
+  async function ingestSource(source: { id: string; url: string; organization_id: string | null }): Promise<{ feed: string; inserted: number; error: string | null }> {
+    // Validate URL before fetching — an invalid URL causes fetch() to throw
+    // "The string did not match the expected pattern" which is hard to debug.
+    try { new URL(source.url); } catch {
+      return { feed: source.url, inserted: 0, error: "Invalid feed URL — check Sources settings." };
+    }
 
-  for (const source of sources) {
     try {
       const response = await fetch(source.url, {
         headers: { "User-Agent": "EASA-Compliance-Bot/1.0" },
@@ -100,16 +103,14 @@ serve(async (request) => {
       });
 
       if (!response.ok) {
-        ingestResults.push({ feed: source.url, inserted: 0, error: `HTTP ${response.status}` });
-        continue;
+        return { feed: source.url, inserted: 0, error: `HTTP ${response.status}` };
       }
 
       const xmlText = await response.text();
       const items = parseRssItems(xmlText);
 
       if (items.length === 0) {
-        ingestResults.push({ feed: source.url, inserted: 0, error: "No <item> elements found in feed" });
-        continue;
+        return { feed: source.url, inserted: 0, error: "No <item> elements found in feed" };
       }
 
       const payload = items.map((item) => ({
@@ -123,19 +124,21 @@ serve(async (request) => {
         .upsert(payload, { onConflict: "source_id,external_id,organization_id" });
 
       if (insertError) {
-        ingestResults.push({ feed: source.url, inserted: 0, error: insertError.message });
-      } else {
-        ingestResults.push({ feed: source.url, inserted: payload.length, error: null });
-        totalInserted += payload.length;
+        return { feed: source.url, inserted: 0, error: insertError.message };
       }
+      return { feed: source.url, inserted: payload.length, error: null };
     } catch (err) {
-      ingestResults.push({
+      return {
         feed: source.url,
         inserted: 0,
         error: err instanceof Error ? err.message : "Unknown error",
-      });
+      };
     }
   }
+
+  // Fetch all feeds in parallel instead of sequentially
+  const ingestResults = await Promise.all(sources.map(ingestSource));
+  const totalInserted = ingestResults.reduce((sum, r) => sum + r.inserted, 0);
 
   return new Response(
     JSON.stringify({ ok: true, count: totalInserted, results: ingestResults }),
