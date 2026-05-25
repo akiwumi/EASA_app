@@ -36,7 +36,7 @@ export const EASA_RSS_FEEDS = [
 const MOCK_UPDATES: EasaUpdate[] = [
   {
     id: "easa-2026-01-24-001",
-    title: "Part-FCL — Medical validity periods adjusted",
+    title: "Part-FCL:Medical validity periods adjusted",
     summary:
       "Updated time windows for Class 1 medical renewals and clarified renewal documentation.",
     publishedAt: "2026-01-24",
@@ -48,7 +48,7 @@ const MOCK_UPDATES: EasaUpdate[] = [
   },
   {
     id: "easa-2026-01-24-002",
-    title: "OPS Part-NCC — Fuel reserve planning",
+    title: "OPS Part-NCC:Fuel reserve planning",
     summary:
       "Expanded alternate planning language and added clarification for contingency fuel.",
     publishedAt: "2026-01-24",
@@ -60,7 +60,7 @@ const MOCK_UPDATES: EasaUpdate[] = [
   },
   {
     id: "easa-2026-01-23-001",
-    title: "AMC/GM — Night operations syllabus",
+    title: "AMC/GM:Night operations syllabus",
     summary:
       "Added instructor sign-off requirements and expanded briefing checklist guidance.",
     publishedAt: "2026-01-23",
@@ -72,7 +72,7 @@ const MOCK_UPDATES: EasaUpdate[] = [
   },
   {
     id: "easa-2026-01-23-002",
-    title: "Safety management — Occurrence reporting cadence",
+    title: "Safety management:Occurrence reporting cadence",
     summary:
       "Clarified the reporting interval for minor events and introduced a new template.",
     publishedAt: "2026-01-23",
@@ -314,28 +314,29 @@ export async function fetchAiScrapedUpdates(orgId?: string): Promise<CollatedUpd
     }
   }
 
-  const items: EasaUpdate[] = data.map((finding) => {
-    const rssItem = Array.isArray(finding.rss_items)
-      ? finding.rss_items[0]
-      : finding.rss_items;
-    const queued = queuedByFindingId.get(String(finding.id));
+  const items: EasaUpdate[] = data
+    .filter((finding) => !queuedByFindingId.has(String(finding.id)))
+    .map((finding) => {
+      const rssItem = Array.isArray(finding.rss_items)
+        ? finding.rss_items[0]
+        : finding.rss_items;
 
-    return {
-      id: finding.id,
-      title: rssItem?.title ?? "Untitled update",
-      summary: finding.summary ?? rssItem?.summary ?? "No summary provided.",
-      publishedAt: rssItem?.published_at
-        ? new Date(rssItem.published_at).toISOString().split("T")[0]
-        : "Unknown date",
-      category: finding.category ?? rssItem?.category ?? "General",
-      impact: finding.impact as EasaUpdate["impact"],
-      confidence: finding.confidence,
-      mappedSection: finding.mapped_section,
-      status: finding.status as EasaUpdate["status"],
-      queuedUpdateId: queued?.id ?? null,
-      queuedDraftReady: queued?.draftReady ?? false,
-    };
-  });
+      return {
+        id: finding.id,
+        title: rssItem?.title ?? "Untitled update",
+        summary: finding.summary ?? rssItem?.summary ?? "No summary provided.",
+        publishedAt: rssItem?.published_at
+          ? new Date(rssItem.published_at).toISOString().split("T")[0]
+          : "Unknown date",
+        category: finding.category ?? rssItem?.category ?? "General",
+        impact: finding.impact as EasaUpdate["impact"],
+        confidence: finding.confidence,
+        mappedSection: finding.mapped_section,
+        status: finding.status as EasaUpdate["status"],
+        queuedUpdateId: null,
+        queuedDraftReady: false,
+      };
+    });
 
   const latest = data[0]?.created_at
     ? new Date(data[0].created_at).toISOString()
