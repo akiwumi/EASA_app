@@ -153,6 +153,21 @@ export default function UpdatedResultsSection({
     setTrashLoading(false);
   }
 
+  function removeQueued(ids: string[]) {
+    const now = new Date().toISOString();
+    setActiveItems((current) => {
+      const moving = current.filter((item) => ids.includes(item.id)).map((item) => ({ ...item, deletedAt: now }));
+      setTrashItems((t) => [...moving, ...t]);
+      return current.filter((item) => !ids.includes(item.id));
+    });
+    setSelectedActive((s) => { const next = new Set(s); ids.forEach((id) => next.delete(id)); return next; });
+    void fetch("/api/findings/trash", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, action: "delete" }),
+    });
+  }
+
   async function addOne(findingId: string) {
     setMessage(null);
     setStates((current) => ({ ...current, [findingId]: "loading" }));
@@ -170,9 +185,8 @@ export default function UpdatedResultsSection({
       return;
     }
 
-    setStates((current) => ({ ...current, [findingId]: "queued" }));
-    setDraftReady((current) => ({ ...current, [findingId]: Boolean(json.draftGenerated) || current[findingId] }));
-    setMessage(json.draftError ? `Queued. Draft needs review: ${json.draftError}` : "Update added to queue.");
+    removeQueued([findingId]);
+    setMessage(json.draftError ? `Queued with draft error — check the review queue.` : "Added to queue and removed from results.");
   }
 
   async function addAll() {
@@ -191,30 +205,27 @@ export default function UpdatedResultsSection({
     });
     const json = (await res.json()) as QueueResponse;
     const results = json.results ?? [];
-    const nextStates = Object.fromEntries(
-      remainingIds.map((id) => {
-        const result = results.find((entry) => entry.findingId === id);
-        return [id, result?.id ? "queued" : "error"] as const;
-      }),
-    ) as Record<string, QueueState>;
-    const nextDraftReady = Object.fromEntries(
-      results
-        .filter((result) => result.id)
-        .map((result) => [result.findingId, Boolean(result.draftGenerated)]),
-    ) as Record<string, boolean>;
 
-    setStates((current) => ({ ...current, ...nextStates }));
-    setDraftReady((current) => ({ ...current, ...nextDraftReady }));
+    const queuedIds = results.filter((r) => r.id).map((r) => r.findingId);
+    const failedIds = remainingIds.filter((id) => !queuedIds.includes(id));
+
+    if (queuedIds.length > 0) removeQueued(queuedIds);
+
+    setStates((current) => ({
+      ...current,
+      ...Object.fromEntries(failedIds.map((id) => [id, "error"])),
+    }));
     setBulkLoading(false);
 
-    const failed = results.filter((result) => result.error).length;
-    const draftErrors = results.filter((result) => result.draftError).length;
+    const draftErrors = results.filter((r) => r.draftError).length;
     if (!res.ok && results.length === 0) {
       setMessage(json.error ?? "Failed to add updates.");
-    } else if (failed || draftErrors) {
-      setMessage(`${results.length - failed} added. ${failed + draftErrors} need manual review in the queue.`);
+    } else if (failedIds.length) {
+      setMessage(`${queuedIds.length} added and removed. ${failedIds.length} failed — retry individually.`);
+    } else if (draftErrors) {
+      setMessage(`${queuedIds.length} added and removed. ${draftErrors} draft error(s) — check the review queue.`);
     } else {
-      setMessage(`${results.length} update${results.length === 1 ? "" : "s"} added to the queue with AI drafts.`);
+      setMessage(`${queuedIds.length} update${queuedIds.length === 1 ? "" : "s"} added to the queue and removed from results.`);
     }
   }
 
