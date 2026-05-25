@@ -72,8 +72,7 @@ export async function POST(request: Request) {
       .from("ai_findings")
       .delete({ count: "exact" })
       .eq("organization_id", ctx.orgId)
-      .in("id", ids)
-      .not("deleted_at", "is", null);
+      .in("id", ids);
 
     if (isMissingDeletedColumnError(error)) {
       return NextResponse.json({
