@@ -54,14 +54,19 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [dismissError, setDismissError] = useState<string | null>(null);
   const [summaryHidden, setSummaryHidden] = useState(false);
   const [summaryRunId, setSummaryRunId] = useState<string | null>(null);
+  // Filters (category + risk sent to API; confidence filtered client-side)
+  const [filterClassification, setFilterClassification] = useState("");
+  const [filterRisk, setFilterRisk] = useState("");
+  const [filterConfidence, setFilterConfidence] = useState("");
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const load = useCallback(async (overrides?: { page?: number; status?: string; regulation?: string }) => {
+  const load = useCallback(async (overrides?: { page?: number }) => {
     setLoading(true);
     setError(null);
+    setSelectedIds(new Set());
     const nextPage = overrides?.page ?? page;
     const params = new URLSearchParams({
       page: String(nextPage),
@@ -69,6 +74,8 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       actionOnly: "1",
       hasDraft: "1",
     });
+    if (filterClassification) params.set("classification", filterClassification);
+    if (filterRisk) params.set("risk", filterRisk);
 
     const res = await fetch(`/api/updates?${params}`);
     if (!res.ok) { setError("Failed to load updates"); setLoading(false); return; }
@@ -76,7 +83,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     setItems(json.items ?? []);
     setTotal(json.total ?? 0);
     setLoading(false);
-  }, [page]);
+  }, [page, filterClassification, filterRisk]);
 
   const refreshSummary = useCallback(async () => {
     setSummaryBusy(true);
@@ -142,8 +149,18 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     return () => window.clearTimeout(timer);
   }, [refreshSummary]);
 
+  // Reset to page 1 whenever an API-side filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [filterClassification, filterRisk]);
+
   const totalPages = Math.ceil(total / limit);
-  const draftedItems = items.filter((item) => Boolean(item.ai_suggested_text));
+  const draftedItems = items
+    .filter((item) => Boolean(item.ai_suggested_text))
+    .filter((item) => {
+      if (!filterConfidence) return true;
+      return getConfidenceLevel(item.confidence_score, item.ai_confidence_label) === filterConfidence;
+    });
   const draftedCount = draftedItems.length;
   const queuedCount = draftedItems.length;
 
@@ -286,6 +303,80 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           <p className="text-xs uppercase tracking-wide text-[var(--easa-color-text-muted)]">Drafts ready</p>
           <p className="mt-1 text-2xl font-semibold">{draftedCount}</p>
         </div>
+      </div>
+
+      {/* Filter bar */}
+      <div className="easa-card p-3 flex flex-wrap gap-4">
+        {/* Category */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-[var(--easa-color-text-muted)] pr-1">Category</span>
+          {(["", "mandatory", "recommended", "watchlist"] as const).map((v) => (
+            <button
+              key={v || "all"}
+              onClick={() => setFilterClassification(v)}
+              className={[
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                filterClassification === v
+                  ? "bg-[var(--easa-color-accent-blue)] text-white"
+                  : "bg-[color-mix(in_srgb,var(--easa-color-text-muted)_12%,transparent)] text-[var(--easa-color-text-secondary)] hover:bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]",
+              ].join(" ")}
+            >
+              {v === "" ? "All" : v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px self-stretch bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]" />
+
+        {/* Risk */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-[var(--easa-color-text-muted)] pr-1">Risk</span>
+          {(["", "high", "medium", "low"] as const).map((v) => (
+            <button
+              key={v || "all"}
+              onClick={() => setFilterRisk(v)}
+              className={[
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                filterRisk === v
+                  ? "bg-[var(--easa-color-accent-blue)] text-white"
+                  : "bg-[color-mix(in_srgb,var(--easa-color-text-muted)_12%,transparent)] text-[var(--easa-color-text-secondary)] hover:bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]",
+              ].join(" ")}
+            >
+              {v === "" ? "All" : v.charAt(0).toUpperCase() + v.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px self-stretch bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]" />
+
+        {/* Confidence */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-[var(--easa-color-text-muted)] pr-1">Confidence</span>
+          {(["", "High", "Medium", "Low"] as const).map((v) => (
+            <button
+              key={v || "all"}
+              onClick={() => setFilterConfidence(v)}
+              className={[
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                filterConfidence === v
+                  ? "bg-[var(--easa-color-accent-blue)] text-white"
+                  : "bg-[color-mix(in_srgb,var(--easa-color-text-muted)_12%,transparent)] text-[var(--easa-color-text-secondary)] hover:bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]",
+              ].join(" ")}
+            >
+              {v === "" ? "All" : v}
+            </button>
+          ))}
+        </div>
+
+        {/* Clear all */}
+        {(filterClassification || filterRisk || filterConfidence) ? (
+          <button
+            onClick={() => { setFilterClassification(""); setFilterRisk(""); setFilterConfidence(""); }}
+            className="ml-auto text-xs text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-secondary)] underline underline-offset-2"
+          >
+            Clear filters
+          </button>
+        ) : null}
       </div>
 
       {loading ? (
