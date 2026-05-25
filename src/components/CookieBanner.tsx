@@ -7,12 +7,15 @@ export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      const consent = localStorage.getItem("cookie_consent");
-      if (!consent) setVisible(true);
-    } catch {
-      // localStorage unavailable — don't show banner
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        const consent = localStorage.getItem("cookie_consent");
+        if (!consent) setVisible(true);
+      } catch {
+        // localStorage unavailable — don't show banner
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function accept() {

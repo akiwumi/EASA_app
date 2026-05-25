@@ -15,6 +15,8 @@ export default function PwaLifecycle() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
+    let bannerTimer: number | null = null;
+
     // Register service worker
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
@@ -34,28 +36,31 @@ export default function PwaLifecycle() {
         .catch(() => {});
     }
 
-    // Detect iOS
-    const ios =
-      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-    setIsIos(ios);
+    const detectionTimer = window.setTimeout(() => {
+      // Detect iOS
+      const ios =
+        /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      setIsIos(ios);
 
-    // Detect standalone mode (already installed)
-    const standalone =
-      ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true) ||
-      matchMedia("(display-mode: standalone)").matches;
-    setIsStandalone(standalone);
+      // Detect standalone mode (already installed)
+      const standalone =
+        ("standalone" in navigator && (navigator as { standalone?: boolean }).standalone === true) ||
+        matchMedia("(display-mode: standalone)").matches;
+      setIsStandalone(standalone);
 
-    // Check if user has already dismissed the banner this session
-    const dismissed = sessionStorage.getItem("pwa-banner-dismissed");
+      // Check if user has already dismissed the banner this session
+      const dismissed = sessionStorage.getItem("pwa-banner-dismissed");
 
-    if (!standalone && !dismissed) {
-      if (ios) {
-        // Show iOS instructions after a short delay
-        const t = setTimeout(() => setShowBanner(true), 3000);
-        return () => clearTimeout(t);
+      if (!standalone && !dismissed && ios) {
+        bannerTimer = window.setTimeout(() => setShowBanner(true), 3000);
       }
-    }
+    }, 0);
+
+    return () => {
+      window.clearTimeout(detectionTimer);
+      if (bannerTimer) window.clearTimeout(bannerTimer);
+    };
   }, []);
 
   // Chrome / Android: intercept beforeinstallprompt

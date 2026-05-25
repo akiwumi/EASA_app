@@ -20,7 +20,7 @@ export default async function RollbackPage() {
   let versions: RollbackVersionRow[] = [];
 
   if (admin && orgId) {
-    let query = admin
+    const query = admin
       .from("flightbook_section_versions")
       .select("id, version_number, change_source, created_at, flightbook_section_id")
       .eq("organization_id", orgId)

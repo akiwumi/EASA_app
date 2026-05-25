@@ -175,7 +175,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     } finally {
       setDismissLoading(false);
     }
-  }, [dismissMode, load, refreshSummary]);
+  }, [dismissMode, dismissReason, load, refreshSummary]);
 
   return (
     <div className="space-y-4">

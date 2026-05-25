@@ -51,7 +51,7 @@ export default function UpdatedResultsSection({
   const [states, setStates] = useState<Record<string, QueueState>>(() =>
     Object.fromEntries(items.map((item) => [item.id, item.queuedUpdateId ? "queued" : "idle"])),
   );
-  const [draftReady, setDraftReady] = useState<Record<string, boolean>>(() =>
+  const [draftReady] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(items.map((item) => [item.id, Boolean(item.queuedDraftReady)])),
   );
   const [bulkLoading, setBulkLoading] = useState(false);

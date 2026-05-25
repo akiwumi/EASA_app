@@ -9,7 +9,6 @@ import {
   loadDashboardSetupSummary,
   loadDashboardStats,
   loadOrgContext,
-  loadRecentPipelineRun,
   loadComplianceTimeline,
   loadRegulationMonitoringRows,
 } from "@/services/dashboard";
@@ -22,10 +21,9 @@ export default async function DashboardPage() {
     redirect("/settings?tab=setup");
   }
 
-  const [setupSummary, stats, lastRun, timeline, regulationRows] = await Promise.all([
+  const [setupSummary, stats, timeline, regulationRows] = await Promise.all([
     loadDashboardSetupSummary(org.organizationId),
     loadDashboardStats(org.organizationId),
-    loadRecentPipelineRun(org.organizationId),
     loadComplianceTimeline(org.organizationId),
     loadRegulationMonitoringRows(org.organizationId),
   ]);

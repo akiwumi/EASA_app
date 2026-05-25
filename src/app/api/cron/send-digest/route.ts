@@ -32,7 +32,6 @@ const PARTIAL_DIGEST_TYPES = new Set([
 ]);
 
 function buildDailyHtml(user: DigestUser, notifications: NotificationRow[], appUrl: string): string {
-  const lines = notifications.map((n) => `• ${n.title}${n.body ? `: ${n.body}` : ""}`).join("\n");
   return `
     <p style="font-family:sans-serif;">Hello${user.display_name ? ` ${user.display_name}` : ""},</p>
     <p style="font-family:sans-serif;">Here is your daily notification digest from your EASA compliance workspace:</p>

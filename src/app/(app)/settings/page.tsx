@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Users, BookOpen, Rss, Rocket, TimerReset, Palette, ClipboardList, Files } from "lucide-react";
 import UsersTab from "@/components/admin/UsersTab";
 import FlightbooksTab from "@/components/admin/FlightbooksTab";
@@ -11,7 +11,6 @@ import AutomationTab from "@/components/admin/AutomationTab";
 import BrandingTab from "@/components/admin/BrandingTab";
 import OnboardingTab from "@/components/admin/OnboardingTab";
 import ExportsTab from "@/components/admin/ExportsTab";
-import RegulatoryScopeSettings from "@/components/admin/RegulatoryScopeSettings";
 
 const TABS = [
   { id: "setup", label: "Setup", icon: Rocket },
@@ -29,14 +28,16 @@ const TAB_IDS = TABS.map((t) => t.id) as readonly string[];
 
 export default function SettingsPage() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const initial = (searchParams.get("tab") ?? "setup") as TabId;
   const [active, setActive] = useState<TabId>(TAB_IDS.includes(initial) ? initial : "setup");
 
   // Keep URL in sync when tab changes
   useEffect(() => {
-    router.replace(`/settings?tab=${active}`, { scroll: false });
-  }, [active, router]);
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("tab") === active) return;
+    url.searchParams.set("tab", active);
+    window.history.replaceState(window.history.state, "", url);
+  }, [active]);
 
   return (
     <div className="space-y-6">

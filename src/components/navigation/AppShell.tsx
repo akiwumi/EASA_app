@@ -121,6 +121,7 @@ export default function AppShell({
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const logoSrc = logoUrl?.startsWith("/") ? logoUrl : "/images/flight-lyceum-logo.png";
 
   // Close mobile menu on navigation
   useEffect(() => {
@@ -130,7 +131,9 @@ export default function AppShell({
 
   useEffect(() => {
     const trainingPath = pathname.startsWith("/training/");
-    if (trainingPath) setTrainingOpen(true);
+    if (!trainingPath) return;
+    const timer = window.setTimeout(() => setTrainingOpen(true), 0);
+    return () => window.clearTimeout(timer);
   }, [pathname]);
 
   const canSeeManagerReports = role === "compliance_manager" || role === "admin";
@@ -243,7 +246,7 @@ export default function AppShell({
               className="object-contain"
               height={28}
               priority
-              src="/images/flight-lyceum-logo.png"
+              src={logoSrc}
               style={{ width: 52, height: 28 }}
               width={52}
             />
@@ -365,7 +368,7 @@ export default function AppShell({
                 className="object-contain"
                 height={32}
                 priority
-                src="/images/flight-lyceum-logo.png"
+                src={logoSrc}
                 style={{ width: 58, height: 32 }}
                 width={58}
               />
@@ -450,6 +453,11 @@ export default function AppShell({
                   {contactEmail && (
                     <a className="mt-0.5 block truncate text-xs text-[var(--easa-color-text-muted)]" href={`mailto:${contactEmail}`}>
                       {contactEmail}
+                    </a>
+                  )}
+                  {contactPhone && (
+                    <a className="mt-0.5 block truncate text-xs text-[var(--easa-color-text-muted)]" href={`tel:${contactPhone}`}>
+                      {contactPhone}
                     </a>
                   )}
                 </div>
