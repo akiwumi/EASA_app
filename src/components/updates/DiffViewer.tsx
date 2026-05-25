@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle, XCircle, RotateCcw, Copy, ExternalLink, Loader2, GitCompare, AlertCircle } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { diffLines, hasChanges } from "@/lib/utils/text-diff";
@@ -136,6 +137,7 @@ export default function DiffViewer({
   whyThisSection,
   sourceCitations = [],
 }: Props) {
+  const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [suggestedText, setSuggestedText] = useState(initialSuggestedText);
   const [draftText, setDraftText] = useState(initialSuggestedText ?? "");
@@ -295,6 +297,7 @@ export default function DiffViewer({
       setStatus(typeof json.status === "string" ? json.status : action);
       if (action === "approved") {
         setSuggestedText(draftText.trim());
+        router.push("/updates");
       }
       const messages: Record<string, string> = {
         approved: "Update approved. Flight book section updated.",
@@ -883,12 +886,10 @@ export default function DiffViewer({
 
                   if (!response.ok) {
                     setActionError(payload.error ?? "Dismiss action failed.");
+                    setActionLoading(false);
                   } else {
-                    setStatus("boneyard");
-                    setActionMsg("Item dismissed and removed from active queue.");
-                    setRejectOpen(false);
+                    router.push("/updates");
                   }
-                  setActionLoading(false);
                 }}
               >
                 {swipeIntent === "dismiss" ? "Confirm dismissal" : "Confirm dismiss"}

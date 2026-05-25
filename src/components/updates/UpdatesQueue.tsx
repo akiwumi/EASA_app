@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, Clock3, Download, RefreshCw } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock3, Download, RefreshCw, Trash2, XCircle } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
 import { confidenceConfig, getConfidenceLevel } from "@/lib/utils/confidence";
 
@@ -54,6 +54,10 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [dismissError, setDismissError] = useState<string | null>(null);
   const [summaryHidden, setSummaryHidden] = useState(false);
   const [summaryRunId, setSummaryRunId] = useState<string | null>(null);
+  // Bulk selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
   const load = useCallback(async (overrides?: { page?: number; status?: string; regulation?: string }) => {
     setLoading(true);
@@ -142,6 +146,48 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const draftedItems = items.filter((item) => Boolean(item.ai_suggested_text));
   const draftedCount = draftedItems.length;
   const queuedCount = draftedItems.length;
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedIds(new Set(draftedItems.map((item) => item.id)));
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  async function bulkAction(action: "boneyard" | "delete") {
+    if (selectedIds.size === 0) return;
+    setBulkLoading(true);
+    setBulkError(null);
+    try {
+      const res = await fetch("/api/updates", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action }),
+      });
+      const json = await res.json().catch(() => ({} as { error?: string }));
+      if (!res.ok) {
+        setBulkError(json.error ?? "Bulk action failed.");
+        return;
+      }
+      setSelectedIds(new Set());
+      await load();
+      await refreshSummary();
+    } catch {
+      setBulkError("Bulk action failed.");
+    } finally {
+      setBulkLoading(false);
+    }
+  }
 
   const dismissNotRelevant = useCallback(async (item: UpdateQueueItem) => {
     setDismissLoading(true);
@@ -261,6 +307,61 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Bulk selection toolbar */}
+          {canManage && draftedItems.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-2.5">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === draftedItems.length && draftedItems.length > 0}
+                  ref={(el) => {
+                    if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < draftedItems.length;
+                  }}
+                  onChange={() => selectedIds.size === draftedItems.length ? clearSelection() : selectAll()}
+                  className="h-4 w-4"
+                />
+                {selectedIds.size > 0
+                  ? `${selectedIds.size} selected`
+                  : "Select all"}
+              </label>
+              {selectedIds.size > 0 ? (
+                <>
+                  <button
+                    type="button"
+                    className="easa-btn secondary flex items-center gap-1.5 text-sm"
+                    disabled={bulkLoading}
+                    onClick={() => void bulkAction("boneyard")}
+                  >
+                    <XCircle size={14} strokeWidth={1.75} />
+                    Dismiss selected
+                  </button>
+                  <button
+                    type="button"
+                    className="easa-btn secondary flex items-center gap-1.5 text-sm text-[var(--easa-color-accent-pink)]"
+                    disabled={bulkLoading}
+                    onClick={() => void bulkAction("delete")}
+                  >
+                    <Trash2 size={14} strokeWidth={1.75} />
+                    Delete selected
+                  </button>
+                  <button
+                    type="button"
+                    className="ml-auto text-xs text-[var(--easa-color-text-muted)] underline"
+                    onClick={clearSelection}
+                  >
+                    Clear
+                  </button>
+                </>
+              ) : null}
+              {bulkLoading ? (
+                <span className="text-xs text-[var(--easa-color-text-muted)]">Working…</span>
+              ) : null}
+              {bulkError ? (
+                <span className="text-xs text-[var(--easa-color-accent-pink)]">{bulkError}</span>
+              ) : null}
+            </div>
+          ) : null}
+
           {draftedItems.map((item) => {
             const confidenceLevel = getConfidenceLevel(item.confidence_score, item.ai_confidence_label);
             const confidenceMeta = confidenceConfig[confidenceLevel];
@@ -276,7 +377,16 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
                 className={`easa-card p-4 ${confidenceMeta.borderClass}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  {canManage ? (
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 cursor-pointer"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleSelect(item.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
                       <span className={riskBadgeClass(item.risk_level)}>{item.risk_level} risk</span>
                       <span className={confidenceMeta.badgeClass}>{confidenceMeta.label}</span>
