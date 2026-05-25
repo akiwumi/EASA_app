@@ -706,7 +706,7 @@ export async function generateDraftForProposedUpdate(
       regPart,
       limit: 5,
       minSimilarity: 0.2,
-      flightbookId: flightbookId ?? null,
+      flightbookId: flightbookId || null,
     }),
   ]);
 
@@ -828,22 +828,30 @@ export async function generateDraftsForOrg(
     pendingUpdates = fallbackPending.data ?? null;
   }
 
-  let generated = 0;
+  const CONCURRENCY = 5;
+  const rows = pendingUpdates ?? [];
   const errors: { id: string; error: string }[] = [];
+  let generated = 0;
 
-  for (const row of pendingUpdates ?? []) {
-    const result = await generateDraftForProposedUpdate(admin, String(row.id));
-    if (result.ok) {
-      generated += 1;
-    } else {
-      errors.push({ id: String(row.id), error: result.error });
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const batch = rows.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((row) => generateDraftForProposedUpdate(admin, String(row.id))),
+    );
+    for (let j = 0; j < batch.length; j++) {
+      const result = results[j];
+      if (result.ok) {
+        generated += 1;
+      } else {
+        errors.push({ id: String(batch[j].id), error: result.error });
+      }
     }
   }
 
   return {
     ok: true as const,
     generated,
-    attempted: (pendingUpdates ?? []).length,
+    attempted: rows.length,
     errors,
   };
 }

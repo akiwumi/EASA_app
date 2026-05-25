@@ -200,11 +200,11 @@ async function sendDigestEmail(
     : buildDailyHtml(user, notifications, appUrl);
 
   const subject = isWeekly
-    ? `EASA Watch — weekly compliance digest`
-    : `Your daily digest — ${notifications.length} update${notifications.length !== 1 ? "s" : ""}`;
+    ? `EASA Watch:weekly compliance digest`
+    : `Your daily digest: ${notifications.length} update${notifications.length !== 1 ? "s" : ""}`;
 
   const text = isWeekly && orgStats
-    ? `EASA Watch — ${orgStats.orgName}\n\nChanges this week: ${orgStats.detectedThisWeek} | Pending review: ${orgStats.pendingReview} | Acknowledged: ${orgStats.acknowledgedThisWeek}\n\n${lines}\n\nLog in: ${appUrl}/updates`
+    ? `EASA Watch:${orgStats.orgName}\n\nChanges this week: ${orgStats.detectedThisWeek} | Pending review: ${orgStats.pendingReview} | Acknowledged: ${orgStats.acknowledgedThisWeek}\n\n${lines}\n\nLog in: ${appUrl}/updates`
     : `Hello,\n\nYour daily digest:\n\n${lines}\n\nLog in: ${appUrl}/updates`;
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -266,12 +266,14 @@ export async function POST(request: Request) {
 
   const userIds = profiles.map((p) => p.id as string);
 
-  // Fetch auth emails for these users
-  const emailMap: Record<string, string | null> = {};
-  for (const userId of userIds) {
-    const { data: authUser } = await admin.auth.admin.getUserById(userId);
-    emailMap[userId] = authUser?.user?.email ?? null;
-  }
+  // Fetch auth emails for these users in parallel
+  const emailEntries = await Promise.all(
+    userIds.map(async (userId) => {
+      const { data: authUser } = await admin.auth.admin.getUserById(userId);
+      return [userId, authUser?.user?.email ?? null] as const;
+    }),
+  );
+  const emailMap: Record<string, string | null> = Object.fromEntries(emailEntries);
 
   const results: Array<{ userId: string; notificationCount: number; ok: boolean; error?: string }> =
     [];

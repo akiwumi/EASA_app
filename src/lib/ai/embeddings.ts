@@ -159,12 +159,13 @@ export async function enrichRssItemEmbeddings(
   const embeddings = await embedTexts(admin, organizationId, texts);
   if (!embeddings || embeddings.length === 0) return;
 
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i];
-    const embedding = embeddings[i];
-    if (!embedding?.length) continue;
-    await admin.from("rss_items").update({ embedding }).eq("id", row.id);
-  }
+  await Promise.all(
+    rows.map((row, i) => {
+      const embedding = embeddings[i];
+      if (!embedding?.length) return Promise.resolve();
+      return admin.from("rss_items").update({ embedding }).eq("id", row.id);
+    }),
+  );
 }
 
 export async function enrichFlightbookSectionEmbeddings(
@@ -180,25 +181,22 @@ export async function enrichFlightbookSectionEmbeddings(
   const embeddings = await embedTexts(admin, organizationId, texts);
   if (!embeddings || embeddings.length === 0) return;
 
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i];
-    const embedding = embeddings[i];
-    if (!embedding?.length) continue;
-
-    await admin
-      .from("flightbook_sections")
-      .update({
-        embedding,
-        token_count: estimateTokenCount(texts[i]),
-        chunk_hash: hashChunk(texts[i]),
-        metadata: {
-          section_number: row.section_number,
-          title: row.title,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", row.id);
-  }
+  await Promise.all(
+    rows.map((row, i) => {
+      const embedding = embeddings[i];
+      if (!embedding?.length) return Promise.resolve();
+      return admin
+        .from("flightbook_sections")
+        .update({
+          embedding,
+          token_count: estimateTokenCount(texts[i]),
+          chunk_hash: hashChunk(texts[i]),
+          metadata: { section_number: row.section_number, title: row.title },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.id);
+    }),
+  );
 }
 
 export async function enrichDocumentSectionEmbeddings(
@@ -216,19 +214,19 @@ export async function enrichDocumentSectionEmbeddings(
   const embeddings = await embedTexts(admin, organizationId, texts);
   if (!embeddings || embeddings.length === 0) return;
 
-  for (let i = 0; i < rows.length; i += 1) {
-    const row = rows[i];
-    const embedding = embeddings[i];
-    if (!embedding?.length) continue;
-
-    await admin
-      .from("document_sections")
-      .update({
-        embedding,
-        token_count: estimateTokenCount(texts[i]),
-        chunk_hash: hashChunk(texts[i]),
-        metadata: row.metadata ?? {},
-      })
-      .eq("id", row.id);
-  }
+  await Promise.all(
+    rows.map((row, i) => {
+      const embedding = embeddings[i];
+      if (!embedding?.length) return Promise.resolve();
+      return admin
+        .from("document_sections")
+        .update({
+          embedding,
+          token_count: estimateTokenCount(texts[i]),
+          chunk_hash: hashChunk(texts[i]),
+          metadata: row.metadata ?? {},
+        })
+        .eq("id", row.id);
+    }),
+  );
 }

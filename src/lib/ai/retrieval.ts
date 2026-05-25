@@ -179,7 +179,7 @@ export async function retrieveFlightbookChunks(
     min_similarity: input.minSimilarity ?? 0.25,
     filter_organization_id: input.organizationId,
     filter_part: input.regPart ?? null,
-    filter_flightbook_id: input.flightbookId ?? null,
+    filter_flightbook_id: input.flightbookId || null,
   });
 
   const matches = (data ?? []).map((row: Record<string, unknown>) => ({
