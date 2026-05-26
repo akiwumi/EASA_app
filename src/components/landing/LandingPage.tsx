@@ -1141,12 +1141,14 @@ function LandingNav({
   onLogin,
   loginOpen,
   loginBtnRef,
+  isLoggedIn,
 }: {
   current: number;
   onNav: (i: number) => void;
   onLogin: () => void;
   loginOpen: boolean;
   loginBtnRef: React.RefObject<HTMLButtonElement | null>;
+  isLoggedIn: boolean;
 }) {
   return (
     <nav className="ll-nav" aria-label="Primary">
@@ -1174,22 +1176,26 @@ function LandingNav({
       </div>
 
       <div className="ll-nav-end">
-        <a className="ll-nav-link ll-is-dashboard" href="/dashboard" target="_blank" rel="noreferrer">
+        <a className="ll-nav-link ll-is-dashboard" href="/dashboard">
           Dashboard
           <span className="ll-ext" />
         </a>
-        <button
-          ref={loginBtnRef as React.RefObject<HTMLButtonElement>}
-          className={"ll-login-trigger " + (loginOpen ? "ll-open" : "")}
-          onClick={onLogin}
-          aria-expanded={loginOpen}
-        >
-          {loginOpen ? "Close" : "Sign In"}
-          <span className="ll-caret" />
-        </button>
-        <a className="ll-nav-register ll-btn" href="/register" style={{ background: "#fff", color: "#000" }}>
-          Register School
-        </a>
+        {!isLoggedIn && (
+          <>
+            <button
+              ref={loginBtnRef as React.RefObject<HTMLButtonElement>}
+              className={"ll-login-trigger " + (loginOpen ? "ll-open" : "")}
+              onClick={onLogin}
+              aria-expanded={loginOpen}
+            >
+              {loginOpen ? "Close" : "Sign In"}
+              <span className="ll-caret" />
+            </button>
+            <a className="ll-nav-register ll-btn" href="/register" style={{ background: "#fff", color: "#000" }}>
+              Register School
+            </a>
+          </>
+        )}
       </div>
     </nav>
   );
@@ -1378,8 +1384,19 @@ export default function LandingPage() {
   const [previous, setPrevious] = useState<number | null>(null);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const [loginOpen, setLoginOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const loginBtnRef = useRef<HTMLButtonElement | null>(null);
   const speed = 720;
+
+  useEffect(() => {
+    import("@/lib/supabase/browser").then(({ getSupabaseBrowserClient }) => {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return;
+      supabase.auth.getSession().then(({ data }) => {
+        setIsLoggedIn(!!data.session);
+      });
+    });
+  }, []);
 
   const navigate = useCallback((next: number) => {
     if (next === current) return;
@@ -1492,6 +1509,7 @@ export default function LandingPage() {
             onLogin={() => setLoginOpen((v) => !v)}
             loginOpen={loginOpen}
             loginBtnRef={loginBtnRef}
+            isLoggedIn={isLoggedIn}
           />
           <LoginCascade open={loginOpen} onClose={() => setLoginOpen(false)} anchor={loginBtnRef} />
 
