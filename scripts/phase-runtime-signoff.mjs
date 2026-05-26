@@ -4,8 +4,8 @@ const require = createRequire(import.meta.url);
 const { chromium } = require("playwright");
 
 const baseUrl = process.env.UI_AUDIT_BASE_URL ?? "http://127.0.0.1:3010";
-const adminEmailOrAlias = process.env.SIGNOFF_ADMIN_LOGIN ?? "admin";
-const adminPassword = process.env.SIGNOFF_ADMIN_PASSWORD ?? "EasaTest123";
+const adminEmailOrAlias = process.env.SIGNOFF_ADMIN_LOGIN ?? "admin@easa.local";
+const adminPassword = process.env.SIGNOFF_ADMIN_PASSWORD ?? "EasaTest123!";
 const nonAdminLogin = process.env.SIGNOFF_NON_ADMIN_LOGIN ?? "viewer+signoff@easa.local";
 const nonAdminPassword = process.env.SIGNOFF_NON_ADMIN_PASSWORD ?? "EasaTest123";
 
@@ -30,7 +30,7 @@ async function run() {
   const nonAdminPage = await browser.newPage();
   try {
     await nonAdminPage.goto(`${baseUrl}/login`, { waitUntil: "networkidle", timeout: 45000 });
-    await nonAdminPage.locator('input[placeholder="admin or name@school.org"]').fill(nonAdminLogin);
+    await nonAdminPage.locator('input[placeholder="admin@easa.local or name@school.org"]').fill(nonAdminLogin);
     await nonAdminPage.locator('input[type="password"]').fill(nonAdminPassword);
     await nonAdminPage.getByRole("button", { name: /login/i }).click();
     await nonAdminPage.waitForTimeout(2500);
@@ -53,7 +53,7 @@ async function run() {
 
   // Admin login
   await adminPage.goto(`${baseUrl}/login`, { waitUntil: "networkidle", timeout: 45000 });
-  await adminPage.locator('input[placeholder="admin or name@school.org"]').fill(adminEmailOrAlias);
+  await adminPage.locator('input[placeholder="admin@easa.local or name@school.org"]').fill(adminEmailOrAlias);
   await adminPage.locator('input[type="password"]').fill(adminPassword);
   await adminPage.getByRole("button", { name: /login/i }).click();
   await adminPage.waitForTimeout(2500);
@@ -329,4 +329,3 @@ run().catch((error) => {
   console.error(error);
   process.exit(1);
 });
-

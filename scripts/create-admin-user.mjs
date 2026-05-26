@@ -4,7 +4,7 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 /** Sign in as "admin" in the app (login page maps this) or use this full email. */
 const adminEmail = process.env.ADMIN_EMAIL ?? "admin@easa.local";
 /** 6+ chars required by Supabase email auth by default. */
-const adminPassword = process.env.ADMIN_PASSWORD ?? "EasaTest123";
+const adminPassword = process.env.ADMIN_PASSWORD ?? "EasaTest123!";
 const orgName = process.env.ORG_NAME ?? "Demo Flight School";
 
 if (!supabaseUrl || !serviceRoleKey) {

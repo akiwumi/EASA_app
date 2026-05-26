@@ -136,8 +136,8 @@ async function runAuthedAudit() {
   );
 
   await page.goto(`${baseUrl}/login`, { waitUntil: "networkidle", timeout: 45000 });
-  await page.locator('input[placeholder="admin or name@school.org"]').fill("admin");
-  await page.locator('input[type="password"]').fill("EasaTest123");
+  await page.locator('input[placeholder="admin@easa.local or name@school.org"]').fill("admin@easa.local");
+  await page.locator('input[type="password"]').fill("EasaTest123!");
   await page.getByRole("button", { name: /login/i }).click();
   await page.waitForTimeout(5000);
 

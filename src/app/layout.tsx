@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Serif_Display } from "next/font/google";
+import { DM_Serif_Display, Manrope } from "next/font/google";
 import "./globals.css";
 import PullToRefresh from "@/components/PullToRefresh";
 import CookieBanner from "@/components/CookieBanner";
@@ -10,6 +10,12 @@ const dmSerifDisplay = DM_Serif_Display({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-dm-serif",
+});
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-manrope",
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://flightlyceum.com";
@@ -102,7 +108,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSerifDisplay.variable} h-full antialiased`}>
+    <html lang="en" className={`${dmSerifDisplay.variable} ${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col easa-app">
         <PullToRefresh />
         {children}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import type {
   ApprovedUpdateSearchResult,
   ManualSearchResult,
@@ -165,8 +165,8 @@ function ApprovedUpdateCard({ result }: { result: ApprovedUpdateSearchResult }) 
   );
 }
 
-export default function SearchClient({ data }: { data: SearchPageData }) {
-  const [query, setQuery] = useState("");
+export default function SearchClient({ data, initialQuery = "" }: { data: SearchPageData; initialQuery?: string }) {
+  const [query, setQuery] = useState(initialQuery);
   const [programmeId, setProgrammeId] = useState("");
   const [phaseId, setPhaseId] = useState("");
   const [flightbookId, setFlightbookId] = useState("");
@@ -207,6 +207,16 @@ export default function SearchClient({ data }: { data: SearchPageData }) {
       setPayload(json as SearchResponsePayload);
     });
   }
+
+  // Auto-submit when arriving with a pre-filled query from the dashboard search
+  useEffect(() => {
+    if (initialQuery.trim().length >= 2) {
+      const fakeEvent = { preventDefault: () => {} } as React.FormEvent<HTMLFormElement>;
+      submitSearch(fakeEvent);
+    }
+    // Only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="space-y-6">

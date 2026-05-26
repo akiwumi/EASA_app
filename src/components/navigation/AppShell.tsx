@@ -226,7 +226,7 @@ export default function AppShell({
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
     if (supabase) await supabase.auth.signOut();
-    window.location.assign("/login");
+    window.location.assign("/");
   };
 
   return (

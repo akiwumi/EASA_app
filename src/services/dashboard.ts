@@ -65,6 +65,16 @@ export type DashboardSetupSummary = {
   activeRssCount: number;
 };
 
+export type AuditSnapshotPreview = {
+  id: string;
+  label: string;
+  createdAt: string;
+  flightbookCount: number;
+  pendingReviewCount: number;
+  activeSourceCount: number;
+  totalSourceCount: number;
+};
+
 export type DashboardOperationalStats = {
   unreadCriticalUpdates: number;
   studentsPendingAcknowledgement: number;
@@ -223,6 +233,7 @@ export async function loadUpdateQueuePreview(
       "id, risk_level, confidence_score, status, ai_rationale, classification, reg_section_ref, flightbook_section_title, regulation_part, change_type",
     )
     .eq("organization_id", organizationId)
+    .eq("status", "pending")
     .order("created_at", { ascending: false })
     .limit(limit);
 
@@ -260,6 +271,36 @@ export async function loadUpdateQueuePreview(
       classification: row.classification ?? "watchlist",
     };
   });
+}
+
+export async function loadLatestAuditSnapshot(
+  organizationId: string,
+): Promise<AuditSnapshotPreview | null> {
+  const admin = getSupabaseAdminClient();
+
+  const { data, error } = await admin
+    .from("audit_snapshots")
+    .select("id, label, created_at, flightbook_count, pending_review_count, active_source_count, total_source_count")
+    .eq("organization_id", organizationId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (isMissingSchemaError(error) || /audit_snapshots/i.test(error.message ?? "")) return null;
+    return null;
+  }
+  if (!data) return null;
+
+  return {
+    id: data.id as string,
+    label: data.label as string,
+    createdAt: data.created_at as string,
+    flightbookCount: Number(data.flightbook_count ?? 0),
+    pendingReviewCount: Number(data.pending_review_count ?? 0),
+    activeSourceCount: Number(data.active_source_count ?? 0),
+    totalSourceCount: Number(data.total_source_count ?? 0),
+  };
 }
 
 export type RssSourceRow = { url: string; name: string; active: boolean };

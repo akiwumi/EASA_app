@@ -1,18 +1,13 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import DashboardHeaderActions from "@/components/dashboard/DashboardHeaderActions";
-import WorkflowBanner from "@/components/dashboard/WorkflowBanner";
-import ComplianceTimelinePanel from "@/components/dashboard/ComplianceTimelinePanel";
-import RegulationMonitoringTable from "@/components/dashboard/RegulationMonitoringTable";
-import { buildDashboardSetupTasks } from "@/components/dashboard/DashboardSectionPanels";
+import FLDesignDashboard from "@/components/dashboard/FLDesignDashboard";
 import {
-  loadDashboardSetupSummary,
   loadDashboardStats,
   loadOrgContext,
-  loadComplianceTimeline,
-  loadRegulationMonitoringRows,
+  loadDashboardSetupSummary,
+  loadUpdateQueuePreview,
+  loadLatestAuditSnapshot,
 } from "@/services/dashboard";
-import { CheckCircle2, Circle, ArrowRight } from "lucide-react";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
   const org = await loadOrgContext();
@@ -21,163 +16,65 @@ export default async function DashboardPage() {
     redirect("/settings?tab=setup");
   }
 
-  const [setupSummary, stats, timeline, regulationRows] = await Promise.all([
+  const supabase = await getSupabaseServerClient();
+  const userData = supabase ? (await supabase.auth.getUser()).data.user : null;
+
+  const [setupSummary, stats, queuePreview, latestAuditSnapshot] = await Promise.all([
     loadDashboardSetupSummary(org.organizationId),
     loadDashboardStats(org.organizationId),
-    loadComplianceTimeline(org.organizationId),
-    loadRegulationMonitoringRows(org.organizationId),
+    loadUpdateQueuePreview(org.organizationId, 25),
+    loadLatestAuditSnapshot(org.organizationId),
   ]);
 
-  const setupTasks = buildDashboardSetupTasks(setupSummary);
-  const setupDoneCount = setupTasks.filter((task) => task.done).length;
+  // Derive user display info from auth metadata or email
+  const fullName =
+    (userData?.user_metadata?.full_name as string | undefined) ??
+    (userData?.user_metadata?.name as string | undefined) ??
+    userData?.email?.split("@")[0]?.replace(/[._-]/g, " ") ??
+    "Manager";
+
+  const displayName = fullName
+    .split(" ")
+    .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
+  const initials = displayName
+    .split(" ")
+    .slice(0, 2)
+    .map((w: string) => w.charAt(0).toUpperCase())
+    .join("");
+
+  const roleLabel =
+    org.role === "admin" ? "Admin" :
+    org.role === "compliance_manager" ? "Compliance Manager" :
+    org.role === "instructor" ? "Instructor" :
+    "Team Member";
+
+  const now = new Date();
+  const dateDay = now.getDate();
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const dateLabel = `${days[now.getDay()]},\n${months[now.getMonth()]}`;
 
   return (
-    <div className="space-y-6">
-
-      {/* Workflow pipeline banner */}
-      <WorkflowBanner
-        activeFeeds={setupSummary.activeRssCount}
-        totalFeeds={setupSummary.rssSourceCount}
-        pendingReview={stats.pendingApprovals}
-        flightbookCount={setupSummary.flightbookCount}
-        newAlertsThisWeek={stats.newChanges7d}
-      />
-
-      <RegulationMonitoringTable rows={regulationRows} />
-
-      {/* Pipeline trigger + quick links */}
-      <DashboardHeaderActions />
-
-      {/* Two-column grid below */}
-      <div className="grid gap-6 lg:grid-cols-2">
-
-        {/* Setup checklist */}
-        <section className="easa-card overflow-hidden p-0">
-          <div className="flex items-center justify-between border-b border-[var(--easa-color-border)] px-5 py-4">
-            <div>
-              <h2 className="text-base font-semibold">Setup checklist</h2>
-              <p className="mt-0.5 text-xs text-[var(--easa-color-text-muted)]">
-                {setupDoneCount} of {setupTasks.length} complete
-              </p>
-            </div>
-            <span className={`easa-badge ${setupDoneCount === setupTasks.length ? "is-green" : "is-orange"}`}>
-              {setupDoneCount === setupTasks.length ? "Ready" : `${setupTasks.length - setupDoneCount} remaining`}
-            </span>
-          </div>
-
-          <div className="divide-y divide-[var(--easa-color-border)]">
-            {setupTasks.map((task) => (
-              <Link
-                key={task.label}
-                href={task.href}
-                className="flex items-center gap-4 px-5 py-4 transition hover:bg-[var(--easa-color-surface-2)]"
-              >
-                {task.done
-                  ? <CheckCircle2 size={18} strokeWidth={2} className="shrink-0 text-[var(--easa-color-accent-green)]" />
-                  : <Circle size={18} strokeWidth={1.75} className="shrink-0 text-[var(--easa-color-text-muted)]" />
-                }
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-[var(--easa-color-text-primary)]">{task.label}</p>
-                  <p className="mt-0.5 text-xs text-[var(--easa-color-text-muted)]">{task.hint}</p>
-                </div>
-                {!task.done && (
-                  <span className="shrink-0 text-xs font-medium text-[var(--easa-color-brand-primary)]">
-                    {task.action}
-                  </span>
-                )}
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* Status snapshot */}
-        <section className="space-y-4">
-
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
-            <Link
-              href="/results"
-              className="easa-card flex flex-col gap-1 p-4 transition hover:bg-[var(--easa-color-surface-2)]"
-            >
-              <p className="text-xs text-[var(--easa-color-text-muted)]">New alerts</p>
-              <p className="text-2xl font-semibold">{stats.newChanges7d}</p>
-              <p className="text-xs text-[var(--easa-color-text-muted)]">last 7 days</p>
-            </Link>
-
-            <Link
-              href="/updates"
-              className="easa-card flex flex-col gap-1 p-4 transition hover:bg-[var(--easa-color-surface-2)]"
-            >
-              <p className="text-xs text-[var(--easa-color-text-muted)]">Pending review</p>
-              <p className={`text-2xl font-semibold ${stats.pendingApprovals > 0 ? "text-[var(--easa-color-accent-orange)]" : ""}`}>
-                {stats.pendingApprovals}
-              </p>
-              <p className="text-xs text-[var(--easa-color-text-muted)]">updates</p>
-            </Link>
-
-            <Link
-              href="/flightbooks"
-              className="easa-card flex flex-col gap-1 p-4 transition hover:bg-[var(--easa-color-surface-2)]"
-            >
-              <p className="text-xs text-[var(--easa-color-text-muted)]">Flight books</p>
-              <p className="text-2xl font-semibold">{setupSummary.flightbookCount}</p>
-              <p className="text-xs text-[var(--easa-color-text-muted)]">controlled docs</p>
-            </Link>
-          </div>
-
-          {/* Quick actions */}
-          <div className="easa-card divide-y divide-[var(--easa-color-border)] p-0 overflow-hidden">
-            <div className="px-5 py-3 border-b border-[var(--easa-color-border)]">
-              <p className="text-xs font-medium uppercase tracking-wide text-[var(--easa-color-text-muted)]">Quick actions</p>
-            </div>
-            {[
-              {
-                label: "Review pending updates",
-                sub: stats.pendingApprovals > 0 ? `${stats.pendingApprovals} item${stats.pendingApprovals !== 1 ? "s" : ""} waiting` : "Queue is clear",
-                href: "/updates",
-                highlight: stats.pendingApprovals > 0,
-              },
-              {
-                label: "View flight books",
-                sub: setupSummary.flightbookCount > 0 ? `${setupSummary.flightbookCount} document${setupSummary.flightbookCount !== 1 ? "s" : ""}` : "None uploaded yet",
-                href: "/flightbooks",
-                highlight: false,
-              },
-              {
-                label: "Upload a flight book",
-                sub: "Add or replace a controlled manual",
-                href: "/flightbooks/upload",
-                highlight: false,
-              },
-              {
-                label: "Manage feeds & settings",
-                sub: `${setupSummary.activeRssCount} active feed${setupSummary.activeRssCount !== 1 ? "s" : ""}`,
-                href: "/settings",
-                highlight: false,
-              },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-4 px-5 py-3.5 transition hover:bg-[var(--easa-color-surface-2)]"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-medium ${item.highlight ? "text-[var(--easa-color-accent-orange)]" : "text-[var(--easa-color-text-primary)]"}`}>
-                    {item.label}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[var(--easa-color-text-muted)]">{item.sub}</p>
-                </div>
-                <ArrowRight size={15} strokeWidth={1.75} className="shrink-0 text-[var(--easa-color-text-muted)]" />
-              </Link>
-            ))}
-          </div>
-        </section>
-
-      </div>
-
-      {/* Compliance timeline — full width below the two-column grid */}
-      <ComplianceTimelinePanel data={timeline} />
-
+    /* Escape AppShell's padding, then keep the dashboard 50px from the desktop sidebar. */
+    <div className="-mx-4 -mt-4 -mb-8 lg:-mr-8 lg:-mt-10 lg:-mb-8 lg:-ml-4">
+    <FLDesignDashboard
+      userName={displayName}
+      userInitials={initials}
+      userRole={roleLabel}
+      pendingReviews={stats.pendingApprovals}
+      newChanges7d={stats.newChanges7d}
+      approvedThisWeek={stats.approvedThisWeek}
+      pendingApprovals={stats.pendingApprovals}
+      flightbookCount={setupSummary.flightbookCount}
+      sourcesTotal={stats.sourcesTotal}
+      sourcesActive={stats.sourcesActive}
+      dateDay={dateDay}
+      dateLabel={dateLabel}
+      queuePreview={queuePreview}
+      latestAuditSnapshot={latestAuditSnapshot}
+    />
     </div>
   );
 }
