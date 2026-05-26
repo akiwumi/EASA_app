@@ -264,6 +264,10 @@ export default function AppShell({
 
         {/* Primary navigation */}
         <nav aria-label="Primary navigation" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-4">
+          {renderNavLink({ href: "/dashboard", label: "Dashboard", icon: LayoutDashboard })}
+
+          <div className="my-1 border-t border-[var(--easa-color-border)]" />
+
           <div className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--easa-color-text-muted)]">
             Regulation compliance
           </div>
