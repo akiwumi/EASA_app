@@ -293,7 +293,10 @@ const STYLES = `
   text-decoration:none;
   display:flex; align-items:center; gap:10px;
   white-space:nowrap;
+  transition:opacity 200ms;
+  opacity:0.9;
 }
+.ll-nav-brand:hover{ opacity:1; }
 .ll-nav-brand .ll-wordmark{ display:inline; }
 @media (max-width:1080px){
   .ll-nav-brand .ll-wordmark{ display:none; }
@@ -315,10 +318,10 @@ const STYLES = `
   padding:4px 0;
   letter-spacing:inherit;
   transition:opacity 200ms;
-  opacity:0.7;
+  opacity:0.85;
   white-space:nowrap;
 }
-.ll-nav-link:hover{ opacity:0.95; }
+.ll-nav-link:hover{ opacity:1; }
 .ll-nav-link.ll-is-active{ opacity:1; }
 .ll-nav-link .ll-idx{
   position:absolute; left:-14px; top:50%; transform:translateY(-50%);
@@ -341,12 +344,13 @@ const STYLES = `
 
 .ll-nav-link.ll-is-dashboard{
   text-decoration:none; color:#fff;
-  border:0.75px dashed rgba(255,255,255,0.55);
+  border:0.75px dashed rgba(255,255,255,0.65);
   padding:6px 12px; border-radius:999px;
   display:inline-flex; align-items:center; gap:8px;
   opacity:0.9;
+  transition:opacity 200ms, background 200ms, border-color 200ms;
 }
-.ll-nav-link.ll-is-dashboard:hover{ opacity:1; border-style:solid; }
+.ll-nav-link.ll-is-dashboard:hover{ opacity:1; border-style:solid; border-color:#fff; background:rgba(255,255,255,0.1); }
 .ll-nav-link.ll-is-dashboard .ll-ext{
   width:8px; height:8px;
   border-right:1px solid currentColor; border-top:1px solid currentColor;
@@ -359,9 +363,11 @@ const STYLES = `
   font:inherit; padding:8px 14px; border-radius:999px;
   cursor:pointer; letter-spacing:inherit;
   display:inline-flex; align-items:center; gap:8px;
-  transition:padding 200ms;
+  transition:padding 200ms, background 200ms, opacity 200ms;
   white-space:nowrap;
+  opacity:0.9;
 }
+.ll-login-trigger:hover{ background:rgba(255,255,255,0.12); opacity:1; }
 .ll-login-trigger .ll-caret{
   width:8px; height:8px; border-right:1px solid #fff; border-bottom:1px solid #fff;
   transform:rotate(45deg) translate(-2px,-2px);
@@ -377,7 +383,10 @@ const STYLES = `
   white-space:nowrap;
   text-decoration:none;
   display:inline-flex; align-items:center;
+  transition:opacity 200ms, transform 200ms;
+  opacity:0.9;
 }
+.ll-nav-register:hover{ opacity:1; transform:translateY(-1px); }
 @media (max-width:1240px){
   .ll-nav-register{ display:none; }
 }
