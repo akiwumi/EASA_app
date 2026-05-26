@@ -80,7 +80,7 @@ const MOBILE_MORE_NAV: NavItem[] = [
   { href: "/profile", label: "Profile", icon: User },
   { href: "/help", label: "Help center", icon: HelpCircle },
   { href: "/contact", label: "Contact", icon: Mail },
-  { href: "/", label: "Home", icon: Home },
+  { href: "https://flightlyceum.com/", label: "Home", icon: Home },
   { href: "/reports", label: "Reports", icon: ShieldCheck, managerOrAdmin: true },
 ];
 
@@ -148,17 +148,27 @@ export default function AppShell({
   const renderNavLink = useCallback(
     (item: NavItem, iconSize = 17) => {
       if (!canAccessNavItem(item)) return null;
-      const active = navItemActive(pathname, item.href);
+      const isExternal = item.href.startsWith("http");
+      const active = isExternal ? false : navItemActive(pathname, item.href);
       const Icon = item.icon;
+      const className = `flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
+        active
+          ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
+          : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
+      }`;
+      if (isExternal) {
+        return (
+          <a key={item.href} href={item.href} target="_blank" rel="noreferrer" className={className}>
+            <Icon size={iconSize} strokeWidth={1.85} className="shrink-0" />
+            {item.label}
+          </a>
+        );
+      }
       return (
         <Link
           key={item.href}
           href={item.href}
-          className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all ${
-            active
-              ? "bg-[var(--easa-color-brand-light)] text-[var(--easa-color-brand-primary)]"
-              : "text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
-          }`}
+          className={className}
         >
           <Icon size={iconSize} strokeWidth={active ? 2.25 : 1.85} className="shrink-0" />
           {item.label}
@@ -469,9 +479,9 @@ export default function AppShell({
                   )}
                 </div>
                 <div className="flex shrink-0 gap-1">
-                  <Link href="/" title="Home" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
+                  <a href="https://flightlyceum.com/" target="_blank" rel="noreferrer" title="Home" className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
                     <Home size={16} strokeWidth={1.85} />
-                  </Link>
+                  </a>
                   <Link href="/help" title="Help Center" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
                     <HelpCircle size={16} strokeWidth={1.85} />
                   </Link>
