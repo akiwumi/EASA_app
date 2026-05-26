@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, Clock3, Download, RefreshCw, Trash2, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle, CheckCircle2, Clock3, Download, RefreshCw, Trash2, XCircle } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
 import { confidenceConfig, getConfidenceLevel } from "@/lib/utils/confidence";
 
@@ -62,6 +62,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkError, setBulkError] = useState<string | null>(null);
+  const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
 
   const load = useCallback(async (overrides?: { page?: number }) => {
     setLoading(true);
@@ -181,7 +182,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     setSelectedIds(new Set());
   }
 
-  async function bulkAction(action: "boneyard" | "delete") {
+  async function bulkAction(action: "boneyard" | "delete" | "approved") {
     if (selectedIds.size === 0) return;
     setBulkLoading(true);
     setBulkError(null);
@@ -400,6 +401,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
         <div className="space-y-3">
           {/* Bulk selection toolbar */}
           {canManage && draftedItems.length > 0 ? (
+            <>
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-2.5">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
@@ -417,6 +419,15 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
               </label>
               {selectedIds.size > 0 ? (
                 <>
+                  <button
+                    type="button"
+                    className="easa-btn primary flex items-center gap-1.5 text-sm"
+                    disabled={bulkLoading}
+                    onClick={() => { setApproveConfirmOpen(true); setBulkError(null); }}
+                  >
+                    <CheckCircle size={14} strokeWidth={1.75} />
+                    Approve selected ({selectedIds.size})
+                  </button>
                   <button
                     type="button"
                     className="easa-btn secondary flex items-center gap-1.5 text-sm"
@@ -451,6 +462,40 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
                 <span className="text-xs text-[var(--easa-color-accent-pink)]">{bulkError}</span>
               ) : null}
             </div>
+
+            {/* Approve confirmation */}
+            {approveConfirmOpen && selectedIds.size > 0 ? (
+              <div className="mt-2 rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-4 space-y-3">
+                <div className="flex items-start gap-2">
+                  <CheckCircle size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-accent-green)]" />
+                  <div>
+                    <p className="text-sm font-semibold">Approve {selectedIds.size} update{selectedIds.size !== 1 ? "s" : ""}?</p>
+                    <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
+                      Each item&apos;s AI-drafted text will be applied to its mapped flight book section. A version snapshot is saved before any change is made. You can roll back from Time machine.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="easa-btn secondary text-sm"
+                    disabled={bulkLoading}
+                    onClick={() => setApproveConfirmOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="easa-btn primary flex items-center gap-1.5 text-sm"
+                    disabled={bulkLoading}
+                    onClick={() => { setApproveConfirmOpen(false); void bulkAction("approved"); }}
+                  >
+                    {bulkLoading ? "Approving…" : `Confirm — approve ${selectedIds.size}`}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            </>
           ) : null}
 
           {draftedItems.map((item) => {
