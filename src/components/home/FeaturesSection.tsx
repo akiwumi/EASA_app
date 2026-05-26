@@ -1,8 +1,9 @@
- "use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const cards = [
   {
@@ -48,60 +49,57 @@ const cards = [
 ];
 
 export default function FeaturesSection() {
-  const visibleSlides = 1;
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [isTransitionEnabled, setIsTransitionEnabled] = useState(true);
-  const loopCards = [...cards, ...cards.slice(0, visibleSlides)];
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const announceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isPaused) return;
-    const interval = window.setInterval(() => {
-      setIsTransitionEnabled(true);
-      setActiveIndex((current) => current + 1);
-    }, 3500);
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
-    return () => window.clearInterval(interval);
-  }, [isPaused]);
+  const goTo = useCallback((index: number) => {
+    setActiveIndex(((index % cards.length) + cards.length) % cards.length);
+  }, []);
 
-  function handleTrackTransitionEnd() {
-    if (activeIndex < cards.length) return;
-    // Seamlessly jump back to the real first pair after showing clone slides.
-    setIsTransitionEnabled(false);
-    setActiveIndex(0);
-  }
-
-  const slideGapPx = 15;
-  const carouselWidthPx = 1196;
-  const carouselHeightPx = 800;
-  const slideWidthPx = 1109;
-  const slideHeightPx = 697;
-  const imageHeightPx = 540;
-  const slideInsetPx = (carouselWidthPx - slideWidthPx) / 2;
-  const trackTranslatePx = activeIndex * -(slideWidthPx + slideGapPx);
+  const prev = useCallback(() => goTo(activeIndex - 1), [activeIndex, goTo]);
+  const next = useCallback(() => goTo(activeIndex + 1), [activeIndex, goTo]);
 
   useEffect(() => {
-    if (isTransitionEnabled) return;
-    const id = window.requestAnimationFrame(() => {
-      setIsTransitionEnabled(true);
-    });
-    return () => window.cancelAnimationFrame(id);
-  }
-  , [isTransitionEnabled]);
+    if (isPaused || reducedMotion) return;
+    const id = window.setInterval(() => goTo(activeIndex + 1), 4000);
+    return () => window.clearInterval(id);
+  }, [isPaused, reducedMotion, activeIndex, goTo]);
+
+  /* Announce slide change to screen readers */
+  useEffect(() => {
+    if (announceRef.current) {
+      announceRef.current.textContent = `Feature ${activeIndex + 1} of ${cards.length}: ${cards[activeIndex].title}`;
+    }
+  }, [activeIndex]);
 
   return (
     <section
       id="features"
-      className="py-[20px]"
-      style={{
-        backgroundColor: "oklab(0.94 -0.00964181 0.0114907 / 0.4)",
-      }}
+      aria-label="Product features"
+      className="py-16 md:py-20"
+      style={{ backgroundColor: "oklab(0.94 -0.00964181 0.0114907 / 0.4)" }}
     >
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="mb-12 text-center">
-          <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">
-            Features
-          </p>
+      {/* Screen reader live region for carousel announcements */}
+      <div
+        ref={announceRef}
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      />
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="mb-10 text-center">
+          <p className="easa-eyebrow mb-3">Features</p>
           <h2
             className="text-4xl font-normal tracking-tight text-foreground md:text-5xl"
             style={{ fontFamily: "var(--font-display)" }}
@@ -110,55 +108,63 @@ export default function FeaturesSection() {
           </h2>
         </div>
 
+        {/* ── Carousel ── fully responsive, no hardcoded pixel widths ── */}
         <div
-          className="mx-auto overflow-hidden"
+          role="region"
+          aria-label="Feature screenshots"
+          className="relative overflow-hidden rounded-2xl"
           onMouseEnter={() => setIsPaused(true)}
           onMouseLeave={() => setIsPaused(false)}
-          style={{ width: `${carouselWidthPx}px`, height: `${carouselHeightPx}px` }}
+          onFocus={() => setIsPaused(true)}
+          onBlur={() => setIsPaused(false)}
         >
+          {/* Track */}
           <div
-            className={`flex h-full items-center ${isTransitionEnabled ? "transition-transform duration-700 ease-out" : ""}`}
+            className="flex"
             style={{
-              gap: `${slideGapPx}px`,
-              paddingLeft: `${slideInsetPx}px`,
-              paddingRight: `${slideInsetPx}px`,
-              transform: `translateX(${trackTranslatePx}px)`,
+              transform: `translateX(-${activeIndex * 100}%)`,
+              transition: reducedMotion ? "none" : "transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
-            onTransitionEnd={handleTrackTransitionEnd}
           >
-            {loopCards.map((card, index) => (
+            {cards.map((card, index) => (
               <article
-                key={`${card.title}-${index}`}
-                className="flex shrink-0 flex-col"
-                onMouseEnter={() => setIsPaused(true)}
-                onMouseLeave={() => setIsPaused(false)}
-                style={{ width: `${slideWidthPx}px`, height: `${slideHeightPx}px` }}
+                key={card.title}
+                className="w-full flex-none"
+                aria-hidden={index !== activeIndex}
+                aria-label={card.title}
               >
+                {/* Screenshot */}
                 <Link
                   href={card.href}
                   aria-label={card.linkLabel}
+                  tabIndex={index !== activeIndex ? -1 : undefined}
                   className="relative block w-full overflow-hidden rounded-xl border border-transparent bg-transparent"
-                  style={{ height: `${imageHeightPx}px` }}
+                  style={{ aspectRatio: "16/9" }}
                 >
                   <Image
                     src={card.image}
                     alt={card.alt}
                     fill
-                    sizes="1109px"
-                    className="h-full w-full object-contain"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1280px) 80vw, 1100px"
+                    className="object-contain"
+                    priority={index === 0}
+                    loading={index === 0 ? "eager" : "lazy"}
                   />
                 </Link>
-                <div className="flex flex-1 flex-col justify-center bg-transparent px-4 text-center">
+
+                {/* Card body */}
+                <div className="px-4 py-6 text-center">
                   <h3 className="text-xl font-semibold text-foreground">
                     {card.title}
                   </h3>
-                  <p className="mx-auto mt-3 max-w-3xl text-sm leading-6 text-muted-foreground">
+                  <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
                     {card.body}
                   </p>
                   <Link
                     href={card.href}
                     aria-label={card.linkLabel}
-                    className="mt-4 text-sm font-medium text-foreground hover:underline"
+                    tabIndex={index !== activeIndex ? -1 : undefined}
+                    className="mt-4 inline-block text-sm font-medium text-foreground hover:underline"
                   >
                     Learn more →
                   </Link>
@@ -166,6 +172,51 @@ export default function FeaturesSection() {
               </article>
             ))}
           </div>
+
+          {/* Prev / Next buttons */}
+          <button
+            type="button"
+            aria-label="Previous feature"
+            onClick={prev}
+            className="absolute left-3 top-1/3 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow transition hover:bg-white hover:shadow-md"
+          >
+            <ChevronLeft size={18} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            aria-label="Next feature"
+            onClick={next}
+            className="absolute right-3 top-1/3 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow transition hover:bg-white hover:shadow-md"
+          >
+            <ChevronRight size={18} strokeWidth={2.2} aria-hidden="true" />
+          </button>
+        </div>
+
+        {/* Dot indicators */}
+        <div
+          role="tablist"
+          aria-label="Feature navigation"
+          className="mt-5 flex items-center justify-center gap-2"
+        >
+          {cards.map((card, i) => (
+            <button
+              key={card.title}
+              role="tab"
+              type="button"
+              aria-selected={i === activeIndex}
+              aria-label={`Go to feature: ${card.title}`}
+              onClick={() => goTo(i)}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: i === activeIndex ? 24 : 8,
+                height: 8,
+                background:
+                  i === activeIndex
+                    ? "var(--easa-color-brand-primary)"
+                    : "var(--easa-color-surface-3)",
+              }}
+            />
+          ))}
         </div>
       </div>
     </section>

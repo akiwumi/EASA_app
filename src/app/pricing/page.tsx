@@ -30,12 +30,12 @@ export default async function PricingPage({
   return (
     <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
       <Nav signedIn={signedIn} />
-      <main>
+      <main id="main-content">
         <div className="pricing-page mx-auto max-w-7xl px-6">
-          <section className="pricing-hero">
+          <section className="pricing-hero" aria-label="Pricing plans">
             <div>
-              <p className="pricing-kicker">Pricing</p>
-              <h1>Choose the plan that works for your flight school</h1>
+              <p className="easa-eyebrow">Pricing</p>
+              <h1 style={{ fontFamily: "var(--font-display)" }}>Choose the plan that works for your flight school</h1>
             </div>
             <p>
               Start with a 30-day free trial. A card is required but you won&apos;t be charged

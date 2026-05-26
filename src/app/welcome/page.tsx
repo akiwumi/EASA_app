@@ -71,11 +71,11 @@ export default async function WelcomePage() {
   return (
     <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
       <Nav signedIn={signedIn} />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-12 md:py-16">
+      <main id="main-content" className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-6 py-12 md:py-16">
         <section className="grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div>
             <p className="easa-eyebrow">Account verified</p>
-            <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-tight text-[var(--easa-color-text-primary)] md:text-6xl">
+            <h1 className="easa-display mt-5 max-w-3xl text-4xl font-semibold leading-tight text-[var(--easa-color-text-primary)] md:text-6xl">
               Welcome{schoolName ? `, ${schoolName}` : ""}. Your school workspace is ready for billing.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-[var(--easa-color-text-muted)]">

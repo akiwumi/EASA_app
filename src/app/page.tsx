@@ -93,7 +93,7 @@ export default async function Home() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
       <Nav signedIn={signedIn} />
-      <main>
+      <main id="main-content">
         <HeroSection />
         <ProblemSection />
         <FeaturesSection />

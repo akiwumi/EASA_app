@@ -1,7 +1,7 @@
 export default function ProblemSection() {
   return (
-    <section className="py-[20px]">
-      <div className="mx-auto max-w-3xl px-6 text-center">
+    <section className="py-16 md:py-20">
+      <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
         <h2
           className="text-4xl font-normal leading-tight tracking-tight text-foreground md:text-5xl"
           style={{ fontFamily: "var(--font-display)" }}
@@ -13,8 +13,8 @@ export default function ProblemSection() {
           That makes training inconsistent, acknowledgements impossible to
           verify, and audits more stressful than they need to be. When an EASA
           change lands, there&apos;s no single system that connects the
-          regulation, the manual, the instructor, and the student. Flight Lyceum is
-          that system.
+          regulation, the manual, the instructor, and the student. Flight Lyceum
+          is that system.
         </p>
       </div>
     </section>

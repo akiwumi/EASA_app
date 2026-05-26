@@ -18,7 +18,7 @@ export default async function HelpIndexPage() {
     <div className="min-h-screen bg-[var(--easa-color-bg)]">
       <Nav signedIn={signedIn} />
 
-      <main className="easa-shell py-16 lg:py-24">
+      <main id="main-content" className="easa-shell py-16 lg:py-24">
 
         {/* Hero */}
         <div className="mx-auto max-w-2xl text-center">

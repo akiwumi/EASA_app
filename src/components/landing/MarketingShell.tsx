@@ -11,8 +11,6 @@ const NAV_LINKS = [
   { href: "/pricing", label: "Pricing" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/faq", label: "FAQ" },
-  { href: "/contact", label: "Contact" },
-  { href: "/register", label: "Register" },
 ] as const;
 
 type MarketingShellProps = {
@@ -31,10 +29,13 @@ export default function MarketingShell({
 
   return (
     <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-4 focus:left-4 focus:px-5 focus:py-2.5 focus:bg-white focus:text-[#1f3434] focus:rounded-full focus:shadow-lg focus:font-semibold focus:text-sm">
+        Skip to main content
+      </a>
       <div className="easa-shell flex min-h-screen flex-col gap-8 py-5 lg:py-6">
         <header className="z-40 overflow-hidden rounded-[30px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.76)] shadow-[var(--easa-shadow-1)] backdrop-blur-xl">
           <div className="easa-gradient-bar" />
-          <nav className="flex items-center justify-between px-4 py-4 lg:px-5">
+          <nav aria-label="Primary navigation" className="flex items-center justify-between px-4 py-4 lg:px-5">
             <Link href="/" className="flex items-center gap-3">
               <Image
                 alt="Flight Lyceum logo"
@@ -137,7 +138,7 @@ export default function MarketingShell({
           )}
         </header>
 
-        <main className="easa-page-enter flex-1">{children}</main>
+        <main id="main-content" className="easa-page-enter flex-1">{children}</main>
 
         <div className="overflow-hidden rounded-[30px] border border-[var(--easa-color-border)] bg-[rgba(255,253,248,0.72)] shadow-[var(--easa-shadow-1)] backdrop-blur-md">
           <div className="easa-gradient-bar" />

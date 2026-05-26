@@ -7,7 +7,7 @@
   --color-card: oklch(1 0 0);
   --color-border: oklch(0.9 0.012 120);
   --color-secondary: oklch(0.94 0.015 130);
-  --font-display: Georgia, "Times New Roman", ui-serif, serif;
+  --font-display: var(--font-dm-serif), Georgia, "Times New Roman", ui-serif, serif;
   --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --radius: 0.5rem;
 }
@@ -43,6 +43,31 @@
   --easa-shadow-1: 0 16px 40px rgba(37, 34, 24, 0.06);
   --easa-shadow-2: 0 24px 60px rgba(37, 34, 24, 0.1);
   --easa-shadow-brand: 0 20px 44px rgba(24, 40, 40, 0.18);
+}
+
+/* ─── Focus styles (WCAG 2.1 AA) ─────────────────────────────── */
+:focus-visible {
+  outline: 3px solid var(--easa-color-brand-primary);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.on-dark :focus-visible {
+  outline-color: var(--easa-color-accent-orange);
+}
+
+/* Remove default outline only when :focus-visible is supported */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Reduced-motion ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 * {
@@ -895,4 +920,105 @@ button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):act
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* ─── Dark brand section ─────────────────────────────────────── */
+.easa-section-dark {
+  background: var(--easa-color-brand-primary);
+  color: rgba(255, 253, 248, 0.92);
+}
+
+.easa-section-dark h2,
+.easa-section-dark h3 {
+  color: #ffffff;
+}
+
+.easa-section-dark p {
+  color: rgba(255, 253, 248, 0.75);
+}
+
+.easa-section-dark .easa-eyebrow {
+  color: var(--easa-color-accent-orange);
+}
+
+.easa-section-dark .easa-card-dark {
+  background: rgba(255, 253, 248, 0.08);
+  border: 1px solid rgba(255, 253, 248, 0.12);
+  border-radius: 20px;
+}
+
+/* ─── Hero CTA button (white on dark photo bg) ───────────────── */
+.easa-btn-hero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: var(--easa-radius-pill);
+  font-size: 1rem;
+  font-weight: 600;
+  background: #ffffff;
+  color: var(--easa-color-brand-primary);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+  white-space: nowrap;
+}
+
+.easa-btn-hero:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.36);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.easa-btn-hero:active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 0.06s;
+}
+
+.easa-btn-hero:focus-visible {
+  outline: 3px solid var(--easa-color-accent-orange);
+  outline-offset: 3px;
+}
+
+/* ─── Social proof section ───────────────────────────────────── */
+.easa-stat-value {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 400;
+  color: var(--easa-color-brand-primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.easa-testimonial-card {
+  background: rgba(255, 254, 250, 0.96);
+  border: 1px solid var(--easa-color-border);
+  border-radius: 20px;
+  box-shadow: var(--easa-shadow-1);
+  padding: 1.75rem 2rem;
+}
+
+/* ─── Form label (block variant of easa-eyebrow) ────────────── */
+.easa-form-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--easa-color-text-muted);
+}
+
+/* ─── Trust badge ────────────────────────────────────────────── */
+.easa-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--easa-radius-pill);
+  border: 1px solid var(--easa-color-border);
+  background: rgba(255, 253, 248, 0.9);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--easa-color-text-secondary);
+  white-space: nowrap;
 }

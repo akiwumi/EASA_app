@@ -30,16 +30,13 @@ export default function WorkflowSection() {
   return (
     <section
       id="how-it-works"
-      className="py-[20px]"
-      style={{
-        backgroundColor: "oklab(0.94 -0.00964181 0.0114907 / 0.4)",
-      }}
+      aria-label="How it works"
+      className="py-16 md:py-20"
+      style={{ backgroundColor: "oklab(0.94 -0.00964181 0.0114907 / 0.4)" }}
     >
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mb-12 text-center">
-          <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">
-            How it works
-          </p>
+          <p className="easa-eyebrow mb-3">How it works</p>
           <h2
             className="text-4xl font-normal tracking-tight text-foreground md:text-5xl"
             style={{ fontFamily: "var(--font-display)" }}
@@ -48,9 +45,9 @@ export default function WorkflowSection() {
           </h2>
         </div>
 
-        <div className="easa-mobile-carousel mt-12 grid gap-0 md:grid-cols-5">
+        <ol className="easa-mobile-carousel grid gap-0 md:grid-cols-5" aria-label="Workflow steps">
           {steps.map((step, i) => (
-            <div key={step.num} className="relative flex items-stretch">
+            <li key={step.num} className="relative flex items-stretch">
               <div className="h-full w-full rounded-2xl border border-border bg-card p-6">
                 <p className="mb-3 text-sm font-medium text-muted-foreground">
                   {step.num}
@@ -63,13 +60,16 @@ export default function WorkflowSection() {
                 </p>
               </div>
               {i < steps.length - 1 && (
-                <div className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 md:flex items-center justify-center w-6 h-6 rounded-full bg-background border border-border text-muted-foreground text-xs font-bold select-none">
+                <div
+                  aria-hidden="true"
+                  className="absolute -right-3 top-1/2 z-10 hidden -translate-y-1/2 items-center justify-center w-6 h-6 rounded-full bg-background border border-border text-muted-foreground text-xs font-bold select-none md:flex"
+                >
                   →
                 </div>
               )}
-            </div>
+            </li>
           ))}
-        </div>
+        </ol>
       </div>
     </section>
   );

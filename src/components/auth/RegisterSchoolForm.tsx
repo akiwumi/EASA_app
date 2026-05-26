@@ -59,9 +59,9 @@ export default function RegisterSchoolForm({
     <div className="easa-shell flex min-h-screen min-w-0 items-center justify-center py-6 sm:py-8">
       <section className="easa-card-glass min-w-0 w-full max-w-2xl overflow-hidden p-5 sm:p-6 md:p-8">
         <span className="easa-eyebrow">New flight school</span>
-        <h2 className="mt-4 text-2xl font-semibold text-[var(--easa-color-text-primary)] sm:text-3xl">
+        <h1 className="mt-4 text-2xl font-semibold text-[var(--easa-color-text-primary)] sm:text-3xl">
           Register your school workspace
-        </h2>
+        </h1>
         <p className="mt-3 text-sm leading-7 text-[var(--easa-color-text-muted)]">
           Create the first admin account for your flight school. We will email a verification link before checkout.
         </p>
@@ -72,7 +72,7 @@ export default function RegisterSchoolForm({
         ) : null}
 
         <form className="mt-6 grid min-w-0 gap-4 sm:mt-8 md:grid-cols-2" onSubmit={handleSubmit}>
-          <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)] md:col-span-2">
+          <label className="easa-form-label md:col-span-2">
             Flight school name
             <input
               className="easa-input mt-2 w-full"
@@ -83,7 +83,7 @@ export default function RegisterSchoolForm({
               required
             />
           </label>
-          <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
+          <label className="easa-form-label">
             Admin name
             <input
               className="easa-input mt-2 w-full"
@@ -94,7 +94,7 @@ export default function RegisterSchoolForm({
               required
             />
           </label>
-          <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
+          <label className="easa-form-label">
             Work email
             <input
               className="easa-input mt-2 w-full"
@@ -106,7 +106,7 @@ export default function RegisterSchoolForm({
               required
             />
           </label>
-          <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
+          <label className="easa-form-label">
             Password
             <div className="relative mt-2">
               <input
@@ -128,7 +128,7 @@ export default function RegisterSchoolForm({
               </button>
             </div>
           </label>
-          <label className="block text-xs font-semibold uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
+          <label className="easa-form-label">
             Confirm password
             <input
               className="easa-input mt-2 w-full"

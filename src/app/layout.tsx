@@ -1,8 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { DM_Serif_Display } from "next/font/google";
 import "./globals.css";
 import PullToRefresh from "@/components/PullToRefresh";
 import CookieBanner from "@/components/CookieBanner";
 import PwaWrapper from "@/components/PwaWrapper";
+
+const dmSerifDisplay = DM_Serif_Display({
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-dm-serif",
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://flightlyceum.com";
 
@@ -94,7 +102,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${dmSerifDisplay.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col easa-app">
         <PullToRefresh />
         {children}
