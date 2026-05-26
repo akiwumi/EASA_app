@@ -23,9 +23,7 @@ export default function MarketingShell({
   signedIn = false,
 }: MarketingShellProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const visibleNavLinks = signedIn
-    ? NAV_LINKS.filter((item) => item.href !== "/register")
-    : NAV_LINKS;
+  const visibleNavLinks = NAV_LINKS;
 
   return (
     <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
