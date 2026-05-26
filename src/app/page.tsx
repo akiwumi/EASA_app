@@ -1,13 +1,5 @@
 import type { Metadata } from "next";
-import CompetitiveSection from "@/components/home/CompetitiveSection";
-import FeaturesSection from "@/components/home/FeaturesSection";
-import Footer from "@/components/home/Footer";
-import HeroSection from "@/components/home/HeroSection";
-import Nav from "@/components/home/Nav";
-import PersonasSection from "@/components/home/PersonasSection";
-import { isUserSignedIn } from "@/lib/supabase/server";
-import ProblemSection from "@/components/home/ProblemSection";
-import WorkflowSection from "@/components/home/WorkflowSection";
+import LandingPage from "@/components/landing/LandingPage";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://flightlyceum.com";
 
@@ -75,9 +67,7 @@ const websiteSchema = {
   },
 };
 
-export default async function Home() {
-  const signedIn = await isUserSignedIn();
-
+export default function Home() {
   return (
     <>
       <script
@@ -92,16 +82,7 @@ export default async function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
       />
-      <Nav signedIn={signedIn} />
-      <main id="main-content">
-        <HeroSection />
-        <ProblemSection />
-        <FeaturesSection />
-        <WorkflowSection />
-        <PersonasSection />
-        <CompetitiveSection />
-      </main>
-      <Footer />
+      <LandingPage />
     </>
   );
 }
