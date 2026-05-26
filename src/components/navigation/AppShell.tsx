@@ -32,6 +32,7 @@ import {
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import NotificationDrawer from "@/components/notifications/NotificationDrawer";
 import SchoolSwitcher from "@/components/navigation/SchoolSwitcher";
+import ClearDataButton from "@/components/admin/ClearDataButton";
 
 type NavItem = {
   href: string;
@@ -337,6 +338,8 @@ export default function AppShell({
 
           <div className="my-1 border-t border-[var(--easa-color-border)]" />
 
+          {role === "admin" && <ClearDataButton />}
+
           <button
             type="button"
             onClick={signOut}
@@ -478,6 +481,7 @@ export default function AppShell({
                   <Link href="/profile" title="Profile" onClick={() => setMenuOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
                     <User size={16} strokeWidth={1.85} />
                   </Link>
+                  {role === "admin" && <ClearDataButton compact />}
                   <button type="button" title="Sign out" onClick={signOut} className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] hover:bg-[var(--easa-color-border)] hover:text-[var(--easa-color-brand-primary)]">
                     <LogOut size={16} strokeWidth={1.85} />
                   </button>
@@ -555,6 +559,11 @@ export default function AppShell({
                 </Link>
               );
             })}
+            {role === "admin" && (
+              <div className="mt-1" onClick={() => setMobileMoreOpen(false)}>
+                <ClearDataButton />
+              </div>
+            )}
             <button
               type="button"
               onClick={signOut}
