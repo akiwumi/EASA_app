@@ -68,7 +68,7 @@ export default function MarketingShell({
                 </Link>
               ) : (
                 <>
-                  <Link className="easa-btn secondary ml-1" href="/login">
+                  <Link className="easa-btn secondary ml-1" href="/">
                     Login
                   </Link>
                   <Link className="easa-btn primary" href="/register">
@@ -116,7 +116,7 @@ export default function MarketingShell({
                     <>
                       <Link
                         className="easa-btn secondary w-full"
-                        href="/login"
+                        href="/"
                         onClick={() => setMenuOpen(false)}
                       >
                         Login

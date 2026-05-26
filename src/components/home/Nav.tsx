@@ -77,7 +77,7 @@ export default function Nav({ signedIn = false }: NavProps) {
                 </Link>
               ) : (
                 <>
-                  <Link href="/login" className="easa-btn secondary text-sm">
+                  <Link href="/" className="easa-btn secondary text-sm">
                     Login
                   </Link>
                   <Link href="/register" className="easa-btn primary text-sm">
@@ -130,7 +130,7 @@ export default function Nav({ signedIn = false }: NavProps) {
                     <>
                       <Link
                         className="easa-btn secondary w-full"
-                        href="/login"
+                        href="/"
                         onClick={() => setMenuOpen(false)}
                       >
                         Login

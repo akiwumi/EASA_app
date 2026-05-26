@@ -9,7 +9,7 @@ export default async function SearchPage({
 }) {
   const data = await loadSearchPageData();
   if (!data) {
-    redirect("/login");
+    redirect("/");
   }
 
   const params = await searchParams;

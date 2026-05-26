@@ -4,7 +4,7 @@ import { getTrainingPageContext, loadAssignments } from "@/services/training";
 
 export default async function TrainingAssignmentsPage() {
   const ctx = await getTrainingPageContext();
-  if (!ctx.orgId) redirect("/login");
+  if (!ctx.orgId) redirect("/");
 
   const data = await loadAssignments(ctx.orgId);
 

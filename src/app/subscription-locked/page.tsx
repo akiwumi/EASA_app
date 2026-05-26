@@ -36,8 +36,8 @@ export default async function SubscriptionLockedPage() {
                 Open school settings
               </Link>
             ) : null}
-            <Link className="easa-btn secondary" href="/login">
-              Back to login
+            <Link className="easa-btn secondary" href="/">
+              Back to home
             </Link>
           </div>
 

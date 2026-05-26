@@ -190,7 +190,7 @@ async function enrichBooks(
 export default async function FlightbooksPage() {
   const books = await loadBooks();
   if (books === null) {
-    redirect("/login");
+    redirect("/");
   }
   return <FlightbooksBrowser books={books} />;
 }

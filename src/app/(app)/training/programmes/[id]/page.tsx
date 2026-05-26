@@ -5,7 +5,7 @@ import { getTrainingPageContext, loadProgrammeDetail } from "@/services/training
 
 export default async function TrainingProgrammeDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const ctx = await getTrainingPageContext();
-  if (!ctx.orgId) redirect("/login");
+  if (!ctx.orgId) redirect("/");
   const { id } = await params;
   const data = await loadProgrammeDetail(ctx.orgId, id);
 

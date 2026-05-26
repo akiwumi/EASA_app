@@ -18,7 +18,7 @@ export default async function AppGroupLayout({
   const supabase = await getSupabaseServerClient();
 
   if (!supabase) {
-    redirect("/login");
+    redirect("/");
   }
 
   const {
@@ -26,7 +26,7 @@ export default async function AppGroupLayout({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/");
   }
 
   try {
@@ -37,7 +37,7 @@ export default async function AppGroupLayout({
 
   const ctx = await getOrgAccessContext();
   if (!ctx) {
-    redirect("/login");
+    redirect("/");
   }
 
   const admin = getSupabaseAdminClient();

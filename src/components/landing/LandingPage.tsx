@@ -1187,7 +1187,7 @@ function LandingNav({
           {loginOpen ? "Close" : "Sign In"}
           <span className="ll-caret" />
         </button>
-        <a className="ll-nav-register ll-btn" href="/login" style={{ background: "#fff", color: "#000" }}>
+        <a className="ll-nav-register ll-btn" href="/register" style={{ background: "#fff", color: "#000" }}>
           Register School
         </a>
       </div>
@@ -1209,6 +1209,7 @@ function LoginCascade({
   const [pw, setPw] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [right, setRight] = useState(120);
 
   useEffect(() => {
@@ -1224,7 +1225,7 @@ function LoginCascade({
 
   useEffect(() => {
     if (!open) {
-      const t = setTimeout(() => { setSubmitting(false); setSuccess(false); }, 400);
+      const t = setTimeout(() => { setSubmitting(false); setSuccess(false); setErrorMsg(null); }, 400);
       return () => clearTimeout(t);
     }
   }, [open]);
@@ -1236,13 +1237,49 @@ function LoginCascade({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    setTimeout(() => {
-      setSuccess(true);
-      setTimeout(() => { window.location.href = "/dashboard"; }, 1000);
-    }, 700);
+
+    const { getSupabaseBrowserClient } = await import("@/lib/supabase/browser");
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setSubmitting(false);
+      return;
+    }
+
+    const normalizedEmail = email.trim().toLowerCase() === "admin"
+      ? "admin@easa.local"
+      : email.trim();
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: normalizedEmail,
+      password: pw,
+    });
+
+    if (error) {
+      setSubmitting(false);
+      setErrorMsg(error.message);
+      return;
+    }
+
+    let defaultPath = "/updates";
+    try {
+      const orgsResponse = await fetch("/api/orgs", { cache: "no-store" });
+      if (orgsResponse.ok) {
+        const payload = (await orgsResponse.json()) as {
+          memberships?: Array<{ role?: string | null }>;
+        };
+        const memberships = Array.isArray(payload.memberships) ? payload.memberships : [];
+        const isAdmin = memberships.some((m) => m.role === "admin");
+        defaultPath = isAdmin ? "/dashboard" : "/updates";
+      }
+    } catch {
+      // Fallback to non-admin landing if org role lookup fails.
+    }
+
+    setSuccess(true);
+    setTimeout(() => { window.location.assign(defaultPath); }, 900);
   }
 
   return (
@@ -1291,6 +1328,12 @@ function LoginCascade({
                     Forgot password?
                   </a>
                 </div>
+
+                {errorMsg && (
+                  <div className="ll-cascade-item" style={{ "--ll-i": 4, marginBottom: 10, fontSize: 12, color: "#c0392b" } as React.CSSProperties}>
+                    {errorMsg}
+                  </div>
+                )}
 
                 <div className="ll-cascade-item" style={{ "--ll-i": 5 } as React.CSSProperties}>
                   <button type="submit" className="ll-login-cta" disabled={submitting}>

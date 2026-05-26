@@ -161,8 +161,8 @@ export default function RegisterSchoolForm({
 
         <div className="mt-6 flex min-w-0 flex-col gap-2 text-sm text-[var(--easa-color-text-muted)] sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <span>Already have a school workspace?</span>
-          <Link className="font-medium text-[var(--easa-color-brand-primary)]" href="/login">
-            Login
+          <Link className="font-medium text-[var(--easa-color-brand-primary)]" href="/">
+            Sign in
           </Link>
         </div>
       </section>

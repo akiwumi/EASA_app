@@ -4,7 +4,7 @@ import { getTrainingPageContext, loadAcknowledgements } from "@/services/trainin
 
 export default async function TrainingAcknowledgementsPage() {
   const ctx = await getTrainingPageContext();
-  if (!ctx.orgId) redirect("/login");
+  if (!ctx.orgId) redirect("/");
 
   const data = await loadAcknowledgements(ctx.orgId, ctx.userId, ctx.role);
 

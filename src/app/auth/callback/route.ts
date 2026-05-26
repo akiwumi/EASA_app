@@ -21,9 +21,9 @@ export async function GET(request: NextRequest) {
       : { error: new Error("Supabase is not configured.") };
 
     if (error) {
-      const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("error", "verification_failed");
-      return NextResponse.redirect(loginUrl);
+      const homeUrl = new URL("/", request.url);
+      homeUrl.searchParams.set("error", "verification_failed");
+      return NextResponse.redirect(homeUrl);
     }
   }
 

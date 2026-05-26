@@ -247,7 +247,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
   const { id } = await params;
   const data = await loadBook(id);
   if (!data.auth) {
-    redirect("/login");
+    redirect("/");
   }
   if (!data.book) notFound();
 

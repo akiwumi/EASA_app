@@ -73,14 +73,13 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (isProtectedPath(pathname) && !user) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname);
-    const redirect = NextResponse.redirect(loginUrl);
+    const homeUrl = new URL("/", request.url);
+    const redirect = NextResponse.redirect(homeUrl);
     copyCookies(response, redirect);
     return redirect;
   }
 
-  if (pathname === "/login" && user) {
+  if ((pathname === "/" || pathname === "/login") && user) {
     let targetPath = "/updates";
     if (serviceRoleKey) {
       const admin = createClient(url, serviceRoleKey, {

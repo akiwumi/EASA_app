@@ -4,7 +4,7 @@ import { getTrainingPageContext, loadSignoffs } from "@/services/training";
 
 export default async function TrainingSignoffsPage() {
   const ctx = await getTrainingPageContext();
-  if (!ctx.orgId) redirect("/login");
+  if (!ctx.orgId) redirect("/");
 
   const data = await loadSignoffs(ctx.orgId, ctx.userId, ctx.role);
 
