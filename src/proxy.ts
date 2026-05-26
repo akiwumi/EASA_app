@@ -79,7 +79,7 @@ export async function proxy(request: NextRequest) {
     return redirect;
   }
 
-  if ((pathname === "/" || pathname === "/login") && user) {
+  if (pathname === "/login" && user) {
     let targetPath = "/updates";
     if (serviceRoleKey) {
       const admin = createClient(url, serviceRoleKey, {
