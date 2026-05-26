@@ -1189,6 +1189,7 @@ function LandingNav({
       </div>
 
       <div className="ll-nav-end">
+        <a className="ll-nav-link" href="/contact">Contact</a>
         <a className="ll-nav-link ll-is-dashboard" href="/dashboard">
           Dashboard
           <span className="ll-ext" />
