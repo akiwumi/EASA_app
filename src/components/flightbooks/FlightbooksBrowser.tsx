@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookOpen, Upload, CheckCircle, XCircle, FileText, ArrowDownUp } from "lucide-react";
 import DownloadFlightbookButton from "@/components/flightbooks/DownloadFlightbookButton";
+import DeleteFlightbookButton from "@/components/flightbooks/DeleteFlightbookButton";
 import type { FlightbookExportSummary, FlightbookSummary } from "@/lib/types/domain";
 
 interface Props {
@@ -178,9 +179,14 @@ export default function FlightbooksBrowser({ books }: Props) {
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--easa-color-surface-2)]">
                     <BookOpen size={18} strokeWidth={1.75} className="text-[var(--easa-color-brand-primary)]" />
                   </div>
-                  {book.active
-                    ? <CheckCircle size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-accent-green)]" />
-                    : <XCircle size={15} strokeWidth={1.75} className="mt-0.5 shrink-0 text-[var(--easa-color-text-muted)]" />}
+                  <div className="flex items-center gap-1.5">
+                    {book.active
+                      ? <CheckCircle size={15} strokeWidth={1.75} className="shrink-0 text-[var(--easa-color-accent-green)]" />
+                      : <XCircle size={15} strokeWidth={1.75} className="shrink-0 text-[var(--easa-color-text-muted)]" />}
+                    <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                      <DeleteFlightbookButton id={book.id} name={book.name} compact />
+                    </span>
+                  </div>
                 </div>
 
                 <p className="mt-3 font-semibold leading-tight">{book.name}</p>

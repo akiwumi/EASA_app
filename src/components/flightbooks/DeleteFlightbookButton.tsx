@@ -8,9 +8,10 @@ type Props = {
   id: string;
   name: string;
   compact?: boolean;
+  redirectTo?: string;
 };
 
-export default function DeleteFlightbookButton({ id, name, compact = false }: Props) {
+export default function DeleteFlightbookButton({ id, name, compact = false, redirectTo }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
@@ -33,7 +34,11 @@ export default function DeleteFlightbookButton({ id, name, compact = false }: Pr
         throw new Error(payload.error ?? "Failed to delete flight book.");
       }
 
-      router.refresh();
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else {
+        router.refresh();
+      }
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Failed to delete flight book.");
     } finally {

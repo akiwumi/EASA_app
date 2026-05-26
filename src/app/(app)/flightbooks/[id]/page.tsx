@@ -279,7 +279,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
           </Link>
           {data.canManage && <SaveFlightbookVersionButton id={book.id as string} />}
           <DownloadFlightbookButton id={book.id as string} />
-          {data.canManage && <DeleteFlightbookButton id={book.id as string} name={book.name as string} />}
+          {data.canManage && <DeleteFlightbookButton id={book.id as string} name={book.name as string} redirectTo="/flightbooks" />}
         </div>
       </div>
 
