@@ -43,7 +43,145 @@
   --easa-shadow-1: 0 16px 40px rgba(37, 34, 24, 0.06);
   --easa-shadow-2: 0 24px 60px rgba(37, 34, 24, 0.1);
   --easa-shadow-brand: 0 20px 44px rgba(24, 40, 40, 0.18);
+
+  /* Marketing shared tokens (match landing page palette exactly) */
+  --mkt-ink: #1f3434;
+  --mkt-ink-2: #28403f;
+  --mkt-cream: #f3eee2;
+  --mkt-cream-2: #e8e1cf;
+  --mkt-brass: #b8956a;
+  --mkt-brass-2: #c9a878;
+  --mkt-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+/* ─── Marketing typography ─────────────────────────────────────── */
+.mkt-serif {
+  font-family: var(--font-instrument-serif), Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.mkt-mono {
+  font-family: var(--font-jb-mono), ui-monospace, "JetBrains Mono", monospace;
+  font-feature-settings: "tnum", "ss01";
+}
+.mkt-eyebrow {
+  font-family: var(--font-jb-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+.mkt-h1 {
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-size: clamp(40px, 5.5vw, 70px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-weight: 400;
+  text-wrap: balance;
+}
+.mkt-h2 {
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-size: clamp(28px, 3.5vw, 46px);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-weight: 400;
+  text-wrap: balance;
+}
+.mkt-h3 {
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-size: clamp(20px, 2vw, 28px);
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+/* ─── Marketing hero (dark ink section) ────────────────────────── */
+.mkt-hero {
+  background: var(--mkt-ink);
+  color: var(--mkt-cream);
+  padding: clamp(80px, 12vw, 140px) clamp(24px, 6vw, 72px) clamp(64px, 10vw, 120px);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.mkt-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 10%, rgba(184, 149, 106, 0.12), transparent),
+    radial-gradient(ellipse 50% 60% at 80% 90%, rgba(47, 115, 240, 0.07), transparent);
+  pointer-events: none;
+}
+.mkt-hero > * { position: relative; }
+.mkt-hero .mkt-eyebrow { color: var(--mkt-cream); opacity: 0.55; }
+.mkt-hero .mkt-lead {
+  font-size: clamp(16px, 1.4vw, 20px);
+  line-height: 1.65;
+  opacity: 0.72;
+  max-width: 56ch;
+  margin: 0 auto;
+}
+
+/* ─── Marketing body section ───────────────────────────────────── */
+.mkt-section {
+  background: var(--mkt-cream);
+  padding: clamp(64px, 8vw, 120px) clamp(24px, 6vw, 72px);
+}
+.mkt-section-alt {
+  background: var(--mkt-cream-2);
+}
+
+/* ─── Marketing scroll reveal ──────────────────────────────────── */
+.mkt-reveal {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  filter: blur(3px);
+  transition:
+    opacity 750ms var(--mkt-ease),
+    transform 750ms var(--mkt-ease),
+    filter 600ms var(--mkt-ease);
+  transition-delay: var(--mkt-d, 0ms);
+}
+.mkt-reveal.mkt-visible {
+  opacity: 1;
+  transform: none;
+  filter: blur(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mkt-reveal { opacity: 1; transform: none; filter: none; transition: none; }
+}
+
+/* ─── Marketing page enter ─────────────────────────────────────── */
+.mkt-page-enter {
+  animation: mkt-page-enter 480ms var(--mkt-ease) both;
+}
+@keyframes mkt-page-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ─── Marketing card ───────────────────────────────────────────── */
+.mkt-card {
+  background: rgba(255, 253, 248, 0.9);
+  border: 1px solid rgba(82, 74, 58, 0.14);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(31, 52, 52, 0.08);
+}
+
+/* ─── Marketing form inputs on dark bg ─────────────────────────── */
+.mkt-input {
+  background: rgba(255, 253, 248, 0.08);
+  border: 1px solid rgba(243, 238, 226, 0.22);
+  border-radius: 10px;
+  color: var(--mkt-cream);
+  padding: 10px 14px;
+  font-size: 14px;
+  width: 100%;
+  transition: border-color 180ms;
+  font-family: inherit;
+}
+.mkt-input::placeholder { color: rgba(243, 238, 226, 0.4); }
+.mkt-input:focus { outline: none; border-color: rgba(243, 238, 226, 0.5); }
 
 /* ─── Focus styles (WCAG 2.1 AA) ─────────────────────────────── */
 :focus-visible {

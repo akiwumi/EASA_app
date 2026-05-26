@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Nav from "@/components/home/Nav";
 import Footer from "@/components/home/Footer";
+import MarketingAnimations from "@/components/marketing/MarketingAnimations";
 import { isUserSignedIn } from "@/lib/supabase/server";
 import { ChevronDown } from "lucide-react";
 
@@ -96,44 +97,52 @@ export default async function FaqPage() {
   const signedIn = await isUserSignedIn();
 
   return (
-    <div className="min-h-screen bg-[var(--easa-color-bg)]">
+    <div className="min-h-screen" style={{ background: "var(--mkt-cream)" }}>
+      <MarketingAnimations />
       <Nav signedIn={signedIn} />
 
-      <main id="main-content" className="easa-shell py-16 lg:py-24">
+      {/* ── Dark hero ── */}
+      <section className="mkt-hero mkt-page-enter">
+        <p className="mkt-eyebrow mkt-mono mb-5">Frequently asked questions</p>
+        <h1 className="mkt-h1" style={{ color: "var(--mkt-cream)" }}>
+          Got questions?<br />We&rsquo;ve got answers.
+        </h1>
+        <p className="mkt-lead mt-6">
+          Everything you need to know about Flight Lyceum. Can&rsquo;t find what you&rsquo;re looking for?{" "}
+          <a href="/contact" className="underline underline-offset-4 hover:opacity-80" style={{ color: "var(--mkt-brass-2)" }}>
+            Get in touch
+          </a>.
+        </p>
+      </section>
 
-        {/* Hero */}
-        <div className="mx-auto max-w-2xl text-center">
-          <span className="easa-eyebrow">Frequently asked questions</span>
-          <h1 className="easa-display mt-4 text-4xl font-semibold leading-tight text-[var(--easa-color-text-primary)] lg:text-5xl">
-            Got questions? We&rsquo;ve got answers.
-          </h1>
-          <p className="mt-4 text-lg leading-relaxed text-[var(--easa-color-text-muted)]">
-            Everything you need to know about Flight Lyceum. Can&rsquo;t find what you&rsquo;re looking for?{" "}
-            <a href="/contact" className="font-medium text-[var(--easa-color-brand-primary)] hover:underline">
-              Get in touch
-            </a>.
-          </p>
-        </div>
-
-        {/* FAQ sections */}
-        <div className="mx-auto mt-16 max-w-3xl space-y-12">
-          {faqs.map((section) => (
-            <section key={section.category}>
-              <h2 className="mb-4 text-xs font-semibold uppercase tracking-widest text-[var(--easa-color-text-muted)]">
+      {/* ── FAQ content ── */}
+      <main id="main-content" className="mkt-section">
+        <div className="mx-auto max-w-3xl space-y-12">
+          {faqs.map((section, si) => (
+            <section
+              key={section.category}
+              className="mkt-reveal"
+              style={{ "--mkt-d": `${si * 80}ms` } as React.CSSProperties}
+            >
+              <h2 className="mkt-eyebrow mkt-mono mb-4" style={{ color: "var(--mkt-ink)", opacity: 0.55 }}>
                 {section.category}
               </h2>
-              <div className="divide-y divide-[var(--easa-color-border)] rounded-2xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-1)]">
+              <div className="mkt-card divide-y overflow-hidden" style={{ borderColor: "rgba(82,74,58,0.1)" }}>
                 {section.items.map((item) => (
                   <details key={item.q} className="group px-6 py-5">
-                    <summary className="flex cursor-pointer list-none items-start justify-between gap-4 text-sm font-semibold text-[var(--easa-color-text-primary)] marker:hidden [&::-webkit-details-marker]:hidden">
+                    <summary
+                      className="flex cursor-pointer list-none items-start justify-between gap-4 text-sm font-semibold marker:hidden [&::-webkit-details-marker]:hidden"
+                      style={{ color: "var(--mkt-ink)" }}
+                    >
                       {item.q}
                       <ChevronDown
                         size={16}
                         strokeWidth={2}
-                        className="mt-0.5 shrink-0 text-[var(--easa-color-text-muted)] transition-transform group-open:rotate-180"
+                        className="mt-0.5 shrink-0 transition-transform group-open:rotate-180"
+                        style={{ color: "var(--easa-color-text-muted)" }}
                       />
                     </summary>
-                    <p className="mt-3 text-sm leading-relaxed text-[var(--easa-color-text-muted)]">
+                    <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--easa-color-text-muted)" }}>
                       {item.a}
                     </p>
                   </details>
@@ -143,32 +152,26 @@ export default async function FaqPage() {
           ))}
         </div>
 
-        {/* CTA */}
-        <div className="mx-auto mt-16 max-w-2xl text-center">
-          <div className="easa-card p-8">
-            <h2 className="text-xl font-semibold text-[var(--easa-color-text-primary)]">
+        {/* ── CTA ── */}
+        <div
+          className="mx-auto mt-16 max-w-2xl text-center mkt-reveal"
+          style={{ "--mkt-d": "200ms" } as React.CSSProperties}
+        >
+          <div className="mkt-card p-10">
+            <h2 className="mkt-h3 mkt-serif" style={{ color: "var(--mkt-ink)" }}>
               Still have questions?
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-[var(--easa-color-text-muted)]">
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--easa-color-text-muted)" }}>
               Our team is happy to walk you through how Flight Lyceum works for your school.
             </p>
-            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
-              <a
-                href="/contact"
-                className="easa-btn primary text-sm"
-              >
-                Contact us
-              </a>
-              <a
-                href="mailto:hello@flightlyceum.com?subject=Demo request"
-                className="easa-btn secondary text-sm"
-              >
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+              <a href="/contact" className="easa-btn primary text-sm">Contact us</a>
+              <a href="mailto:hello@flightlyceum.com?subject=Demo request" className="easa-btn secondary text-sm">
                 Request a demo
               </a>
             </div>
           </div>
         </div>
-
       </main>
 
       <Footer />

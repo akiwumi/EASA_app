@@ -118,8 +118,8 @@ export default function PricingPlans({
 
       <section className="pricing-heading-row">
         <div>
-          <p className="pricing-kicker">Subscription</p>
-          <h2>One plan. Everything included.</h2>
+          <p className="mkt-eyebrow mkt-mono pricing-kicker" style={{ opacity: 0.55 }}>Subscription</p>
+          <h2 className="mkt-serif" style={{ fontSize: "clamp(24px,2.4vw,34px)", letterSpacing: "-0.01em" }}>One plan. Everything included.</h2>
         </div>
         <div className="pricing-trial-pill">30-day free trial</div>
       </section>
@@ -158,7 +158,7 @@ export default function PricingPlans({
           <div className="pricing-card-top">
             <div>
               <div className="pricing-plan-row">
-                <h3>Flight Lyceum ATO</h3>
+                <h3 className="mkt-serif" style={{ fontFamily: "var(--font-instrument-serif,Georgia,serif)", fontWeight: 400 }}>Flight Lyceum ATO</h3>
                 <span>All features</span>
               </div>
               <p>Full compliance and training platform for EASA Approved Training Organisations.</p>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Footer from "@/components/home/Footer";
 import Nav from "@/components/home/Nav";
 import PricingPlans from "@/components/pricing/PricingPlans";
+import MarketingAnimations from "@/components/marketing/MarketingAnimations";
 import { isUserSignedIn } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -28,27 +29,36 @@ export default async function PricingPage({
   const signedIn = await isUserSignedIn();
 
   return (
-    <div className="easa-quicken-app min-h-screen bg-[var(--easa-color-bg)]">
+    <div className="min-h-screen" style={{ background: "var(--mkt-cream)" }}>
+      <MarketingAnimations />
       <Nav signedIn={signedIn} />
-      <main id="main-content">
-        <div className="pricing-page mx-auto max-w-7xl px-6">
-          <section className="pricing-hero" aria-label="Pricing plans">
-            <div>
-              <p className="easa-eyebrow">Pricing</p>
-              <h1 style={{ fontFamily: "var(--font-display)" }}>Choose the plan that works for your flight school</h1>
-            </div>
-            <p>
-              Start with a 30-day free trial. A card is required but you won&apos;t be charged
-              until day 31. Pay securely through Stripe on a monthly or annual subscription.
-            </p>
-          </section>
 
+      {/* ── Dark hero ── */}
+      <section className="mkt-hero mkt-page-enter">
+        <p className="mkt-eyebrow mkt-mono mb-5">Pricing</p>
+        <h1 className="mkt-h1" style={{ color: "var(--mkt-cream)" }}>
+          One plan.<br />Everything included.
+        </h1>
+        <p className="mkt-lead mt-6">
+          Start with a 30-day free trial. A card is required but you won&rsquo;t be charged
+          until day 31. Pay securely through Stripe on a monthly or annual subscription.
+        </p>
+      </section>
+
+      {/* ── Plans ── */}
+      <main
+        id="main-content"
+        className="mkt-section mkt-reveal"
+        style={{ "--mkt-d": "80ms" } as React.CSSProperties}
+      >
+        <div className="mx-auto max-w-2xl">
           <PricingPlans
             signedIn={signedIn}
             schoolName={resolvedSearchParams.registered === "1" ? resolvedSearchParams.school : undefined}
           />
         </div>
       </main>
+
       <Footer />
     </div>
   );

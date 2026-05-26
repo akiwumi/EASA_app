@@ -50,7 +50,7 @@ export default function Nav({ signedIn = false }: NavProps) {
                 width={73}
               />
               <div className="min-w-0">
-                <p className="easa-display text-lg leading-none text-[var(--easa-color-text-primary)]">
+                <p className="text-lg leading-none text-[var(--easa-color-text-primary)]" style={{ fontFamily: "var(--font-instrument-serif,Georgia,serif)", fontWeight: 400, letterSpacing: "-0.01em" }}>
                   Flight Lyceum
                 </p>
                 <p className="mt-1 truncate text-[11px] uppercase tracking-[0.14em] text-[var(--easa-color-text-muted)]">
