@@ -84,7 +84,7 @@ export default function HeroSection() {
 
           {/* Pricing anchor + trust microcopy */}
           <p className="mt-3 text-xs text-white/60">
-            From €199/month ·{" "}
+            From €75/month ·{" "}
             <Link href="/pricing" className="underline underline-offset-2 hover:text-white/80">
               See pricing
             </Link>{" "}

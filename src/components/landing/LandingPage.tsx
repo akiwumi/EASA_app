@@ -1110,10 +1110,10 @@ function PricingSection() {
           <div className="ll-lead">Full compliance and training platform for EASA Approved Training Organisations.</div>
 
           <div className="ll-price">
-            <span className="ll-amt">€167</span>
+            <span className="ll-amt">€63</span>
             <span className="ll-per">/ mo, billed annually</span>
           </div>
-          <div className="ll-billed">€2,000 billed once per year · Annual saves 2 months</div>
+          <div className="ll-billed">€750 billed once per year · Annual saves 2 months</div>
 
           <ul className="ll-feats">
             {feats.map((x, i) => <li key={i}>{x}</li>)}

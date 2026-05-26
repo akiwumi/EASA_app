@@ -104,9 +104,9 @@ export default function PricingPlans({
   }, [schoolName]);
 
   const planKey: PlanKey = billing === "annual" ? "annual" : "monthly";
-  const price = billing === "annual" ? "€167" : "€220";
+  const price = billing === "annual" ? "€63" : "€75";
   const cadence = billing === "annual" ? "/mo, billed annually" : "/month";
-  const annualTotal = billing === "annual" ? "€2,000 billed once per year" : null;
+  const annualTotal = billing === "annual" ? "€750 billed once per year" : null;
 
   return (
     <div className="pricing-board">

@@ -95,7 +95,7 @@ export const featureCards = [
 export const pricingTiers = [
   {
     name: "Starter ATO",
-    price: "EUR 199",
+    price: "EUR 75",
     cadence: "/month",
     summary: "Best for smaller schools that need controlled manuals and acknowledgements.",
     features: [
@@ -109,7 +109,7 @@ export const pricingTiers = [
   },
   {
     name: "Growth ATO",
-    price: "EUR 549",
+    price: "EUR 75",
     cadence: "/month",
     summary: "Best for growing schools that need training workflows and compliance depth.",
     features: [
