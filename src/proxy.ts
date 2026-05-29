@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { hasLifetimeAccessEmail } from "@/lib/billing/lifetime-access";
 import { pickPreferredOrgMembership } from "@/lib/supabase/org-membership";
 
 function copyCookies(from: NextResponse, to: NextResponse) {
@@ -111,7 +112,7 @@ export async function proxy(request: NextRequest) {
 
     const orgUser = pickPreferredOrgMembership(orgUsers);
 
-    if (orgUser?.organization_id) {
+    if (orgUser?.organization_id && !hasLifetimeAccessEmail(user.email)) {
       const { data: subscription } = await admin
         .from("organization_subscriptions")
         .select("billing_state")

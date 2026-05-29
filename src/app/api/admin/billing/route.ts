@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { applyLifetimeBillingState, hasLifetimeAccessEmail } from "@/lib/billing/lifetime-access";
 import { getOrgAdminContext, getSupabaseAdminClient } from "@/lib/supabase/access";
 
 type PlanKey = "monthly" | "quarterly" | "annual" | "student_pack";
@@ -49,20 +50,26 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const admin = getSupabaseAdminClient();
-  const { data, error } = await admin
-    .from("organization_subscriptions")
-    .select("*")
-    .eq("organization_id", ctx.orgId)
-    .maybeSingle();
+  const [{ data, error }, userResult] = await Promise.all([
+    admin
+      .from("organization_subscriptions")
+      .select("*")
+      .eq("organization_id", ctx.orgId)
+      .maybeSingle(),
+    admin.auth.admin.getUserById(ctx.userId),
+  ]);
 
   if (error && error.code !== "PGRST116" && error.code !== "PGRST205" && error.code !== "42P01") {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  const userEmail = userResult.data.user?.email ?? null;
+
   return NextResponse.json({
     stripeConfigured: Boolean(getStripe()),
     trialDays: TRIAL_DAYS,
-    subscription: data ?? null,
+    subscription: applyLifetimeBillingState(data ?? null, userEmail),
+    lifetimeAccess: hasLifetimeAccessEmail(userEmail),
   });
 }
 
@@ -71,6 +78,16 @@ export async function POST(request: Request) {
   if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const stripe = getStripe();
+  const admin = getSupabaseAdminClient();
+  const userResult = await admin.auth.admin.getUserById(ctx.userId);
+
+  if (hasLifetimeAccessEmail(userResult.data.user?.email)) {
+    return NextResponse.json(
+      { error: "This account already has lifetime access. Stripe checkout is not required." },
+      { status: 400 },
+    );
+  }
+
   if (!stripe) {
     return NextResponse.json(
       { error: "Stripe is not configured. Set STRIPE_SECRET_KEY first." },
@@ -89,8 +106,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const admin = getSupabaseAdminClient();
-  const [{ data: subscription }, { data: organization }, userResult] = await Promise.all([
+  const [{ data: subscription }, { data: organization }] = await Promise.all([
     admin
       .from("organization_subscriptions")
       .select("stripe_customer_id")
@@ -101,7 +117,6 @@ export async function POST(request: Request) {
       .select("name")
       .eq("id", ctx.orgId)
       .maybeSingle(),
-    admin.auth.admin.getUserById(ctx.userId),
   ]);
 
   const appUrl = getAppUrl();
