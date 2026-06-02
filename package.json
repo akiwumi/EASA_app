@@ -17,6 +17,7 @@
     "docx": "^9.7.0",
     "fastmcp": "^4.0.1",
     "lucide-react": "^0.544.0",
+    "mammoth": "^1.12.0",
     "next": "16.1.4",
     "openai": "^6.38.0",
     "pdf-parse": "^1.1.1",

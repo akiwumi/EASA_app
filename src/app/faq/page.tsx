@@ -45,7 +45,7 @@ const faqs = [
       },
       {
         q: "Can I upload my own manuals and training documentation?",
-        a: "Yes. You can upload your Operations Manual, Training Manual, MEL, or any other document in PDF, TXT, Markdown, or JSON format. The system parses each document into indexed sections so the AI can compare them against updated regulations.",
+        a: "Yes. You can upload your Operations Manual, Training Manual, MEL, or any other document in PDF, DOCX, TXT, Markdown, or JSON format. The system parses each document into indexed sections so the AI can compare them against updated regulations.",
       },
       {
         q: "What happens when a regulation changes?",
