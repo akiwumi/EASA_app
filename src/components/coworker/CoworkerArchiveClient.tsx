@@ -64,7 +64,7 @@ export default function CoworkerArchiveClient() {
       ) : (
         <div className="grid gap-3">
           {archivedConversations.map((conversation) => (
-            <article key={conversation.id} className="easa-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <article key={conversation.id} data-conversation-id={conversation.id} className="easa-card flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <h2 className="truncate text-base font-semibold text-[var(--easa-color-text-primary)]">{conversation.title}</h2>
                 <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">{formatArchivedAt(conversation.archivedAt)}</p>

@@ -125,11 +125,16 @@ async function run() {
 
     await dialog.getByRole("link", { name: "Open Henry archive" }).click();
     await page.waitForURL(/\/coworker\/archive$/, { timeout: 45_000 });
-    const restore = page.getByRole("button", { name: /Restore/ }).first();
+    const restore = page.locator(`[data-conversation-id="${createdId}"]`).getByRole("button", { name: "Restore" });
     await restore.waitFor({ timeout: 10_000 });
     const restoreResponsePromise = page.waitForResponse(
       (response) => /\/api\/coworker\/conversations\/[^/]+$/.test(response.url())
         && response.request().method() === "PATCH",
+      { timeout: 45_000 },
+    );
+    const activeRefreshPromise = page.waitForResponse(
+      (response) => response.url().endsWith("/api/coworker/conversations")
+        && response.request().method() === "GET",
       { timeout: 45_000 },
     );
     await restore.click();
@@ -138,7 +143,15 @@ async function run() {
       results.push(result("FAIL", "Restore chat", `Restore API returned ${restoreResponse.status()}.`));
       return;
     }
-    await dialog.locator(`[data-conversation-id="${createdId}"]`).waitFor({ timeout: 10_000 });
+    await activeRefreshPromise;
+    await page.locator(`[data-conversation-id="${createdId}"]`).waitFor({ state: "hidden", timeout: 10_000 });
+    await page.getByRole("button", { name: "Open Henry" }).last().click();
+    await dialog.waitFor({ timeout: 10_000 });
+    const restoredConversation = dialog.locator(`[data-conversation-id="${createdId}"]`);
+    if (!(await dialog.getByText("Active conversations", { exact: true }).isVisible())) {
+      await dialog.getByRole("button", { name: "Toggle Henry chat history" }).click();
+    }
+    await restoredConversation.waitFor({ timeout: 10_000 });
     results.push(result("PASS", "Restore chat", "Archived Henry conversation returned to the active list."));
   } catch (error) {
     results.push(result("FAIL", "Smoke flow", error instanceof Error ? error.message : String(error)));

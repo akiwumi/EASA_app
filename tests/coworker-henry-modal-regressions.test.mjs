@@ -61,6 +61,7 @@ test("sign out resets the Henry login greeting", () => {
 
 test("archive page restores and confirmation-gates permanent deletion", () => {
   assert.match(archivePage, /refreshArchivedConversations/);
+  assert.match(archivePage, /data-conversation-id=\{conversation\.id\}/);
   assert.match(archivePage, /restoreConversation\(conversation\.id\)/);
   assert.match(archivePage, /Delete permanently/);
   assert.match(archivePage, /window\.confirm\(/);
