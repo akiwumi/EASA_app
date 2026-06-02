@@ -7,6 +7,8 @@ const geometry = fs.readFileSync("src/components/coworker/useHenryModalGeometry.
 const launcher = fs.readFileSync("src/components/coworker/CoworkerLauncher.tsx", "utf8");
 const welcome = fs.readFileSync("src/components/coworker/HenryWelcomeBubble.tsx", "utf8");
 const appShell = fs.readFileSync("src/components/navigation/AppShell.tsx", "utf8");
+const archivePage = fs.readFileSync("src/components/coworker/CoworkerArchiveClient.tsx", "utf8");
+const proxy = fs.readFileSync("src/proxy.ts", "utf8");
 
 test("Henry modal supports saved desktop drag and resize", () => {
   assert.match(modal, /Henry/);
@@ -45,4 +47,13 @@ test("Henry welcome bubble appears once per login session", () => {
 
 test("sign out resets the Henry login greeting", () => {
   assert.match(appShell, /window\.sessionStorage\.removeItem\(HENRY_WELCOME_DISMISSED_KEY\)/);
+});
+
+test("archive page restores and confirmation-gates permanent deletion", () => {
+  assert.match(archivePage, /refreshArchivedConversations/);
+  assert.match(archivePage, /restoreConversation\(conversation\.id\)/);
+  assert.match(archivePage, /Delete permanently/);
+  assert.match(archivePage, /window\.confirm\(/);
+  assert.match(archivePage, /deleteArchivedConversation\(conversation\.id\)/);
+  assert.match(proxy, /"\/coworker"/);
 });
