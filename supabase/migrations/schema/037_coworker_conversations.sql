@@ -2,7 +2,7 @@ create table if not exists coworker_conversations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references organizations(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
-  title text not null default 'New conversation',
+  title text not null default 'New conversation' check (title = btrim(title) and char_length(title) between 1 and 120),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -27,6 +27,26 @@ create index if not exists coworker_messages_conversation_id_created_at_idx
 
 create index if not exists coworker_messages_org_user_idx
   on coworker_messages (organization_id, user_id);
+
+create or replace function touch_coworker_conversation_updated_at()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update coworker_conversations
+  set updated_at = now()
+  where id = new.conversation_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists touch_coworker_conversation_updated_at on coworker_messages;
+create trigger touch_coworker_conversation_updated_at
+  after insert on coworker_messages
+  for each row
+  execute function touch_coworker_conversation_updated_at();
 
 alter table coworker_conversations enable row level security;
 alter table coworker_messages enable row level security;
