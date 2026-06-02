@@ -11,7 +11,7 @@ export type InsertMessageInput = {
   metadata?: Record<string, unknown>;
 };
 
-const CONVERSATION_PROJECTION = "id, organization_id, user_id, title, created_at, updated_at";
+const CONVERSATION_PROJECTION = "id, organization_id, user_id, title, created_at, updated_at, archived_at";
 const MESSAGE_PROJECTION =
   "id, conversation_id, organization_id, user_id, role, intent, content, metadata, created_at";
 
@@ -22,7 +22,23 @@ export async function listConversations(ctx: OrgAccessContext) {
     .select(CONVERSATION_PROJECTION)
     .eq("organization_id", ctx.orgId)
     .eq("user_id", ctx.userId)
+    .is("archived_at", null)
     .order("updated_at", { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function listArchivedConversations(ctx: OrgAccessContext) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("coworker_conversations")
+    .select(CONVERSATION_PROJECTION)
+    .eq("organization_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .not("archived_at", "is", null)
+    .order("archived_at", { ascending: false })
     .limit(50);
 
   if (error) throw error;
@@ -48,6 +64,64 @@ export async function createConversation(
   return data;
 }
 
+export async function archiveOwnedConversation(
+  ctx: OrgAccessContext,
+  conversationId: string,
+) {
+  const admin = getSupabaseAdminClient();
+  const archivedAt = new Date().toISOString();
+  const { data, error } = await admin
+    .from("coworker_conversations")
+    .update({ archived_at: archivedAt })
+    .eq("id", conversationId)
+    .eq("organization_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .is("archived_at", null)
+    .select(CONVERSATION_PROJECTION)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+export async function restoreOwnedConversation(
+  ctx: OrgAccessContext,
+  conversationId: string,
+) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("coworker_conversations")
+    .update({ archived_at: null })
+    .eq("id", conversationId)
+    .eq("organization_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .not("archived_at", "is", null)
+    .select(CONVERSATION_PROJECTION)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
+export async function deleteArchivedOwnedConversation(
+  ctx: OrgAccessContext,
+  conversationId: string,
+) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("coworker_conversations")
+    .delete()
+    .eq("id", conversationId)
+    .eq("organization_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .not("archived_at", "is", null)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function loadOwnedConversation(
   ctx: OrgAccessContext,
   conversationId: string,
@@ -59,6 +133,7 @@ export async function loadOwnedConversation(
     .eq("id", conversationId)
     .eq("organization_id", ctx.orgId)
     .eq("user_id", ctx.userId)
+    .is("archived_at", null)
     .maybeSingle();
 
   if (error) throw error;
@@ -70,6 +145,9 @@ export async function loadOwnedMessage(
   conversationId: string,
   messageId: string,
 ) {
+  const conversation = await loadOwnedConversation(ctx, conversationId);
+  if (!conversation) return null;
+
   const admin = getSupabaseAdminClient();
   const { data, error } = await admin
     .from("coworker_messages")
