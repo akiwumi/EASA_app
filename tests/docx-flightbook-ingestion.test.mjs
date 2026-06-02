@@ -38,19 +38,18 @@ test("DOCX extraction helper reads text from a generated Word document", async (
 test("flight book upload route parses DOCX files before storing originals", () => {
   assert.match(route, /import \{ extractDocxText \} from "@\/lib\/flightbooks\/docx";/);
   assert.match(route, /else if \(filename\.endsWith\("\.docx"\)\) \{[\s\S]*?extractDocxText\(bytes\)[\s\S]*?detectSections\(text\)/);
-  assert.match(route, /Upload PDF, DOCX, TXT, MD, or JSON\./);
+  assert.match(route, /Upload PDF, DOC, DOCX, TXT, MD, or JSON\./);
 
   const extractionIndex = route.indexOf("extractDocxText(bytes)");
   const storageIndex = route.indexOf(".upload(originalStoragePath, bytes");
   assert.ok(extractionIndex > -1 && extractionIndex < storageIndex, "DOCX extraction must finish before storage");
 });
 
-test("flight book upload guidance offers DOCX but not legacy DOC files", () => {
-  assert.match(uploadUi, /accept="\.pdf,\.docx,\.txt,\.md,\.json"/);
-  assert.doesNotMatch(uploadUi, /accept="[^"]*\.doc,/);
-  assert.match(uploadUi, /PDF · DOCX · TXT · MD · JSON/);
-  assert.match(uploadUi, />DOCX<\/strong>/);
+test("flight book upload guidance offers DOC and DOCX Word files", () => {
+  assert.match(uploadUi, /accept="\.pdf,\.doc,\.docx,\.txt,\.md,\.json"/);
+  assert.match(uploadUi, /PDF · DOC · DOCX · TXT · MD · JSON/);
+  assert.match(uploadUi, />DOC \/ DOCX<\/strong>/);
   assert.match(help, /DOCX/);
   assert.match(faq, /DOCX/);
-  assert.match(flightbookDetail, /PDF, DOCX, TXT, or MD/);
+  assert.match(flightbookDetail, /PDF, DOC, DOCX, TXT, or MD/);
 });

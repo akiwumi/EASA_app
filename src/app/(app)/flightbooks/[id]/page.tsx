@@ -287,7 +287,7 @@ export default async function FlightbookDetailPage({ params }: { params: Promise
         <div className="easa-card p-10 text-center">
           <p className="text-sm font-medium">No sections imported yet</p>
           <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-            Upload a PDF, DOCX, TXT, or MD file on the upload page, then select this book.
+            Upload a PDF, DOC, DOCX, TXT, or MD file on the upload page, then select this book.
           </p>
           <Link href="/flightbooks/upload" className="easa-btn primary mt-4 inline-flex">
             Upload content

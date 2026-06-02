@@ -26,6 +26,7 @@
     "react-dom": "19.2.3",
     "resend": "^6.12.3",
     "stripe": "^18.5.0",
+    "word-extractor": "^1.0.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
