@@ -20,6 +20,16 @@ const proposedUpdates = fs.readFileSync("src/lib/ai/proposed-updates.ts", "utf8"
 const coworkerTools = fs.existsSync("src/lib/coworker/tools.ts")
   ? fs.readFileSync("src/lib/coworker/tools.ts", "utf8")
   : "";
+const queueFindingService = fs.existsSync("src/lib/findings/queue-finding.ts")
+  ? fs.readFileSync("src/lib/findings/queue-finding.ts", "utf8")
+  : "";
+const addToQueueRoute = fs.readFileSync("src/app/api/findings/add-to-queue/route.ts", "utf8");
+const createReviewItemRoute = fs.existsSync("src/app/api/coworker/actions/create-review-item/route.ts")
+  ? fs.readFileSync("src/app/api/coworker/actions/create-review-item/route.ts", "utf8")
+  : "";
+const queueRequestValidation = fs.existsSync("src/lib/findings/queue-request-validation.ts")
+  ? fs.readFileSync("src/lib/findings/queue-request-validation.ts", "utf8")
+  : "";
 
 function functionBody(source, name, nextName) {
   const start = source.indexOf(`export async function ${name}`);
@@ -51,6 +61,19 @@ test("message access verifies the caller owns the conversation first", () => {
     const body = functionBody(conversations, name, name === "listMessages" ? "insertMessage" : null);
     assert.match(body, /await loadOwnedConversation\(ctx, conversationId\)/);
   }
+});
+
+test("owned assistant message lookup scopes message, conversation, organization, and user", () => {
+  const body = functionBody(conversations, "loadOwnedMessage", "listMessages");
+
+  assert.match(body, /\.from\("coworker_messages"\)/);
+  assert.match(body, /\.select\(MESSAGE_PROJECTION\)/);
+  assert.match(body, /\.eq\("id", messageId\)/);
+  assert.match(body, /\.eq\("conversation_id", conversationId\)/);
+  assert.match(body, /\.eq\("organization_id", ctx\.orgId\)/);
+  assert.match(body, /\.eq\("user_id", ctx\.userId\)/);
+  assert.match(body, /\.eq\("role", "assistant"\)/);
+  assert.match(body, /\.maybeSingle\(\)/);
 });
 
 test("message insert derives ownership and default metadata from context", () => {
@@ -142,4 +165,95 @@ test("pending coworker findings filter nested organization ownership and tolerat
 test("persisted proposal draft generation keeps queue persistence", () => {
   const body = functionBody(proposedUpdates, "generateDraftForProposedUpdate", "generateDraftsForOrg");
   assert.match(body, /updateProposedDraftWithFallback/);
+});
+
+test("queue finding service rejects non-approver roles before data reads", () => {
+  const body = functionBody(queueFindingService, "queueFinding");
+  const roleGate = body.indexOf("ORG_APPROVER_ROLES.includes");
+  const firstRead = body.indexOf('.from("ai_findings")');
+
+  assert.notEqual(roleGate, -1, "queueFinding approver role gate is missing");
+  assert.notEqual(firstRead, -1, "queueFinding finding read is missing");
+  assert.ok(roleGate < firstRead, "queueFinding must reject unauthorized roles before data reads");
+  assert.match(body, /return \{ findingId, error: "Forbidden" \}/);
+});
+
+test("queue finding service records required coworker provenance audit", () => {
+  const body = functionBody(queueFindingService, "queueFinding");
+  const auditBody = queueFindingService.slice(
+    queueFindingService.indexOf("async function insertProvenanceAudit"),
+    queueFindingService.indexOf("export async function queueFinding"),
+  );
+
+  assert.match(body, /provenance\?:/);
+  assert.match(body, /insertProvenanceAudit\(admin, ctx, result, provenance\)/);
+  assert.match(queueFindingService, /if \(provenance\)/);
+  assert.match(queueFindingService, /\.from\("audit_log"\)\.insert\(\{/);
+  assert.match(queueFindingService, /organization_id: ctx\.orgId/);
+  assert.match(queueFindingService, /actor_id: ctx\.userId/);
+  assert.match(queueFindingService, /action: "coworker_review_item_created"/);
+  assert.match(queueFindingService, /entity_type: "proposed_update"/);
+  assert.match(queueFindingService, /entity_id: result\.id/);
+  assert.match(queueFindingService, /payload: provenance/);
+  assert.match(queueFindingService, /if \(auditError\) return auditError/);
+  assert.match(auditBody, /catch \(error\)/);
+});
+
+test("queue finding compensates only newly created proposals after provenance audit failure", () => {
+  const body = functionBody(queueFindingService, "queueFinding");
+  const existingRegion = body.slice(body.indexOf("if (existing.data)"), body.indexOf("const { data: created"));
+  const createdRegion = body.slice(body.indexOf("const { data: created"));
+
+  assert.match(queueFindingService, /compensateCreatedProposal/);
+  assert.doesNotMatch(existingRegion, /compensateCreatedProposal/);
+  assert.match(createdRegion, /if \(auditError\) \{/);
+  assert.match(createdRegion, /await compensateCreatedProposal\(admin, ctx\.orgId, String\(created\.id\)\)/);
+  assert.match(createdRegion, /console\.error/);
+  assert.match(createdRegion, /catch \(compensationError\)/);
+  assert.match(createdRegion, /return \{ findingId, error: "Unable to record coworker review item audit\." \}/);
+});
+
+test("coworker review item action validates ownership before queue mutation", () => {
+  assert.match(createReviewItemRoute, /await getOrgAccessContext\(\)/);
+  assert.match(createReviewItemRoute, /status: 401/);
+  assert.match(createReviewItemRoute, /await request\.text\(\)/);
+  assert.match(createReviewItemRoute, /typeof body !== "object"/);
+  assert.match(createReviewItemRoute, /isUuid\(findingId\)/);
+  assert.match(createReviewItemRoute, /isUuid\(conversationId\)/);
+  assert.match(createReviewItemRoute, /isUuid\(sourceMessageId\)/);
+  assert.match(createReviewItemRoute, /status: 404/);
+
+  const ownedConversation = createReviewItemRoute.indexOf("await loadOwnedConversation(ctx, conversationId)");
+  const ownedMessage = createReviewItemRoute.indexOf("await loadOwnedMessage(ctx, conversationId, sourceMessageId)");
+  const queueMutation = createReviewItemRoute.indexOf("await queueFinding(");
+  assert.notEqual(ownedConversation, -1, "owned conversation validation is missing");
+  assert.notEqual(ownedMessage, -1, "owned assistant message validation is missing");
+  assert.notEqual(queueMutation, -1, "queueFinding call is missing");
+  assert.ok(ownedConversation < queueMutation, "conversation ownership must be checked before queue mutation");
+  assert.ok(ownedConversation < ownedMessage, "conversation ownership must be checked before message ownership");
+  assert.ok(ownedMessage < queueMutation, "message ownership must be checked before queue mutation");
+  assert.match(createReviewItemRoute, /if \(!sourceMessage\) return notFound\(\)/);
+  assert.match(createReviewItemRoute, /queueFinding\(admin, ctx, findingId, true, provenance\)/);
+  assert.match(createReviewItemRoute, /console\.error/);
+  assert.match(createReviewItemRoute, /\{ error: "Unable to create review item\." \}/);
+  assert.doesNotMatch(createReviewItemRoute, /\{ error: result\.error \}/);
+  assert.doesNotMatch(createReviewItemRoute, /\.\.\.result/);
+  assert.match(createReviewItemRoute, /draftError: result\.draftError \? "Unable to generate draft\." : undefined/);
+});
+
+test("existing add-to-queue route is a thin shared-service adapter", () => {
+  assert.match(addToQueueRoute, /import \{ queueFinding, type QueueFindingResult \} from "@\/lib\/findings\/queue-finding"/);
+  assert.doesNotMatch(addToQueueRoute, /\.from\("ai_findings"\)/);
+  assert.match(queueRequestValidation, /body\.findingIds/);
+  assert.match(queueRequestValidation, /body\.findingId/);
+  assert.match(addToQueueRoute, /await queueFinding\(admin, ctx, findingId, generateDraft\)/);
+  assert.match(addToQueueRoute, /parseQueueFindingRequest/);
+  assert.match(addToQueueRoute, /await request\.text\(\)/);
+  assert.match(addToQueueRoute, /status: 400/);
+  assert.match(addToQueueRoute, /status: 500/);
+  assert.match(addToQueueRoute, /console\.error/);
+  assert.match(addToQueueRoute, /\{ error: "Internal server error" \}/);
+  assert.match(addToQueueRoute, /draftError: result\.draftError \? "Unable to generate draft\." : undefined/);
+  assert.doesNotMatch(addToQueueRoute, /error\.message/);
+  assert.match(queueRequestValidation, /isUuid/);
 });

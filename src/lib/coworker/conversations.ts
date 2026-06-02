@@ -65,6 +65,26 @@ export async function loadOwnedConversation(
   return data ?? null;
 }
 
+export async function loadOwnedMessage(
+  ctx: OrgAccessContext,
+  conversationId: string,
+  messageId: string,
+) {
+  const admin = getSupabaseAdminClient();
+  const { data, error } = await admin
+    .from("coworker_messages")
+    .select(MESSAGE_PROJECTION)
+    .eq("id", messageId)
+    .eq("conversation_id", conversationId)
+    .eq("organization_id", ctx.orgId)
+    .eq("user_id", ctx.userId)
+    .eq("role", "assistant")
+    .maybeSingle();
+
+  if (error) throw error;
+  return data ?? null;
+}
+
 export async function listMessages(
   ctx: OrgAccessContext,
   conversationId: string,
