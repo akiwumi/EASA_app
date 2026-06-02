@@ -41,3 +41,4 @@ yarn-error.log*
 .gstack/
 .claude/worktrees/
 .superpowers/
+.worktrees/
