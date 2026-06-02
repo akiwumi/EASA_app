@@ -35,6 +35,7 @@ import SchoolSwitcher from "@/components/navigation/SchoolSwitcher";
 import ClearDataButton from "@/components/admin/ClearDataButton";
 import CoworkerDrawer from "@/components/coworker/CoworkerDrawer";
 import CoworkerLauncher from "@/components/coworker/CoworkerLauncher";
+import HenryWelcomeBubble, { HENRY_WELCOME_DISMISSED_KEY } from "@/components/coworker/HenryWelcomeBubble";
 import { CoworkerProvider, useCoworker } from "@/components/coworker/CoworkerProvider";
 
 type NavItem = {
@@ -261,6 +262,7 @@ function AppShellContent({
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
     if (supabase) await supabase.auth.signOut();
+    window.sessionStorage.removeItem(HENRY_WELCOME_DISMISSED_KEY);
     window.location.assign("/");
   };
 
@@ -618,6 +620,7 @@ function AppShellContent({
         onUnreadChange={handleUnreadChange}
       />
       <CoworkerDrawer />
+      <HenryWelcomeBubble />
     </div>
   );
 }
