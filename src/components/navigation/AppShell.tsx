@@ -33,6 +33,9 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import NotificationDrawer from "@/components/notifications/NotificationDrawer";
 import SchoolSwitcher from "@/components/navigation/SchoolSwitcher";
 import ClearDataButton from "@/components/admin/ClearDataButton";
+import CoworkerDrawer from "@/components/coworker/CoworkerDrawer";
+import CoworkerLauncher from "@/components/coworker/CoworkerLauncher";
+import { CoworkerProvider, useCoworker } from "@/components/coworker/CoworkerProvider";
 
 type NavItem = {
   href: string;
@@ -97,15 +100,7 @@ function navItemActive(pathname: string, href: string) {
   return pathname.startsWith(`${href}/`);
 }
 
-export default function AppShell({
-  organizationName,
-  logoUrl,
-  websiteUrl,
-  contactEmail,
-  contactPhone,
-  role,
-  children,
-}: {
+type AppShellProps = {
   organizationName: string;
   logoUrl?: string | null;
   websiteUrl?: string | null;
@@ -115,13 +110,32 @@ export default function AppShell({
   brandSecondaryColor?: string | null;
   role: string;
   children: React.ReactNode;
-}) {
+};
+
+export default function AppShell(props: AppShellProps) {
+  return (
+    <CoworkerProvider>
+      <AppShellContent {...props} />
+    </CoworkerProvider>
+  );
+}
+
+function AppShellContent({
+  organizationName,
+  logoUrl,
+  websiteUrl,
+  contactEmail,
+  contactPhone,
+  role,
+  children,
+}: AppShellProps) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const [trainingOpen, setTrainingOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [notificationDrawerOpen, setNotificationDrawerOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { closeCoworker, openCoworker } = useCoworker();
   const logoSrc = logoUrl?.startsWith("/") ? logoUrl : "/images/flight-lyceum-logo.png";
 
   // Close mobile menu on navigation
@@ -234,6 +248,16 @@ export default function AppShell({
     setUnreadCount(count);
   }, []);
 
+  const showNotifications = useCallback(() => {
+    closeCoworker();
+    setNotificationDrawerOpen(true);
+  }, [closeCoworker]);
+
+  const showCoworker = useCallback(() => {
+    setNotificationDrawerOpen(false);
+    openCoworker();
+  }, [openCoworker]);
+
   const signOut = async () => {
     const supabase = getSupabaseBrowserClient();
     if (supabase) await supabase.auth.signOut();
@@ -320,9 +344,10 @@ export default function AppShell({
         {/* Utility / bottom section */}
         <div className="border-t border-[var(--easa-color-border)] px-3 py-3 space-y-1">
           {/* Notifications */}
+          <CoworkerLauncher onClick={showCoworker} />
           <button
             type="button"
-            onClick={() => setDrawerOpen(true)}
+            onClick={showNotifications}
             className="relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-text-primary)]"
           >
             <Bell size={17} strokeWidth={1.85} className="shrink-0" />
@@ -400,10 +425,11 @@ export default function AppShell({
             </Link>
 
             {/* Bell */}
+            <CoworkerLauncher variant="icon" onClick={showCoworker} />
             <button
               aria-label="Notifications"
               type="button"
-              onClick={() => setDrawerOpen(true)}
+              onClick={showNotifications}
               className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--easa-color-text-secondary)] transition hover:bg-[var(--easa-color-surface-2)] hover:text-[var(--easa-color-brand-primary)]"
             >
               <Bell size={18} strokeWidth={1.85} />
@@ -587,10 +613,11 @@ export default function AppShell({
       </nav>
 
       <NotificationDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        open={notificationDrawerOpen}
+        onClose={() => setNotificationDrawerOpen(false)}
         onUnreadChange={handleUnreadChange}
       />
+      <CoworkerDrawer />
     </div>
   );
 }
