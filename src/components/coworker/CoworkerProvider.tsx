@@ -15,6 +15,7 @@ export type CoworkerConversation = {
   id: string;
   title: string;
   updatedAt: string;
+  archivedAt?: string | null;
 };
 
 export type CoworkerMessage = {
@@ -35,6 +36,7 @@ type ReviewItemResult = {
 type CoworkerContextValue = {
   open: boolean;
   conversations: CoworkerConversation[];
+  archivedConversations: CoworkerConversation[];
   activeConversationId: string | null;
   messages: CoworkerMessage[];
   loading: boolean;
@@ -43,11 +45,16 @@ type CoworkerContextValue = {
   closeCoworker: () => void;
   setActiveConversationId: (id: string) => void;
   createConversation: () => Promise<string | null>;
+  archiveConversation: (id: string) => Promise<void>;
+  restoreConversation: (id: string) => Promise<void>;
+  deleteArchivedConversation: (id: string) => Promise<void>;
+  refreshArchivedConversations: () => Promise<void>;
   sendMessage: (content: string, findingId?: string) => Promise<void>;
   createReviewItem: (findingId: string, sourceMessageId: string) => Promise<ReviewItemResult>;
 };
 
 const CoworkerContext = createContext<CoworkerContextValue | null>(null);
+const ACTIVE_CONVERSATION_STORAGE_KEY = "henry-active-conversation-id";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -59,6 +66,7 @@ function normalizeConversation(value: unknown): CoworkerConversation | null {
     id: value.id,
     title: typeof value.title === "string" ? value.title : "New conversation",
     updatedAt: typeof value.updated_at === "string" ? value.updated_at : new Date().toISOString(),
+    archivedAt: typeof value.archived_at === "string" ? value.archived_at : null,
   };
 }
 
@@ -95,6 +103,7 @@ async function readJson(response: Response) {
 export function CoworkerProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [conversations, setConversations] = useState<CoworkerConversation[]>([]);
+  const [archivedConversations, setArchivedConversations] = useState<CoworkerConversation[]>([]);
   const [activeConversationId, setActiveConversationIdState] = useState<string | null>(null);
   const [messages, setMessages] = useState<CoworkerMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -105,6 +114,11 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId;
+    if (activeConversationId) {
+      window.localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
+    } else {
+      window.localStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+    }
   }, [activeConversationId]);
 
   const loadConversations = useCallback(async () => {
@@ -113,7 +127,22 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
       ? json.conversations.map(normalizeConversation).filter(Boolean) as CoworkerConversation[]
       : [];
     setConversations(next);
-    setActiveConversationIdState((current) => current ?? next[0]?.id ?? null);
+    setActiveConversationIdState((current) => {
+      const saved = window.localStorage.getItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+      const active = [current, saved].find((id) => id && next.some((conversation) => conversation.id === id))
+        ?? next[0]?.id
+        ?? null;
+      activeConversationIdRef.current = active;
+      return active;
+    });
+  }, []);
+
+  const refreshArchivedConversations = useCallback(async () => {
+    const json = await readJson(await fetch("/api/coworker/conversations/archive"));
+    const next = Array.isArray(json.conversations)
+      ? json.conversations.map(normalizeConversation).filter(Boolean) as CoworkerConversation[]
+      : [];
+    setArchivedConversations(next);
   }, []);
 
   const loadMessages = useCallback(async (conversationId: string) => {
@@ -178,6 +207,68 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const archiveConversation = useCallback(async (id: string) => {
+    if (requestLocked.current) return;
+    requestLocked.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      await readJson(await fetch(`/api/coworker/conversations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "archive" }),
+      }));
+      if (activeConversationIdRef.current === id) {
+        activeConversationIdRef.current = null;
+        messageLoadSequence.current += 1;
+        setActiveConversationIdState(null);
+        setMessages([]);
+      }
+      await Promise.all([loadConversations(), refreshArchivedConversations()]);
+    } catch {
+      setError("Unable to archive conversation.");
+    } finally {
+      requestLocked.current = false;
+      setLoading(false);
+    }
+  }, [loadConversations, refreshArchivedConversations]);
+
+  const restoreConversation = useCallback(async (id: string) => {
+    if (requestLocked.current) return;
+    requestLocked.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      await readJson(await fetch(`/api/coworker/conversations/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore" }),
+      }));
+      await Promise.all([loadConversations(), refreshArchivedConversations()]);
+    } catch {
+      setError("Unable to restore conversation.");
+    } finally {
+      requestLocked.current = false;
+      setLoading(false);
+    }
+  }, [loadConversations, refreshArchivedConversations]);
+
+  const deleteArchivedConversation = useCallback(async (id: string) => {
+    if (requestLocked.current) return;
+    requestLocked.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      await readJson(await fetch(`/api/coworker/conversations/${id}`, { method: "DELETE" }));
+      setArchivedConversations((current) => current.filter((conversation) => conversation.id !== id));
+    } catch {
+      setError("Unable to delete conversation.");
+    } finally {
+      requestLocked.current = false;
+      setLoading(false);
+    }
+  }, []);
+
   const sendMessage = useCallback(async (content: string, findingId?: string) => {
     const trimmed = content.trim();
     if (!trimmed || requestLocked.current) return;
@@ -230,6 +321,7 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<CoworkerContextValue>(() => ({
     open,
     conversations,
+    archivedConversations,
     activeConversationId,
     messages,
     loading,
@@ -238,9 +330,13 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
     closeCoworker: () => setOpen(false),
     setActiveConversationId,
     createConversation,
+    archiveConversation,
+    restoreConversation,
+    deleteArchivedConversation,
+    refreshArchivedConversations,
     sendMessage,
     createReviewItem,
-  }), [activeConversationId, conversations, createConversation, createReviewItem, error, loading, messages, open, sendMessage, setActiveConversationId]);
+  }), [activeConversationId, archiveConversation, archivedConversations, conversations, createConversation, createReviewItem, deleteArchivedConversation, error, loading, messages, open, refreshArchivedConversations, restoreConversation, sendMessage, setActiveConversationId]);
 
   return <CoworkerContext.Provider value={value}>{children}</CoworkerContext.Provider>;
 }
