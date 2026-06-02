@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { FileText, CheckCircle, AlertCircle, Upload } from "lucide-react";
 
 const DOC_TYPES = ["OM-A", "OM-B", "OM-C", "OM-D", "MEL", "MMEL", "MCC", "AOM", "FCL", "Other"];
+const SUPPORTED_FILE_EXTENSIONS = [".pdf", ".doc", ".docx", ".txt", ".md", ".json"];
 
 interface ExistingBook { id: string; name: string; doc_type: string }
 
@@ -34,13 +35,57 @@ export default function FlightbookUpload({ existingBooks }: Props) {
   const [uploading, setUploading] = useState(false);
   const [results, setResults] = useState<UploadResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  function isSupportedFile(file: File) {
+    const lowerName = file.name.toLowerCase();
+    return SUPPORTED_FILE_EXTENSIONS.some((extension) => lowerName.endsWith(extension));
+  }
+
+  function selectFile(nextFile: File) {
+    if (!isSupportedFile(nextFile)) {
+      setError("Unsupported file type. Drop PDF, DOC, DOCX, TXT, MD, or JSON.");
+      setFile(null);
+      return;
+    }
+    setFile(nextFile);
+    setResults(null);
+    setError(null);
+    if (!docName) setDocName(nextFile.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "));
+  }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
-    setFile(f);
-    setResults(null);
-    setError(null);
-    if (f && !docName) setDocName(f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "));
+    if (f) selectFile(f);
+  }
+
+  function onDragOver(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragActive(true);
+  }
+
+  function onDragLeave(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDragActive(false);
+  }
+
+  function onDrop(event: React.DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setDragActive(false);
+    const droppedFiles = Array.from(event.dataTransfer.files);
+    if (droppedFiles.length > 1) {
+      setError("Only one flight book can be uploaded at a time.");
+      return;
+    }
+    const [droppedFile] = droppedFiles;
+    if (droppedFile) selectFile(droppedFile);
+  }
+
+  function onDropZoneKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    inputRef.current?.click();
   }
 
   async function upload() {
@@ -128,19 +173,37 @@ export default function FlightbookUpload({ existingBooks }: Props) {
         {/* File picker */}
         <div>
           <label className="mb-1.5 block text-xs font-medium text-[var(--easa-color-text-secondary)]">File</label>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Choose or drop a flight book file"
+            onClick={() => inputRef.current?.click()}
+            onKeyDown={onDropZoneKeyDown}
+            onDragEnter={onDragOver}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            className={`rounded-[20px] border border-dashed p-5 text-center transition ${
+              dragActive ? "border-[var(--easa-color-brand-primary)] bg-[var(--easa-color-surface-2)]" : "border-[var(--easa-color-border)] bg-white"
+            }`}
+          >
+            <Upload className="mx-auto text-[var(--easa-color-brand-primary)]" size={22} strokeWidth={1.75} />
+            <p className="mt-2 text-sm font-semibold text-[var(--easa-color-text-primary)]">Drag and drop your flight book here</p>
+            <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">or click to browse PDF, DOC, DOCX, TXT, MD, or JSON</p>
+            {file && (
+              <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--easa-color-surface-2)] px-3 py-1 text-xs text-[var(--easa-color-text-muted)]">
+                <FileText size={12} strokeWidth={1.75} />
+                {file.name} · {(file.size / 1024).toFixed(0)} KB
+              </p>
+            )}
+          </div>
           <input
             ref={inputRef}
             type="file"
-            accept=".pdf,.doc,.docx,.txt,.md,.json"
-            className="easa-input w-full cursor-pointer"
+            accept={SUPPORTED_FILE_EXTENSIONS.join(",")}
+            className="sr-only"
             onChange={onFileChange}
           />
-          {file && (
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--easa-color-text-muted)]">
-              <FileText size={12} strokeWidth={1.75} />
-              {file.name} · {(file.size / 1024).toFixed(0)} KB
-            </p>
-          )}
           <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">PDF · DOC · DOCX · TXT · MD · JSON</p>
         </div>
 

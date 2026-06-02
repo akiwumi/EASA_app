@@ -46,7 +46,8 @@ test("flight book upload route parses DOCX files before storing originals", () =
 });
 
 test("flight book upload guidance offers DOC and DOCX Word files", () => {
-  assert.match(uploadUi, /accept="\.pdf,\.doc,\.docx,\.txt,\.md,\.json"/);
+  assert.match(uploadUi, /const SUPPORTED_FILE_EXTENSIONS = \["\.pdf", "\.doc", "\.docx", "\.txt", "\.md", "\.json"\]/);
+  assert.match(uploadUi, /accept=\{SUPPORTED_FILE_EXTENSIONS\.join\(","\)\}/);
   assert.match(uploadUi, /PDF · DOC · DOCX · TXT · MD · JSON/);
   assert.match(uploadUi, />DOC \/ DOCX<\/strong>/);
   assert.match(help, /DOCX/);
