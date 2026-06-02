@@ -110,10 +110,13 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const requestLocked = useRef(false);
   const activeConversationIdRef = useRef<string | null>(null);
+  const activeConversationStorageHydrated = useRef(false);
+  const conversationLoadSequence = useRef(0);
   const messageLoadSequence = useRef(0);
 
   useEffect(() => {
     activeConversationIdRef.current = activeConversationId;
+    if (!activeConversationStorageHydrated.current) return;
     if (activeConversationId) {
       window.localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId);
     } else {
@@ -122,7 +125,9 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
   }, [activeConversationId]);
 
   const loadConversations = useCallback(async () => {
+    const sequence = ++conversationLoadSequence.current;
     const json = await readJson(await fetch("/api/coworker/conversations"));
+    if (sequence !== conversationLoadSequence.current) return;
     const next = Array.isArray(json.conversations)
       ? json.conversations.map(normalizeConversation).filter(Boolean) as CoworkerConversation[]
       : [];
@@ -133,6 +138,12 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
         ?? next[0]?.id
         ?? null;
       activeConversationIdRef.current = active;
+      activeConversationStorageHydrated.current = true;
+      if (active) {
+        window.localStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, active);
+      } else {
+        window.localStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+      }
       return active;
     });
   }, []);
@@ -179,7 +190,7 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
         if (!cancelled && sequence === messageLoadSequence.current) setError("Unable to load messages.");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && sequence === messageLoadSequence.current) setLoading(false);
       });
     return () => { cancelled = true; };
   }, [activeConversationId, loadMessages, open]);
@@ -276,7 +287,7 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     setError(null);
     try {
-      let conversationId = activeConversationId;
+      let conversationId = activeConversationIdRef.current;
       if (!conversationId) {
         const json = await readJson(await fetch("/api/coworker/conversations", { method: "POST" }));
         const conversation = normalizeConversation(json.conversation);
@@ -305,7 +316,7 @@ export function CoworkerProvider({ children }: { children: React.ReactNode }) {
       requestLocked.current = false;
       setLoading(false);
     }
-  }, [activeConversationId, loadConversations, loadMessages]);
+  }, [loadConversations, loadMessages]);
 
   const createReviewItem = useCallback(async (findingId: string, sourceMessageId: string) => {
     if (!activeConversationId) throw new Error("No active conversation");

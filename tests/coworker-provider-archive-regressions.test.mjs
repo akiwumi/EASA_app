@@ -13,10 +13,25 @@ const conversationList = fs.readFileSync(
 
 test("provider restores a saved active conversation only after confirming the active server list", () => {
   assert.match(provider, /ACTIVE_CONVERSATION_STORAGE_KEY = "henry-active-conversation-id"/);
+  assert.match(provider, /const activeConversationStorageHydrated = useRef\(false\)/);
+  assert.match(provider, /if \(!activeConversationStorageHydrated\.current\) return/);
   assert.match(provider, /window\.localStorage\.setItem\(ACTIVE_CONVERSATION_STORAGE_KEY, activeConversationId\)/);
   assert.match(provider, /window\.localStorage\.removeItem\(ACTIVE_CONVERSATION_STORAGE_KEY\)/);
   assert.match(provider, /const saved = window\.localStorage\.getItem\(ACTIVE_CONVERSATION_STORAGE_KEY\)/);
   assert.match(provider, /\[current, saved\]\.find\(\(id\) => id && next\.some\(\(conversation\) => conversation\.id === id\)\)/);
+  assert.match(provider, /activeConversationStorageHydrated\.current = true/);
+});
+
+test("provider protects active and message loads from stale async responses", () => {
+  assert.match(provider, /const conversationLoadSequence = useRef\(0\)/);
+  assert.match(provider, /const sequence = \+\+conversationLoadSequence\.current/);
+  assert.match(provider, /if \(sequence !== conversationLoadSequence\.current\) return/);
+  assert.match(provider, /if \(!cancelled && sequence === messageLoadSequence\.current\) setLoading\(false\)/);
+});
+
+test("send uses the current active conversation ref after rapid chat switching", () => {
+  assert.match(provider, /let conversationId = activeConversationIdRef\.current/);
+  assert.match(provider, /\}, \[loadConversations, loadMessages\]\);/);
 });
 
 test("provider exposes and loads archived conversations separately", () => {
