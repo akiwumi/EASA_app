@@ -17,6 +17,7 @@ export default function CoworkerArchiveClient() {
   const {
     archivedConversations,
     deleteArchivedConversation,
+    error,
     loading,
     refreshArchivedConversations,
     restoreConversation,
@@ -46,9 +47,9 @@ export default function CoworkerArchiveClient() {
         </div>
       </section>
 
-      {loadError ? (
+      {loadError || error ? (
         <p className="rounded-[18px] border border-[var(--easa-color-border)] bg-white px-4 py-3 text-sm text-[var(--easa-color-accent-pink)]">
-          {loadError}
+          {loadError || error}
         </p>
       ) : null}
 

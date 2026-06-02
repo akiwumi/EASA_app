@@ -19,10 +19,10 @@ function defaultGeometry(): HenryGeometry {
 
 function clampGeometry(geometry: HenryGeometry): HenryGeometry {
   if (typeof window === "undefined") return geometry;
-  const maxWidth = Math.max(MIN_WIDTH, window.innerWidth - EDGE_GAP * 2);
-  const maxHeight = Math.max(MIN_HEIGHT, window.innerHeight - EDGE_GAP * 2);
-  const width = Math.min(Math.max(geometry.width, MIN_WIDTH), maxWidth);
-  const height = Math.min(Math.max(geometry.height, MIN_HEIGHT), maxHeight);
+  const viewportWidth = Math.max(0, window.innerWidth - EDGE_GAP * 2);
+  const viewportHeight = Math.max(0, window.innerHeight - EDGE_GAP * 2);
+  const width = Math.min(Math.max(geometry.width, Math.min(MIN_WIDTH, viewportWidth)), viewportWidth);
+  const height = Math.min(Math.max(geometry.height, Math.min(MIN_HEIGHT, viewportHeight)), viewportHeight);
   return {
     width,
     height,

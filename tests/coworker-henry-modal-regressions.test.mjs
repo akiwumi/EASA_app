@@ -19,6 +19,7 @@ test("Henry modal supports saved desktop drag and resize", () => {
   assert.match(geometry, /"drag" \| "resize"/);
   assert.match(geometry, /clampGeometry/);
   assert.match(geometry, /DESKTOP_BREAKPOINT = 1024/);
+  assert.match(geometry, /Math\.min\(MIN_HEIGHT, viewportHeight\)/);
 });
 
 test("Henry modal uses dashboard-style controls and mobile full-screen layout", () => {
@@ -42,6 +43,7 @@ test("Henry welcome bubble appears once per login session", () => {
   assert.match(welcome, /window\.sessionStorage/);
   assert.match(welcome, /openCoworker\(\)/);
   assert.match(welcome, /event\.stopPropagation\(\)/);
+  assert.match(welcome, /onKeyDown=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.match(appShell, /<HenryWelcomeBubble \/>/);
 });
 
@@ -55,5 +57,16 @@ test("archive page restores and confirmation-gates permanent deletion", () => {
   assert.match(archivePage, /Delete permanently/);
   assert.match(archivePage, /window\.confirm\(/);
   assert.match(archivePage, /deleteArchivedConversation\(conversation\.id\)/);
+  assert.match(archivePage, /loadError \|\| error/);
   assert.match(proxy, /"\/coworker"/);
+});
+
+test("Henry modal closes for archive navigation and manages keyboard focus", () => {
+  assert.match(modal, /ref=\{dialogRef\}/);
+  assert.match(modal, /ref=\{closeButtonRef\}/);
+  assert.match(modal, /closeButtonRef\.current\?\.focus\(\)/);
+  assert.match(modal, /previouslyFocusedRef\.current\?\.focus\(\)/);
+  assert.match(modal, /event\.key !== "Tab"/);
+  assert.match(modal, /onClick=\{closeCoworker\}/);
+  assert.match(fs.readFileSync("src/components/coworker/ConversationList.tsx", "utf8"), /href="\/coworker\/archive" onClick=\{closeCoworker\}/);
 });

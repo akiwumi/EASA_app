@@ -5,13 +5,13 @@ import { Archive, MessageSquarePlus } from "lucide-react";
 import { useCoworker } from "./CoworkerProvider";
 
 export default function ConversationList() {
-  const { conversations, activeConversationId, setActiveConversationId, createConversation, archiveConversation, loading } = useCoworker();
+  const { conversations, activeConversationId, setActiveConversationId, createConversation, archiveConversation, closeCoworker, loading } = useCoworker();
   return (
     <div className="border-b border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] p-3">
       <button type="button" disabled={loading} onClick={() => void createConversation()} className="easa-btn secondary flex w-full items-center justify-center gap-2">
         <MessageSquarePlus size={15} /> New chat
       </button>
-      <Link href="/coworker/archive" className="mt-2 flex items-center justify-center gap-2 text-xs font-semibold text-[var(--easa-color-brand-primary)] hover:underline">
+      <Link href="/coworker/archive" onClick={closeCoworker} className="mt-2 flex items-center justify-center gap-2 text-xs font-semibold text-[var(--easa-color-brand-primary)] hover:underline">
         <Archive size={13} /> Henry archive
       </Link>
       <p className="mt-3 text-[10px] font-semibold uppercase tracking-wide text-[var(--easa-color-text-muted)]">Active conversations</p>
