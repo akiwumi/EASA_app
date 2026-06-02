@@ -90,7 +90,7 @@ export default function FlightbookUpload({ existingBooks }: Props) {
       <div>
         <h1 className="text-xl font-semibold">Upload flight book</h1>
         <p className="mt-1 text-sm text-[var(--easa-color-text-muted)]">
-          Import a PDF, TXT, MD, or JSON fixture. The full file is preserved through section parsing or full-document chunking and then indexed for AI regulation comparison.
+          Import a PDF, DOCX, TXT, MD, or JSON fixture. The full file is preserved through section parsing or full-document chunking and then indexed for AI regulation comparison.
         </p>
       </div>
 
@@ -131,7 +131,7 @@ export default function FlightbookUpload({ existingBooks }: Props) {
           <input
             ref={inputRef}
             type="file"
-            accept=".pdf,.txt,.md,.json"
+            accept=".pdf,.docx,.txt,.md,.json"
             className="easa-input w-full cursor-pointer"
             onChange={onFileChange}
           />
@@ -141,7 +141,7 @@ export default function FlightbookUpload({ existingBooks }: Props) {
               {file.name} · {(file.size / 1024).toFixed(0)} KB
             </p>
           )}
-          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">PDF · TXT · MD · JSON</p>
+          <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">PDF · DOCX · TXT · MD · JSON</p>
         </div>
 
         {/* Target book */}
@@ -264,6 +264,7 @@ export default function FlightbookUpload({ existingBooks }: Props) {
 
       <div className="easa-card p-4 text-xs text-[var(--easa-color-text-muted)] space-y-1">
         <p><strong className="text-[var(--easa-color-text-secondary)]">PDF</strong>: text extracted, then stored by detected sections or full-document chunks if headings are unreliable</p>
+        <p><strong className="text-[var(--easa-color-text-secondary)]">DOCX</strong>: Word text extracted, then stored by detected sections or full-document chunks if headings are unreliable</p>
         <p><strong className="text-[var(--easa-color-text-secondary)]">TXT / MD</strong>: plain text or Markdown, stored by headings when useful and by full-document chunks when needed</p>
         <p>
           <strong className="text-[var(--easa-color-text-secondary)]">JSON</strong>

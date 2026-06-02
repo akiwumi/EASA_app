@@ -350,11 +350,12 @@ export const ARTICLES: Article[] = [
         body: "The following file formats are supported for upload:",
         bullets: [
           "PDF: the most common format for flight school manuals. Text is extracted automatically; scanned documents may have reduced accuracy.",
+          "DOCX: Microsoft Word documents. Text is extracted automatically and indexed using the same section detection flow.",
           "Markdown (.md): ideal for version-controlled documentation. Headings become section titles automatically.",
           "Plain text (.txt): works well for simpler documents.",
           "JSON: structured data format supported for integration with other document management systems.",
         ],
-        tip: "PDF is recommended for most schools. If your manual is stored in Word or Pages format, export it as PDF before uploading.",
+        tip: "PDF and DOCX are recommended for most schools. If your manual is stored in Pages format, export it as PDF or DOCX before uploading.",
       },
       {
         heading: "Upload size limits",
@@ -374,7 +375,7 @@ export const ARTICLES: Article[] = [
       },
       {
         heading: "How indexing works",
-        body: "After upload, the system parses your document into sections. For PDFs, section boundaries are detected from headings, numbered paragraphs, and page breaks. For Markdown, headings (##, ###) define sections directly.",
+        body: "After upload, the system parses your document into sections. For PDFs and DOCX files, section boundaries are detected from headings and numbered paragraphs. For Markdown, headings (##, ###) define sections directly.",
         tip: "A well-structured PDF with clear heading hierarchy will produce more accurate section mapping. If your manual uses continuous paragraph numbering (e.g. 3.2.1), make sure those are formatted as headings rather than inline bold text.",
       },
       {

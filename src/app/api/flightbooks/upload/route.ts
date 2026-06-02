@@ -5,6 +5,7 @@ import {
   estimateTokenCount,
   hashChunk,
 } from "@/lib/ai/embeddings";
+import { extractDocxText } from "@/lib/flightbooks/docx";
 
 export const runtime = "nodejs";
 
@@ -205,6 +206,13 @@ export async function POST(request: Request) {
     documents = [{ docName: docName ?? file.name.replace(/\.[^.]+$/, ""), docType, versionLabel, sections }];
   }
 
+  // ── DOCX ────────────────────────────────────────────────────────────────────
+  else if (filename.endsWith(".docx")) {
+    const text = await extractDocxText(bytes);
+    const sections = detectSections(text);
+    documents = [{ docName: docName ?? file.name.replace(/\.docx$/i, ""), docType, versionLabel, sections }];
+  }
+
   // ── PDF ─────────────────────────────────────────────────────────────────────
   else if (filename.endsWith(".pdf")) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -215,7 +223,7 @@ export async function POST(request: Request) {
   }
 
   else {
-    return NextResponse.json({ error: "Unsupported file type. Upload PDF, TXT, MD, or JSON." }, { status: 400 });
+    return NextResponse.json({ error: "Unsupported file type. Upload PDF, DOCX, TXT, MD, or JSON." }, { status: 400 });
   }
 
   // ── Upload limits ────────────────────────────────────────────────────────────
