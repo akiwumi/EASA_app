@@ -20,6 +20,7 @@ const PROTECTED_PREFIXES = [
   "/training",
   "/history",
   "/notifications",
+  "/coworker",
   "/settings",
   "/profile",
 ];
