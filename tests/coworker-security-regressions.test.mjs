@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
 
 const conversations = fs.readFileSync("src/lib/coworker/conversations.ts", "utf8");
 const conversationsRoute = fs.readFileSync("src/app/api/coworker/conversations/route.ts", "utf8");
@@ -17,8 +18,14 @@ const schemaMigration = fs.readFileSync(
   "utf8",
 );
 const proposedUpdates = fs.readFileSync("src/lib/ai/proposed-updates.ts", "utf8");
+const proposedUpdatePreview = fs.existsSync("src/lib/ai/proposed-update-preview.ts")
+  ? fs.readFileSync("src/lib/ai/proposed-update-preview.ts", "utf8")
+  : "";
 const coworkerTools = fs.existsSync("src/lib/coworker/tools.ts")
   ? fs.readFileSync("src/lib/coworker/tools.ts", "utf8")
+  : "";
+const coworkerOrchestration = fs.existsSync("src/lib/coworker/orchestrate-message.ts")
+  ? fs.readFileSync("src/lib/coworker/orchestrate-message.ts", "utf8")
   : "";
 const queueFindingService = fs.existsSync("src/lib/findings/queue-finding.ts")
   ? fs.readFileSync("src/lib/findings/queue-finding.ts", "utf8")
@@ -36,6 +43,39 @@ function functionBody(source, name, nextName) {
   assert.notEqual(start, -1, `${name} export is missing`);
   const end = nextName ? source.indexOf(`export async function ${nextName}`, start) : source.length;
   return source.slice(start, end === -1 ? source.length : end);
+}
+
+function resolveLocalModule(fromFile, specifier) {
+  const basePath = specifier.startsWith("@/")
+    ? path.join("src", specifier.slice(2))
+    : path.resolve(path.dirname(fromFile), specifier);
+  return [
+    basePath,
+    `${basePath}.ts`,
+    `${basePath}.tsx`,
+    path.join(basePath, "index.ts"),
+    path.join(basePath, "index.tsx"),
+  ].find((candidate) => fs.existsSync(candidate)) ?? null;
+}
+
+function reachableLocalModules(entryFile) {
+  const visited = new Set();
+  const pending = [entryFile];
+
+  while (pending.length) {
+    const file = pending.pop();
+    if (!file || visited.has(file)) continue;
+    visited.add(file);
+    const source = fs.readFileSync(file, "utf8");
+    for (const match of source.matchAll(/(?:from\s+|import\()\s*["']([^"']+)["']/g)) {
+      const specifier = match[1];
+      if (!specifier.startsWith("@/") && !specifier.startsWith(".")) continue;
+      const resolved = resolveLocalModule(file, specifier);
+      if (resolved) pending.push(resolved);
+    }
+  }
+
+  return visited;
 }
 
 test("conversation reads scope organization and user ownership", () => {
@@ -130,26 +170,39 @@ test("conversation routes authenticate, report server errors, and preserve messa
   assert.match(messagesRoute, /console\.error/);
   assert.match(messagesRoute, /\{ error: "Internal server error" \}/);
   assert.doesNotMatch(messagesRoute, /error\.message/);
-  assert.doesNotMatch(messagesRoute, /export async function POST/);
+  assert.match(messagesRoute, /export async function POST/);
+  assert.match(messagesRoute, /orchestrateCoworkerMessage/);
+});
+
+test("normal coworker chat cannot queue findings or import mutation tools", () => {
+  assert.doesNotMatch(messagesRoute, /queueFinding|queue-finding|create-review-item/);
+  assert.doesNotMatch(coworkerOrchestration, /queueFinding|queue-finding|create-review-item/);
 });
 
 test("coworker draft previews use the preview-only helper", () => {
-  const previewRegionStart = proposedUpdates.indexOf("async function generateDraftPreview(");
-  const previewRegionEnd = proposedUpdates.indexOf(
-    "export async function generateDraftForProposedUpdate",
-    previewRegionStart,
-  );
-  assert.notEqual(previewRegionStart, -1, "generateDraftPreview helper is missing");
-  assert.notEqual(previewRegionEnd, -1, "generateDraftForProposedUpdate export is missing");
-  const previewOnlyRegion = proposedUpdates.slice(previewRegionStart, previewRegionEnd);
-
-  assert.match(proposedUpdates, /export async function generateDraftPreviewForFinding/);
-  assert.doesNotMatch(previewOnlyRegion, /\.from\("proposed_updates"\)/);
-  assert.doesNotMatch(previewOnlyRegion, /updateProposedDraftWithFallback/);
-  assert.doesNotMatch(previewOnlyRegion, /insertProposedUpdateWithFallback/);
-  assert.match(coworkerTools, /generateDraftPreviewForFinding/);
+  assert.match(coworkerTools, /from "@\/lib\/ai\/proposed-update-preview"/);
+  assert.doesNotMatch(coworkerTools, /from "@\/lib\/ai\/proposed-updates"/);
+  assert.match(proposedUpdatePreview, /export async function generateDraftPreviewForFinding/);
+  assert.doesNotMatch(proposedUpdatePreview, /\.from\("proposed_updates"\)/);
+  assert.doesNotMatch(proposedUpdatePreview, /\.insert\(/);
+  assert.doesNotMatch(proposedUpdatePreview, /\.update\(/);
+  assert.doesNotMatch(proposedUpdatePreview, /@\/lib\/ai\/proposed-updates/);
   assert.doesNotMatch(coworkerTools, /insertProposedUpdateWithFallback/);
   assert.doesNotMatch(coworkerTools, /updateProposedDraftWithFallback/);
+});
+
+test("coworker read-only tool graph cannot reach proposed update writes", () => {
+  const reachable = reachableLocalModules("src/lib/coworker/tools.ts");
+  assert.equal(reachable.has("src/lib/ai/proposed-updates.ts"), false);
+
+  for (const file of reachable) {
+    const source = fs.readFileSync(file, "utf8");
+    assert.doesNotMatch(
+      source,
+      /\.from\("proposed_updates"\)[\s\S]{0,160}\.(?:insert|update)\(/,
+      `${file} must not write proposed_updates`,
+    );
+  }
 });
 
 test("pending coworker findings filter nested organization ownership and tolerate schema drift", () => {

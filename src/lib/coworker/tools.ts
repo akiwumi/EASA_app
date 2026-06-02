@@ -1,5 +1,5 @@
 import { buildReviewPreview } from "@/lib/ai/review-preview";
-import { generateDraftPreviewForFinding } from "@/lib/ai/proposed-updates";
+import { generateDraftPreviewForFinding } from "@/lib/ai/proposed-update-preview";
 import {
   getSupabaseAdminClient,
   type OrgAccessContext,

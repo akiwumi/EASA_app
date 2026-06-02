@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   ConversationRequestValidationError,
   isUuid,
+  parseCoworkerMessageRequest,
   parseConversationRequestBody,
   parseConversationTitle,
 } from "../src/lib/coworker/request-validation.ts";
@@ -56,5 +57,43 @@ for (const value of [
 ]) {
   test(`isUuid rejects malformed value: ${value}`, () => {
     assert.equal(isUuid(value), false);
+  });
+}
+
+test("parseCoworkerMessageRequest trims content and accepts an optional finding UUID", () => {
+  assert.deepEqual(
+    parseCoworkerMessageRequest(
+      '{"content":"  Explain this finding  ","findingId":"123e4567-e89b-42d3-a456-426614174000"}',
+    ),
+    {
+      content: "Explain this finding",
+      findingId: "123e4567-e89b-42d3-a456-426614174000",
+    },
+  );
+});
+
+test("parseCoworkerMessageRequest accepts omitted finding context", () => {
+  assert.deepEqual(parseCoworkerMessageRequest('{"content":"What changed?"}'), {
+    content: "What changed?",
+  });
+});
+
+for (const value of [
+  "",
+  "{",
+  "null",
+  "[]",
+  "{}",
+  '{"content":42}',
+  '{"content":"   "}',
+  `{"content":"${"x".repeat(4001)}"}`,
+  '{"content":"Explain","findingId":"not-a-uuid"}',
+  '{"content":"Explain","findingId":42}',
+]) {
+  test(`parseCoworkerMessageRequest rejects invalid input: ${value.slice(0, 40)}`, () => {
+    assert.throws(
+      () => parseCoworkerMessageRequest(value),
+      ConversationRequestValidationError,
+    );
   });
 }

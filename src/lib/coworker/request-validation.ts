@@ -43,3 +43,39 @@ export function isUuid(value: string) {
     value,
   );
 }
+
+export function parseCoworkerMessageRequest(rawText: string): {
+  content: string;
+  findingId?: string;
+} {
+  let value: unknown;
+  try {
+    value = JSON.parse(rawText);
+  } catch {
+    throw new ConversationRequestValidationError("request body must be valid JSON");
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new ConversationRequestValidationError("request body must be an object");
+  }
+
+  const { content, findingId } = value as Record<string, unknown>;
+  if (typeof content !== "string") {
+    throw new ConversationRequestValidationError("content must be a string");
+  }
+
+  const trimmedContent = content.trim();
+  if (!trimmedContent || trimmedContent.length > 4000) {
+    throw new ConversationRequestValidationError(
+      "content must contain between 1 and 4000 characters",
+    );
+  }
+
+  if (findingId !== undefined && (typeof findingId !== "string" || !isUuid(findingId))) {
+    throw new ConversationRequestValidationError("findingId must be a UUID");
+  }
+
+  return findingId === undefined
+    ? { content: trimmedContent }
+    : { content: trimmedContent, findingId };
+}
