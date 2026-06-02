@@ -40,3 +40,4 @@ yarn-error.log*
 *.tsbuildinfo
 .gstack/
 .claude/worktrees/
+.superpowers/
