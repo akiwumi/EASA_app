@@ -41,6 +41,19 @@ Mobile behavior:
 - disable dragging and resizing
 - keep the close control visible
 
+## Welcome Bubble
+
+Show a small Henry welcome bubble once per login session on the first authenticated page:
+
+- use the Flight Lyceum dashboard visual language
+- position it near the persistent Henry launcher
+- display `Hello, how can I help you?`
+- clicking the bubble opens Henry
+- clicking the dismiss control closes the bubble without opening Henry
+- do not show the bubble again during the same login session
+- allow the bubble to appear again after the user signs out and signs in again
+- use session storage for the per-login-session dismissal state
+
 The modal contains:
 
 - Henry title and short compliance-focused subtitle
@@ -139,8 +152,8 @@ Add focused checks for:
 - permanent delete rejects active conversations
 - archived conversations cannot receive new messages
 - Henry open state survives authenticated route navigation
+- welcome bubble appears once per login session and opens Henry when clicked
 - modal drag and resize behavior
 - local-storage size, position, and active-conversation restoration
 - mobile full-screen behavior
 - archive page restore and confirmation-gated permanent delete
-
