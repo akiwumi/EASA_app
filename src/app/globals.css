@@ -1377,17 +1377,17 @@ button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):act
 .fl-dash .fl-ai-hero-action {
   display: flex;
   justify-content: flex-end;
-  flex: 1 1 440px;
-  min-width: min(100%, 320px);
+  flex: 1 1 224px;
+  min-width: min(100%, 224px);
 }
 .fl-dash .fl-run-ai-btn-primary {
   justify-content: flex-start;
-  gap: 18px;
-  width: min(100%, 560px);
-  min-height: 128px;
-  padding: 18px 22px 18px 18px;
+  gap: 8px;
+  width: min(100%, 224px);
+  min-height: 52px;
+  padding: 7px 10px 7px 7px;
   background: var(--fl-accent);
-  box-shadow: 0 20px 44px rgba(198, 103, 71, 0.26);
+  box-shadow: 0 8px 18px rgba(198, 103, 71, 0.26);
 }
 .fl-dash .fl-run-ai-btn-primary:hover:not(:disabled) {
   filter: brightness(1.04);
@@ -1401,32 +1401,32 @@ button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):act
   border-radius: 50%;
 }
 .fl-dash .fl-run-ai-icon {
-  width: 76px;
-  height: 76px;
+  width: 30px;
+  height: 30px;
   background: rgba(255, 255, 255, 0.18);
 }
 .fl-dash .fl-run-ai-copy {
   display: grid;
-  gap: 6px;
+  gap: 2px;
   min-width: 0;
   flex: 1 1 auto;
   text-align: left;
 }
 .fl-dash .fl-run-ai-copy span {
-  font-size: 32px;
+  font-size: 14px;
   line-height: 1;
   font-weight: 900;
 }
 .fl-dash .fl-run-ai-copy small {
   color: rgba(255, 255, 255, 0.82);
-  font-size: 15px;
+  font-size: 8px;
   line-height: 1.25;
   font-weight: 700;
   white-space: normal;
 }
 .fl-dash .fl-run-ai-arrow {
-  width: 48px;
-  height: 48px;
+  width: 24px;
+  height: 24px;
   background: #fff;
   color: var(--fl-accent);
 }
@@ -1973,8 +1973,8 @@ button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):act
   .fl-dash { padding: 16px 20px 20px; }
   .fl-dash .fl-hero { gap: 16px; }
   .fl-dash .fl-ai-hero-action { justify-content: flex-start; flex-basis: 100%; }
-  .fl-dash .fl-run-ai-btn-primary { width: 100%; min-height: 104px; }
-  .fl-dash .fl-run-ai-copy span { font-size: 26px; }
+  .fl-dash .fl-run-ai-btn-primary { width: min(100%, 224px); min-height: 52px; }
+  .fl-dash .fl-run-ai-copy span { font-size: 14px; }
   .fl-dash .fl-grid { grid-template-columns: repeat(6, 1fr); gap: 10px; }
   .fl-dash .fl-visa, .fl-dash .fl-flows, .fl-dash .fl-dials,
   .fl-dash .fl-days, .fl-dash .fl-year, .fl-dash .fl-profits,
@@ -1997,9 +1997,9 @@ button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):act
   .fl-dash .fl-activity-cards { grid-template-columns: 1fr; }
   .fl-dash .fl-verify-card { grid-template-columns: 56px minmax(0, 1fr); }
   .fl-dash .fl-verify-btn { grid-column: 1 / -1; width: 100%; }
-  .fl-dash .fl-run-ai-btn-primary { min-height: 96px; gap: 12px; padding: 14px; }
-  .fl-dash .fl-run-ai-icon { width: 56px; height: 56px; }
-  .fl-dash .fl-run-ai-copy span { font-size: 24px; }
-  .fl-dash .fl-run-ai-copy small { font-size: 13px; }
-  .fl-dash .fl-run-ai-arrow { width: 40px; height: 40px; }
+  .fl-dash .fl-run-ai-btn-primary { min-height: 52px; gap: 8px; padding: 7px 10px 7px 7px; }
+  .fl-dash .fl-run-ai-icon { width: 30px; height: 30px; }
+  .fl-dash .fl-run-ai-copy span { font-size: 14px; }
+  .fl-dash .fl-run-ai-copy small { font-size: 8px; }
+  .fl-dash .fl-run-ai-arrow { width: 24px; height: 24px; }
 }

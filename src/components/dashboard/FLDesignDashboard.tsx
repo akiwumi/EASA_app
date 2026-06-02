@@ -964,12 +964,12 @@ export default function FLDesignDashboard({
               disabled={aiRunStatus === "running"}
               aria-label="Run RSS retrieval and AI analysis"
             >
-              <span className="fl-run-ai-icon"><Icon name="sun-burst" size={34} /></span>
+              <span className="fl-run-ai-icon"><Icon name="sun-burst" size={16} /></span>
               <span className="fl-run-ai-copy">
                 <span>{aiRunStatus === "running" ? "Running AI" : "Run AI"}</span>
                 <small>Retrieve RSS updates and analyse changes</small>
               </span>
-              <span className="fl-run-ai-arrow"><Icon name="arrow-right" size={20} stroke={2.2} /></span>
+              <span className="fl-run-ai-arrow"><Icon name="arrow-right" size={12} stroke={2.2} /></span>
             </button>
           </div>
           {aiRunMessage && (
