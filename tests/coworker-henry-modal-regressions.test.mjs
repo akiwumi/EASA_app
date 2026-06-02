@@ -37,6 +37,14 @@ test("Henry launcher uses the Henry name on desktop and mobile", () => {
   assert.doesNotMatch(launcher, /Compliance coworker/);
 });
 
+test("Henry has a persistent top-right toggle on desktop and mobile", () => {
+  assert.match(launcher, /variant\?: "sidebar" \| "icon" \| "floating"/);
+  assert.match(launcher, /variant === "floating"/);
+  assert.match(launcher, /open \? closeCoworker : openCoworker/);
+  assert.match(launcher, /fixed right-4 top-4 z-\[60\]/);
+  assert.match(appShell, /<CoworkerLauncher variant="floating" \/>/);
+});
+
 test("Henry welcome bubble appears once per login session", () => {
   assert.match(welcome, /Hello, how can I help you\?/);
   assert.match(welcome, /henry-welcome-dismissed/);

@@ -620,6 +620,7 @@ function AppShellContent({
         onUnreadChange={handleUnreadChange}
       />
       <CoworkerDrawer />
+      <CoworkerLauncher variant="floating" />
       <HenryWelcomeBubble />
     </div>
   );
