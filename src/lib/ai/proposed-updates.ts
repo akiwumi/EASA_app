@@ -660,6 +660,163 @@ export async function ensureQueuedUpdatesForOrg(
   };
 }
 
+async function generateDraftPreview(
+  admin: SupabaseClient,
+  input: {
+    organizationId: string;
+    finding: FindingRow;
+    notes?: string[];
+    flightbookId?: string | null;
+  },
+) {
+  const { organizationId, finding } = input;
+  const aiConfig = await loadAiConfig(admin, organizationId);
+  if (!aiConfig) {
+    return { ok: false as const, error: "No AI API key configured. Add one in Admin → AI settings." };
+  }
+
+  const rss = unwrapMaybeArray(finding.rss_items);
+  const updateTitle = rss?.title ?? "EASA Update";
+  const updateSummary = rss?.summary ?? "";
+  const findingSummary = finding.summary ?? "";
+  const mappedSection = finding.mapped_section ?? "";
+  const regPart = categoryToPart(finding.category ?? rss?.category ?? null);
+  const retrievalQuery = buildRetrievalQuery({
+    title: updateTitle,
+    rssSummary: updateSummary,
+    findingSummary,
+    mappedSection,
+    regPart,
+  });
+
+  const [regulationChunks, flightbookChunks] = await Promise.all([
+    retrieveRegulationChunks(admin, {
+      organizationId,
+      queryText: retrievalQuery,
+      regPart,
+      limit: 5,
+      minSimilarity: 0.2,
+    }),
+    retrieveFlightbookChunks(admin, {
+      organizationId,
+      queryText: retrievalQuery,
+      regPart,
+      limit: 5,
+      minSimilarity: 0.2,
+      flightbookId: input.flightbookId || null,
+    }),
+  ]);
+
+  const primaryFlightbook = flightbookChunks[0];
+  if (!primaryFlightbook) {
+    return { ok: false as const, error: "No flight book sections found. Upload a flight book first." };
+  }
+
+  const prompt = buildRevisionPrompt({
+    updateTitle,
+    updateSummary,
+    findingSummary,
+    regPart,
+    primaryFlightbook,
+    regulationChunks,
+    flightbookChunks,
+    notes: input.notes,
+  });
+
+  let aiText: string;
+  try {
+    aiText = await callAI(aiConfig.provider, aiConfig.model, aiConfig.apiKey, prompt);
+  } catch (err) {
+    return { ok: false as const, error: err instanceof Error ? err.message : "AI provider did not return a response." };
+  }
+
+  const parsedDraft =
+    extractGeneratedDraft(aiText) ??
+    makeFallbackDraft(primaryFlightbook, regulationChunks, flightbookChunks, findingSummary);
+  const sourceCitations = [
+    ...regulationChunks.map(compactCitation),
+    ...flightbookChunks.map(compactCitation),
+  ];
+  const retrievalContext = {
+    regPart,
+    retrievalQuery,
+    regulationChunkIds: regulationChunks.map((chunk) => chunk.id),
+    flightbookChunkIds: flightbookChunks.map((chunk) => chunk.id),
+    primaryFlightbookSectionId: primaryFlightbook.id,
+  };
+  const now = new Date().toISOString();
+
+  return {
+    ok: true as const,
+    data: {
+      sectionId: primaryFlightbook.id,
+      sectionTitle: primaryFlightbook.title,
+      sectionNumber: primaryFlightbook.sectionNumber,
+      flightbookName: primaryFlightbook.flightbookName ?? "Unknown",
+      currentBody: primaryFlightbook.body,
+      suggestedText: parsedDraft.suggestedText,
+      citations: sourceCitations,
+      whyThisSection: parsedDraft.whyThisSection,
+      changeSummary: parsedDraft.changeSummary,
+      confidence: parsedDraft.confidence,
+      regulationChunks: regulationChunks.map(compactCitation),
+      flightbookChunks: flightbookChunks.map(compactCitation),
+    },
+    draftUpdatePayload: {
+      ai_suggested_text: parsedDraft.suggestedText,
+      ai_rationale: parsedDraft.changeSummary || finding.summary || null,
+      flightbook_section_id: primaryFlightbook.id,
+      retrieval_context: retrievalContext,
+      generation_prompt_version: GENERATION_PROMPT_VERSION,
+      source_citations: sourceCitations,
+      retrieved_at: now,
+      ai_model: aiConfig.model,
+      ai_generated_at: now,
+      updated_at: now,
+    },
+  };
+}
+
+export async function generateDraftPreviewForFinding(
+  admin: SupabaseClient,
+  input: {
+    organizationId: string;
+    findingId: string;
+    notes?: string[];
+    flightbookId?: string | null;
+  },
+) {
+  const { data, error } = await admin
+    .from("ai_findings")
+    .select(`
+      id,
+      impact,
+      confidence,
+      mapped_section,
+      summary,
+      rss_item_id,
+      organization_id,
+      category,
+      rss_items ( title, summary, link, published_at, category )
+    `)
+    .eq("id", input.findingId)
+    .eq("organization_id", input.organizationId)
+    .maybeSingle();
+
+  if (error) return { ok: false as const, error: error.message };
+  if (!data) return { ok: false as const, error: "Finding not found." };
+
+  const preview = await generateDraftPreview(admin, {
+    organizationId: input.organizationId,
+    finding: data as FindingRow,
+    notes: input.notes,
+    flightbookId: input.flightbookId,
+  });
+
+  if (!preview.ok) return preview;
+  return { ok: true as const, data: preview.data };
+}
+
 export async function generateDraftForProposedUpdate(
   admin: SupabaseClient,
   proposedUpdateId: string,
@@ -800,124 +957,25 @@ export async function generateDraftForProposedUpdate(
     return { ok: false as const, error: refreshLinkError.message };
   }
 
-  const aiConfig = await loadAiConfig(admin, orgId);
-  if (!aiConfig) {
-    return { ok: false as const, error: "No AI API key configured. Add one in Admin → AI settings." };
-  }
-
-  const rss = unwrapMaybeArray(finding.rss_items);
-  const updateTitle = rss?.title ?? "EASA Update";
-  const updateSummary = rss?.summary ?? "";
-  const findingSummary = finding.summary ?? "";
-  const mappedSection = finding.mapped_section ?? "";
-  const regPart = categoryToPart(finding.category ?? rss?.category ?? null);
-
-  const retrievalQuery = buildRetrievalQuery({
-    title: updateTitle,
-    rssSummary: updateSummary,
-    findingSummary,
-    mappedSection,
-    regPart,
-  });
-
-  const [regulationChunks, flightbookChunks] = await Promise.all([
-    retrieveRegulationChunks(admin, {
-      organizationId: orgId,
-      queryText: retrievalQuery,
-      regPart,
-      limit: 5,
-      minSimilarity: 0.2,
-    }),
-    retrieveFlightbookChunks(admin, {
-      organizationId: orgId,
-      queryText: retrievalQuery,
-      regPart,
-      limit: 5,
-      minSimilarity: 0.2,
-      flightbookId: flightbookId || null,
-    }),
-  ]);
-
-  const primaryFlightbook = flightbookChunks[0];
-  if (!primaryFlightbook) {
-    return { ok: false as const, error: "No flight book sections found. Upload a flight book first." };
-  }
-
-  const prompt = buildRevisionPrompt({
-    updateTitle,
-    updateSummary,
-    findingSummary,
-    regPart,
-    primaryFlightbook,
-    regulationChunks,
-    flightbookChunks,
+  const preview = await generateDraftPreview(admin, {
+    organizationId: orgId,
+    finding,
     notes,
+    flightbookId,
   });
-
-  let aiText: string;
-  try {
-    aiText = await callAI(aiConfig.provider, aiConfig.model, aiConfig.apiKey, prompt);
-  } catch (err) {
-    return { ok: false as const, error: err instanceof Error ? err.message : "AI provider did not return a response." };
-  }
-
-  const parsedDraft =
-    extractGeneratedDraft(aiText) ??
-    makeFallbackDraft(primaryFlightbook, regulationChunks, flightbookChunks, findingSummary);
-
-  const sourceCitations = [
-    ...regulationChunks.map(compactCitation),
-    ...flightbookChunks.map(compactCitation),
-  ];
-
-  const retrievalContext = {
-    regPart,
-    retrievalQuery,
-    regulationChunkIds: regulationChunks.map((chunk) => chunk.id),
-    flightbookChunkIds: flightbookChunks.map((chunk) => chunk.id),
-    primaryFlightbookSectionId: primaryFlightbook.id,
-  };
-
-  const draftUpdatePayload = {
-    ai_suggested_text: parsedDraft.suggestedText,
-    ai_rationale: parsedDraft.changeSummary || finding.summary || null,
-    flightbook_section_id: primaryFlightbook.id,
-    retrieval_context: retrievalContext,
-    generation_prompt_version: GENERATION_PROMPT_VERSION,
-    source_citations: sourceCitations,
-    retrieved_at: new Date().toISOString(),
-    ai_model: aiConfig.model,
-    ai_generated_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  if (!preview.ok) return preview;
 
   const { error: updateError } = await updateProposedDraftWithFallback(
     admin,
     proposedUpdateId,
-    draftUpdatePayload,
+    preview.draftUpdatePayload,
   );
 
   if (updateError) {
     return { ok: false as const, error: updateError.message };
   }
 
-  return {
-    ok: true as const,
-    data: {
-      sectionId: primaryFlightbook.id,
-      sectionTitle: primaryFlightbook.title,
-      sectionNumber: primaryFlightbook.sectionNumber,
-      flightbookName: primaryFlightbook.flightbookName ?? "Unknown",
-      currentBody: primaryFlightbook.body,
-      suggestedText: parsedDraft.suggestedText,
-      citations: sourceCitations,
-      whyThisSection: parsedDraft.whyThisSection,
-      changeSummary: parsedDraft.changeSummary,
-      confidence: parsedDraft.confidence,
-      regulationChunks: regulationChunks.map(compactCitation),
-      flightbookChunks: flightbookChunks.map(compactCitation),
-    },
-  };
+  return { ok: true as const, data: preview.data };
 }
 
 export async function generateDraftsForOrg(

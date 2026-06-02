@@ -16,6 +16,10 @@ const schemaMigration = fs.readFileSync(
   "supabase/migrations/schema/037_coworker_conversations.sql",
   "utf8",
 );
+const proposedUpdates = fs.readFileSync("src/lib/ai/proposed-updates.ts", "utf8");
+const coworkerTools = fs.existsSync("src/lib/coworker/tools.ts")
+  ? fs.readFileSync("src/lib/coworker/tools.ts", "utf8")
+  : "";
 
 function functionBody(source, name, nextName) {
   const start = source.indexOf(`export async function ${name}`);
@@ -104,4 +108,38 @@ test("conversation routes authenticate, report server errors, and preserve messa
   assert.match(messagesRoute, /\{ error: "Internal server error" \}/);
   assert.doesNotMatch(messagesRoute, /error\.message/);
   assert.doesNotMatch(messagesRoute, /export async function POST/);
+});
+
+test("coworker draft previews use the preview-only helper", () => {
+  const previewRegionStart = proposedUpdates.indexOf("async function generateDraftPreview(");
+  const previewRegionEnd = proposedUpdates.indexOf(
+    "export async function generateDraftForProposedUpdate",
+    previewRegionStart,
+  );
+  assert.notEqual(previewRegionStart, -1, "generateDraftPreview helper is missing");
+  assert.notEqual(previewRegionEnd, -1, "generateDraftForProposedUpdate export is missing");
+  const previewOnlyRegion = proposedUpdates.slice(previewRegionStart, previewRegionEnd);
+
+  assert.match(proposedUpdates, /export async function generateDraftPreviewForFinding/);
+  assert.doesNotMatch(previewOnlyRegion, /\.from\("proposed_updates"\)/);
+  assert.doesNotMatch(previewOnlyRegion, /updateProposedDraftWithFallback/);
+  assert.doesNotMatch(previewOnlyRegion, /insertProposedUpdateWithFallback/);
+  assert.match(coworkerTools, /generateDraftPreviewForFinding/);
+  assert.doesNotMatch(coworkerTools, /insertProposedUpdateWithFallback/);
+  assert.doesNotMatch(coworkerTools, /updateProposedDraftWithFallback/);
+});
+
+test("pending coworker findings filter nested organization ownership and tolerate schema drift", () => {
+  const body = functionBody(coworkerTools, "listPendingFindings", "explainFinding");
+
+  assert.match(body, /ai_findings\s*\(\s*id,\s*organization_id,\s*summary,/);
+  assert.match(body, /finding\?\.organization_id !== ctx\.orgId/);
+  assert.match(coworkerTools, /function isMissingSchemaError/);
+  assert.match(body, /if \(isMissingSchemaError\(error\)\)/);
+  assert.match(body, /content: MISSING_EVIDENCE,\s*citations: \[\],\s*cards: \[\]/);
+});
+
+test("persisted proposal draft generation keeps queue persistence", () => {
+  const body = functionBody(proposedUpdates, "generateDraftForProposedUpdate", "generateDraftsForOrg");
+  assert.match(body, /updateProposedDraftWithFallback/);
 });
