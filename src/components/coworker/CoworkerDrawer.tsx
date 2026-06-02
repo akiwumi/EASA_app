@@ -25,6 +25,7 @@ export default function CoworkerDrawer() {
       <div className="fixed inset-0 z-40 bg-[rgba(24,38,38,0.16)]" onClick={closeCoworker} aria-hidden="true" />
       <div
         role="dialog"
+        data-henry-modal
         aria-label="Henry compliance coworker"
         aria-modal="true"
         className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-white shadow-[0_20px_60px_rgba(24,38,38,0.22)] lg:inset-auto lg:rounded-[30px] lg:border lg:border-[var(--easa-color-border)]"
@@ -37,6 +38,7 @@ export default function CoworkerDrawer() {
       >
         <div
           className="flex shrink-0 touch-none items-center justify-between border-b border-[var(--easa-color-border)] bg-white px-5 py-4 lg:cursor-move"
+          data-henry-drag-handle
           onPointerDown={onHeaderPointerDown}
         >
           <div className="flex items-center gap-2">

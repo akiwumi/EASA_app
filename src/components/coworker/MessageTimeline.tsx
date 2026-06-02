@@ -18,7 +18,7 @@ export default function MessageTimeline() {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
         <Bot size={32} className="text-[var(--easa-color-brand-primary)]" strokeWidth={1.5} />
-        <p className="text-sm font-semibold">Focused compliance coworker</p>
+        <p className="text-sm font-semibold">Henry</p>
         <p className="text-xs text-[var(--easa-color-text-muted)]">Ask about manuals, pending findings, or a draft update. Changes always go to review first.</p>
       </div>
     );

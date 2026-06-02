@@ -32,6 +32,7 @@ function clampGeometry(geometry: HenryGeometry): HenryGeometry {
 }
 
 function readSavedGeometry() {
+  if (typeof window === "undefined") return defaultGeometry();
   try {
     const value = window.localStorage.getItem(STORAGE_KEY);
     if (!value) return defaultGeometry();
@@ -49,14 +50,15 @@ function readSavedGeometry() {
 }
 
 export function useHenryModalGeometry() {
-  const [geometry, setGeometry] = useState<HenryGeometry>(() => defaultGeometry());
-  const [desktop, setDesktop] = useState(false);
+  const [geometry, setGeometry] = useState<HenryGeometry>(() => readSavedGeometry());
+  const [desktop, setDesktop] = useState(() => (
+    typeof window !== "undefined"
+    && window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`).matches
+  ));
 
   useEffect(() => {
     const media = window.matchMedia(`(min-width: ${DESKTOP_BREAKPOINT}px)`);
     const syncDesktop = () => setDesktop(media.matches);
-    syncDesktop();
-    setGeometry(readSavedGeometry());
     media.addEventListener("change", syncDesktop);
     const clampToViewport = () => setGeometry((current) => clampGeometry(current));
     window.addEventListener("resize", clampToViewport);

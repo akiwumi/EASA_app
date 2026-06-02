@@ -1,34 +1,44 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { Bot, X } from "lucide-react";
 import { useCoworker } from "./CoworkerProvider";
 
 export const HENRY_WELCOME_DISMISSED_KEY = "henry-welcome-dismissed";
+const HENRY_WELCOME_DISMISSED_EVENT = "henry-welcome-dismissed-change";
+
+function subscribeToDismissal(callback: () => void) {
+  window.addEventListener(HENRY_WELCOME_DISMISSED_EVENT, callback);
+  return () => window.removeEventListener(HENRY_WELCOME_DISMISSED_EVENT, callback);
+}
+
+function isDismissed() {
+  return window.sessionStorage.getItem(HENRY_WELCOME_DISMISSED_KEY) === "true";
+}
+
+function dismissWelcome() {
+  window.sessionStorage.setItem(HENRY_WELCOME_DISMISSED_KEY, "true");
+  window.dispatchEvent(new Event(HENRY_WELCOME_DISMISSED_EVENT));
+}
 
 export default function HenryWelcomeBubble() {
   const { open, openCoworker } = useCoworker();
-  const [visible, setVisible] = useState(false);
+  const dismissed = useSyncExternalStore(subscribeToDismissal, isDismissed, () => true);
 
   const dismiss = useCallback(() => {
-    window.sessionStorage.setItem(HENRY_WELCOME_DISMISSED_KEY, "true");
-    setVisible(false);
+    dismissWelcome();
   }, []);
 
   useEffect(() => {
-    setVisible(window.sessionStorage.getItem(HENRY_WELCOME_DISMISSED_KEY) !== "true");
-  }, []);
-
-  useEffect(() => {
-    if (open && visible) dismiss();
-  }, [dismiss, open, visible]);
+    if (open) dismiss();
+  }, [dismiss, open]);
 
   const openHenry = () => {
     dismiss();
     openCoworker();
   };
 
-  if (!visible) return null;
+  if (dismissed || open) return null;
   return (
     <div
       role="button"
