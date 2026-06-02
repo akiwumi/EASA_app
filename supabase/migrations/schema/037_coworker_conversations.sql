@@ -124,28 +124,10 @@ create policy "coworker_messages select own"
   );
 
 drop policy if exists "coworker_messages insert own" on coworker_messages;
-create policy "coworker_messages insert own"
-  on coworker_messages
-  for insert
-  with check (
-    user_id = auth.uid()
-    and exists (
-      select 1
-      from coworker_conversations
-      where coworker_conversations.id = coworker_messages.conversation_id
-        and coworker_conversations.organization_id = coworker_messages.organization_id
-        and coworker_conversations.user_id = auth.uid()
-        and exists (
-          select 1
-          from org_users
-          where org_users.organization_id = coworker_conversations.organization_id
-            and org_users.user_id = auth.uid()
-        )
-    )
-  );
 
 grant select, insert, update on coworker_conversations to authenticated;
-grant select, insert on coworker_messages to authenticated;
+revoke insert, update, delete on coworker_messages from authenticated;
+grant select on coworker_messages to authenticated;
 grant select, insert, update, delete on coworker_conversations to service_role;
 grant select, insert, update, delete on coworker_messages to service_role;
 

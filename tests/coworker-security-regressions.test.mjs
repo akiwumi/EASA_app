@@ -149,6 +149,14 @@ test("migration stores trimmed conversation titles with bounded length and copie
   assert.equal(schemaMigration, migration);
 });
 
+test("authenticated users cannot forge coworker assistant messages", () => {
+  assert.match(schemaMigration, /drop policy if exists "coworker_messages insert own"/);
+  assert.doesNotMatch(schemaMigration, /create policy "coworker_messages insert own"/);
+  assert.match(schemaMigration, /revoke insert, update, delete on coworker_messages from authenticated/);
+  assert.match(schemaMigration, /grant select on coworker_messages to authenticated/);
+  assert.doesNotMatch(schemaMigration, /grant select, insert on coworker_messages to authenticated/);
+});
+
 test("conversation routes authenticate, report server errors, and preserve message 404", () => {
   assert.match(conversationsRoute, /await getOrgAccessContext\(\)/);
   assert.match(conversationsRoute, /status: 401/);
@@ -286,6 +294,9 @@ test("coworker review item action validates ownership before queue mutation", ()
   assert.ok(ownedConversation < ownedMessage, "conversation ownership must be checked before message ownership");
   assert.ok(ownedMessage < queueMutation, "message ownership must be checked before queue mutation");
   assert.match(createReviewItemRoute, /if \(!sourceMessage\) return notFound\(\)/);
+  assert.match(createReviewItemRoute, /hasDraftCardForFinding\(sourceMessage, findingId\)/);
+  assert.match(createReviewItemRoute, /\.type === "draft"/);
+  assert.match(createReviewItemRoute, /\.findingId === findingId/);
   assert.match(createReviewItemRoute, /queueFinding\(admin, ctx, findingId, true, provenance\)/);
   assert.match(createReviewItemRoute, /console\.error/);
   assert.match(createReviewItemRoute, /\{ error: "Unable to create review item\." \}/);

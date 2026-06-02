@@ -8,6 +8,20 @@ function notFound() {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
+function hasDraftCardForFinding(message: { metadata?: unknown }, findingId: string) {
+  if (!message.metadata || typeof message.metadata !== "object" || Array.isArray(message.metadata)) {
+    return false;
+  }
+  const { cards } = message.metadata as { cards?: unknown };
+  return Array.isArray(cards) && cards.some((card) => (
+    card &&
+    typeof card === "object" &&
+    !Array.isArray(card) &&
+    (card as { type?: unknown }).type === "draft" &&
+    (card as { findingId?: unknown }).findingId === findingId
+  ));
+}
+
 export async function POST(request: Request) {
   try {
     const ctx = await getOrgAccessContext();
@@ -38,6 +52,7 @@ export async function POST(request: Request) {
     if (!conversation) return notFound();
     const sourceMessage = await loadOwnedMessage(ctx, conversationId, sourceMessageId);
     if (!sourceMessage) return notFound();
+    if (!hasDraftCardForFinding(sourceMessage, findingId)) return notFound();
 
     const provenance = { conversationId, sourceMessageId };
     const admin = getSupabaseAdminClient();
