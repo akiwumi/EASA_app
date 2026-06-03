@@ -230,7 +230,7 @@ async function main() {
       organization_id: orgId,
       url: sourceUrl,
       type: "rss",
-      active: true,
+      active: false,
     }));
 
   const rssExternalId = `signoff-item-${orgId}`;
@@ -371,4 +371,3 @@ main().catch((error) => {
   console.error(error.message);
   process.exit(1);
 });
-

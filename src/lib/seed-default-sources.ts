@@ -41,6 +41,12 @@ export async function seedDefaultSources() {
     await admin.from("sources").delete().in("url", DEAD_FEEDS);
   }
 
+  await admin
+    .from("sources")
+    .update({ active: false })
+    .eq("type", "rss")
+    .like("url", "%.easa.local/%");
+
   const inserted: string[] = [];
   const skipped: string[] = [];
 
