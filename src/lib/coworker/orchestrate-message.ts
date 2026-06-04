@@ -34,7 +34,7 @@ type OrchestrationDeps = {
     content: string,
     context?: { findingId?: string | null },
   ) => { intent: CoworkerIntent } | Promise<{ intent: CoworkerIntent }>;
-  answerManualQuestion: (content: string) => Promise<ToolResult>;
+  answerManualQuestion: (ctx: CoworkerContext, content: string) => Promise<ToolResult>;
   listPendingFindings: (ctx: CoworkerContext) => Promise<ToolResult>;
   explainFinding: (ctx: CoworkerContext, findingId: string) => Promise<ToolResult>;
   previewDraftUpdate: (ctx: CoworkerContext, findingId: string) => Promise<ToolResult>;
@@ -69,9 +69,9 @@ const defaultDeps: OrchestrationDeps = {
       classifyCoworkerIntent(content, context),
     );
   },
-  answerManualQuestion: async (content) => {
+  answerManualQuestion: async (ctx, content) => {
     const { answerManualQuestion } = await import("./tools");
-    return answerManualQuestion(content);
+    return answerManualQuestion(ctx, content);
   },
   listPendingFindings: async (ctx) => {
     const { listPendingFindings } = await import("./tools");
@@ -96,7 +96,7 @@ async function runApprovedTool(
 ): Promise<ToolResult> {
   switch (intent) {
     case "manual_question":
-      return deps.answerManualQuestion(input.content);
+      return deps.answerManualQuestion(ctx, input.content);
     case "list_pending_findings":
       return deps.listPendingFindings(ctx);
     case "explain_finding":

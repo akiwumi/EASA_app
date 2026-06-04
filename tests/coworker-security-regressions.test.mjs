@@ -37,6 +37,9 @@ const createReviewItemRoute = fs.existsSync("src/app/api/coworker/actions/create
 const queueRequestValidation = fs.existsSync("src/lib/findings/queue-request-validation.ts")
   ? fs.readFileSync("src/lib/findings/queue-request-validation.ts", "utf8")
   : "";
+const memoryService = fs.existsSync("src/lib/ai/memory.ts")
+  ? fs.readFileSync("src/lib/ai/memory.ts", "utf8")
+  : "";
 
 function functionBody(source, name, nextName) {
   const start = source.indexOf(`export async function ${name}`);
@@ -211,6 +214,12 @@ test("coworker read-only tool graph cannot reach proposed update writes", () => 
       `${file} must not write proposed_updates`,
     );
   }
+});
+
+test("coworker memory support remains read-only advisory", () => {
+  assert.match(coworkerTools, /retrieveFlightbookMemories/);
+  assert.doesNotMatch(memoryService, /@\/lib\/ai\/proposed-updates|@\/lib\/findings\/queue-finding/);
+  assert.doesNotMatch(memoryService, /\.from\("proposed_updates"\)/);
 });
 
 test("pending coworker findings filter nested organization ownership and tolerate schema drift", () => {

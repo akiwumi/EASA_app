@@ -1,5 +1,6 @@
 import { buildReviewPreview } from "@/lib/ai/review-preview";
 import { generateDraftPreviewForFinding } from "@/lib/ai/proposed-update-preview";
+import { retrieveFlightbookMemories } from "@/lib/ai/memory";
 import {
   getSupabaseAdminClient,
   type OrgAccessContext,
@@ -47,21 +48,58 @@ async function loadOwnedFinding(ctx: OrgAccessContext, findingId: string) {
   return data ?? null;
 }
 
-export async function answerManualQuestion(query: string): Promise<CoworkerToolResult> {
+export async function answerManualQuestion(
+  ctx: OrgAccessContext,
+  query: string,
+): Promise<CoworkerToolResult> {
+  const admin = getSupabaseAdminClient();
+  const memories = await retrieveFlightbookMemories(admin, {
+    organizationId: ctx.orgId,
+    queryText: query,
+    limit: 4,
+  });
+  const memorySummary = memories
+    .map((memory, index) => {
+      const section = [memory.sectionNumber, memory.sectionTitle].filter(Boolean).join(" ");
+      return `${index + 1}. ${memory.title}${section ? ` (${section})` : ""}: ${memory.content}`;
+    })
+    .join("\n");
   const result = await runSearch({ query, includeAnswer: true });
   if ("error" in result || !result.answer.text) {
-    return { content: MISSING_EVIDENCE, citations: [], cards: [] };
+    if (memories.length === 0) return { content: MISSING_EVIDENCE, citations: [], cards: [] };
+    return {
+      content: `From stored flight book memory:\n\n${memorySummary}`,
+      citations: memories.map((memory) => ({
+        label: memory.sectionTitle ?? memory.title,
+        href: memory.flightbookId && memory.flightbookSectionId
+          ? `/flightbooks/${memory.flightbookId}#section-${memory.flightbookSectionId}`
+          : "/flightbooks",
+        excerpt: memory.content,
+      })),
+      cards: [],
+    };
   }
 
   return {
-    content: result.answer.text,
-    citations: result.answer.citations.map((citation) => ({
+    content: memories.length > 0
+      ? `${result.answer.text}\n\nStored flight book memory:\n${memorySummary}`
+      : result.answer.text,
+    citations: [
+      ...result.answer.citations.map((citation) => ({
       label: citation.secondaryLabel
         ? `${citation.label} | ${citation.secondaryLabel}`
         : citation.label,
       href: citation.href,
       excerpt: citation.excerpt,
-    })),
+      })),
+      ...memories.map((memory) => ({
+        label: memory.sectionTitle ?? memory.title,
+        href: memory.flightbookId && memory.flightbookSectionId
+          ? `/flightbooks/${memory.flightbookId}#section-${memory.flightbookSectionId}`
+          : "/flightbooks",
+        excerpt: memory.content,
+      })),
+    ],
     cards: [],
   };
 }
