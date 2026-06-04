@@ -1,33 +1,39 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/access";
 
+// Canonical EASA feed URLs as of 2026. All use the /en/ prefix — the non-/en/
+// versions 301-redirect here. Verify periodically at easa.europa.eu if ingestion stops.
 export const DEFAULT_FEEDS = [
   // Priority 1 — Easy Access Rules (consolidated rulebook updates)
-  "https://www.easa.europa.eu/document-library/easy-access-rules/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/easy-access-rules/feed.xml",
   // Priority 2 — Regulations (underlying regulation changes)
-  "https://www.easa.europa.eu/document-library/regulations/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/regulations/feed.xml",
   // Priority 3 — AMC & GM (compliance demonstration guidance)
-  "https://www.easa.europa.eu/document-library/acceptable-means-of-compliance-and-guidance-materials/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/acceptable-means-of-compliance-and-guidance-material/feed.xml",
   // Priority 4 — Agency Decisions (issue/amend AMC, GM, certification specs)
-  "https://www.easa.europa.eu/document-library/agency-decisions/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/agency-decisions/feed.xml",
   // Priority 7 — News (secondary signal for major rule announcements)
-  "https://www.easa.europa.eu/newsroom-and-events/news/feed.xml",
+  "https://www.easa.europa.eu/en/newsroom-and-events/news/feed.xml",
   // Priority 8 — Press Releases (high-level awareness)
-  "https://www.easa.europa.eu/newsroom-and-events/press-releases/feed.xml",
+  "https://www.easa.europa.eu/en/newsroom-and-events/press-releases/feed.xml",
   // Priority 9 — Opinions (upcoming regulatory changes before final)
-  "https://www.easa.europa.eu/document-library/opinions/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/opinions/feed.xml",
   // Priority 10 — NPAs (predict future compliance changes)
-  "https://www.easa.europa.eu/document-library/notices-of-proposed-amendment/feed.xml",
+  "https://www.easa.europa.eu/en/document-library/notices-of-proposed-amendment/feed.xml",
 ];
 
 export const DEAD_FEEDS = [
-  // Legacy /en/ variants replaced by canonical URLs above
-  "https://www.easa.europa.eu/en/document-library/easy-access-rules/feed.xml",
-  "https://www.easa.europa.eu/en/newsroom-and-events/news/feed.xml",
-  "https://www.easa.europa.eu/en/newsroom-and-events/press-releases/feed.xml",
-  "https://www.easa.europa.eu/en/document-library/notices-of-proposed-amendment/feed.xml",
-  "https://www.easa.europa.eu/en/document-library/opinions/feed.xml",
-  "https://www.easa.europa.eu/en/document-library/acceptable-means-of-compliance-and-guidance-material/feed.xml",
-  // Previously dead feeds
+  // Old non-/en/ variants (now 301 → /en/ canonical above)
+  "https://www.easa.europa.eu/document-library/easy-access-rules/feed.xml",
+  "https://www.easa.europa.eu/document-library/regulations/feed.xml",
+  "https://www.easa.europa.eu/document-library/acceptable-means-of-compliance-and-guidance-materials/feed.xml",
+  "https://www.easa.europa.eu/document-library/agency-decisions/feed.xml",
+  "https://www.easa.europa.eu/document-library/opinions/feed.xml",
+  "https://www.easa.europa.eu/document-library/notices-of-proposed-amendment/feed.xml",
+  "https://www.easa.europa.eu/newsroom-and-events/news/feed.xml",
+  "https://www.easa.europa.eu/newsroom-and-events/press-releases/feed.xml",
+  // Old /en/ plural variant for AMC & GM (EASA changed to singular "material")
+  "https://www.easa.europa.eu/en/document-library/acceptable-means-of-compliance-and-guidance-materials/feed.xml",
+  // Obsolete feed paths
   "https://www.easa.europa.eu/en/rss/news",
   "https://www.easa.europa.eu/en/rss/consultations",
   "https://www.easa.europa.eu/en/rss/publications",
