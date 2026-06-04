@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { Users, BookOpen, Rss, Rocket, TimerReset, Palette, ClipboardList, Files } from "lucide-react";
+import { Users, BookOpen, Rss, Rocket, TimerReset, Palette, ClipboardList, Files, SlidersHorizontal } from "lucide-react";
 import UsersTab from "@/components/admin/UsersTab";
 import FlightbooksTab from "@/components/admin/FlightbooksTab";
 import SourcesTab from "@/components/admin/SourcesTab";
@@ -11,12 +11,14 @@ import AutomationTab from "@/components/admin/AutomationTab";
 import BrandingTab from "@/components/admin/BrandingTab";
 import OnboardingTab from "@/components/admin/OnboardingTab";
 import ExportsTab from "@/components/admin/ExportsTab";
+import RegulatoryScopeSettings from "@/components/admin/RegulatoryScopeSettings";
 
 const TABS = [
   { id: "setup", label: "Setup", icon: Rocket },
   { id: "users", label: "Users", icon: Users },
   { id: "flightbooks", label: "Flight books", icon: BookOpen },
   { id: "sources", label: "RSS feeds", icon: Rss },
+  { id: "scope", label: "Regulatory scope", icon: SlidersHorizontal },
   { id: "automation", label: "Automation", icon: TimerReset },
   { id: "branding", label: "School profile", icon: Palette },
   { id: "onboarding", label: "Onboarding", icon: ClipboardList },
@@ -96,6 +98,7 @@ export default function SettingsPage() {
       {active === "users" && <UsersTab />}
       {active === "flightbooks" && <FlightbooksTab />}
       {active === "sources" && <SourcesTab />}
+      {active === "scope" && <RegulatoryScopeSettings />}
       {active === "automation" && <AutomationTab />}
       {active === "branding" && <BrandingTab />}
       {active === "onboarding" && <OnboardingTab onOpenTab={setActive} />}
