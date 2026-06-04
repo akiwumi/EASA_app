@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, CheckCircle, CheckCircle2, Clock3, Download, RefreshCw, Trash2, XCircle } from "lucide-react";
+import { AlertCircle, BookOpen, CheckCircle, CheckCircle2, Clock3, Download, Newspaper, RefreshCw, Trash2, XCircle } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
 import { confidenceConfig, getConfidenceLevel } from "@/lib/utils/confidence";
 
@@ -10,6 +10,41 @@ function riskBadgeClass(risk: string) {
   if (risk === "high") return "easa-badge is-pink";
   if (risk === "medium") return "easa-badge is-orange";
   return "easa-badge is-blue";
+}
+
+type PriorityTier = "critical" | "regulatory" | "awareness";
+
+function getPriorityTier(item: UpdateQueueItem): PriorityTier {
+  const risk = (item.risk_level ?? "").toLowerCase();
+  const cls = (item.classification ?? "").toLowerCase();
+  if (cls === "mandatory" && (risk === "high" || risk === "medium")) return "critical";
+  if (cls === "mandatory" || cls === "recommended") return "regulatory";
+  return "awareness";
+}
+
+function PriorityLabel({ tier }: { tier: PriorityTier }) {
+  if (tier === "critical") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_12%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--easa-color-accent-pink)]">
+        <BookOpen size={10} strokeWidth={2} />
+        Book update required
+      </span>
+    );
+  }
+  if (tier === "regulatory") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--easa-color-accent-orange)_12%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--easa-color-accent-orange)]">
+        <AlertCircle size={10} strokeWidth={2} />
+        Regulatory review
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--easa-color-accent-blue)_10%,transparent)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--easa-color-accent-blue)]">
+      <Newspaper size={10} strokeWidth={2} />
+      News &amp; awareness
+    </span>
+  );
 }
 
 function exportCsv(items: UpdateQueueItem[]) {
@@ -58,6 +93,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [filterClassification, setFilterClassification] = useState("");
   const [filterRisk, setFilterRisk] = useState("");
   const [filterConfidence, setFilterConfidence] = useState("");
+  const [filterPriority, setFilterPriority] = useState<"" | "critical">("");
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -161,6 +197,14 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     .filter((item) => {
       if (!filterConfidence) return true;
       return getConfidenceLevel(item.confidence_score, item.ai_confidence_label) === filterConfidence;
+    })
+    .filter((item) => {
+      if (!filterPriority) return true;
+      return getPriorityTier(item) === "critical";
+    })
+    .sort((a, b) => {
+      const order: Record<PriorityTier, number> = { critical: 0, regulatory: 1, awareness: 2 };
+      return order[getPriorityTier(a)] - order[getPriorityTier(b)];
     });
   const draftedCount = draftedItems.length;
   const queuedCount = draftedItems.length;
@@ -329,6 +373,21 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
 
         <div className="w-px self-stretch bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]" />
 
+        {/* Priority */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-[var(--easa-color-text-muted)] pr-1">Priority</span>
+          <button
+            onClick={() => setFilterPriority("")}
+            className={["rounded-full px-3 py-1 text-xs font-medium transition-colors", filterPriority === "" ? "bg-[var(--easa-color-accent-blue)] text-white" : "bg-[color-mix(in_srgb,var(--easa-color-text-muted)_12%,transparent)] text-[var(--easa-color-text-secondary)] hover:bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]"].join(" ")}
+          >All</button>
+          <button
+            onClick={() => setFilterPriority("critical")}
+            className={["rounded-full px-3 py-1 text-xs font-medium transition-colors", filterPriority === "critical" ? "bg-[var(--easa-color-accent-pink)] text-white" : "bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_12%,transparent)] text-[var(--easa-color-accent-pink)] hover:bg-[color-mix(in_srgb,var(--easa-color-accent-pink)_20%,transparent)]"].join(" ")}
+          >Book updates required</button>
+        </div>
+
+        <div className="w-px self-stretch bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]" />
+
         {/* Risk */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium text-[var(--easa-color-text-muted)] pr-1">Risk</span>
@@ -370,9 +429,9 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
         </div>
 
         {/* Clear all */}
-        {(filterClassification || filterRisk || filterConfidence) ? (
+        {(filterClassification || filterRisk || filterConfidence || filterPriority) ? (
           <button
-            onClick={() => { setFilterClassification(""); setFilterRisk(""); setFilterConfidence(""); }}
+            onClick={() => { setFilterClassification(""); setFilterRisk(""); setFilterConfidence(""); setFilterPriority(""); }}
             className="ml-auto text-xs text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-secondary)] underline underline-offset-2"
           >
             Clear filters
@@ -524,6 +583,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
                   ) : null}
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <PriorityLabel tier={getPriorityTier(item)} />
                       <span className={riskBadgeClass(item.risk_level)}>{item.risk_level} risk</span>
                       <span className={confidenceMeta.badgeClass}>{confidenceMeta.label}</span>
                       {item.ai_suggested_text ? (

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import NotificationDrawer from "@/components/notifications/NotificationDrawer";
+import PipelineAlertModal from "@/components/notifications/PipelineAlertModal";
 import SchoolSwitcher from "@/components/navigation/SchoolSwitcher";
 import ClearDataButton from "@/components/admin/ClearDataButton";
 import CoworkerDrawer from "@/components/coworker/CoworkerDrawer";
@@ -619,6 +620,7 @@ function AppShellContent({
         onClose={() => setNotificationDrawerOpen(false)}
         onUnreadChange={handleUnreadChange}
       />
+      <PipelineAlertModal />
       <CoworkerDrawer />
       <CoworkerLauncher variant="floating" />
       <HenryWelcomeBubble />

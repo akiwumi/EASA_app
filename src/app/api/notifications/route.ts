@@ -27,19 +27,28 @@ async function getAuthUser() {
 }
 
 // GET /api/notifications — returns notifications for the current user
-export async function GET() {
+// Optional query params: type=pipeline_summary, since=ISO, limit=50
+export async function GET(request: Request) {
   const user = await getAuthUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { searchParams } = new URL(request.url);
+  const typeFilter = searchParams.get("type");
+  const since = searchParams.get("since");
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "50", 10)));
+
   const admin = getAdminClient();
-  const { data, error } = await admin
+  let query = admin
     .from("notifications")
-    .select(
-      "id, type, title, body, related_entity_type, related_entity_id, read, created_at",
-    )
+    .select("id, type, title, body, related_entity_type, related_entity_id, read, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-    .limit(50);
+    .limit(limit);
+
+  if (typeFilter) query = query.eq("type", typeFilter);
+  if (since) query = query.gte("created_at", since);
+
+  const { data, error } = await query;
 
   if (error && isMissingTableError(error)) {
     return NextResponse.json({ notifications: [], unreadCount: 0 });
