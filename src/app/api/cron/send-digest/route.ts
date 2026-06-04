@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/supabase/access";
 
 function authorized(request: Request) {
-  const secret = process.env.SCHEDULED_PIPELINE_SECRET;
+  const secret = process.env.SCHEDULED_PIPELINE_SECRET ?? process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = request.headers.get("authorization");
   return auth === `Bearer ${secret}`;
@@ -82,7 +82,7 @@ async function sendDigestEmail(
   return { ok: true };
 }
 
-export async function POST(request: Request) {
+async function runDigest(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
@@ -162,4 +162,12 @@ export async function POST(request: Request) {
     digestsSent: results.filter((r) => r.ok).length,
     results,
   });
+}
+
+export async function GET(request: Request) {
+  return runDigest(request);
+}
+
+export async function POST(request: Request) {
+  return runDigest(request);
 }
