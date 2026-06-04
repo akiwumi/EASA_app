@@ -74,6 +74,33 @@ function chunkWholeDocument(text: string): ParsedSection[] {
   return sections;
 }
 
+/**
+ * Coalesce a large sections array into at most `targetMax` sections by
+ * merging adjacent sections together greedily. Preserves top-level heading
+ * titles as the merged section title when possible.
+ */
+function coalesceSections(sections: ParsedSection[], targetMax: number): ParsedSection[] {
+  if (sections.length <= targetMax) return sections;
+
+  const groupSize = Math.ceil(sections.length / targetMax);
+  const coalesced: ParsedSection[] = [];
+  let order = 0;
+
+  for (let i = 0; i < sections.length; i += groupSize) {
+    const group = sections.slice(i, i + groupSize);
+    const title = group[0].title ?? group[0].sectionNumber ?? `Section ${i + 1}`;
+    const body = group.map((s) => [s.sectionNumber ? `${s.sectionNumber} ${s.title ?? ""}`.trim() : s.title, s.body].filter(Boolean).join("\n")).join("\n\n");
+    coalesced.push({
+      sectionNumber: group[0].sectionNumber,
+      title,
+      body: body.trim() || "(empty)",
+      sortOrder: (order += 10),
+    });
+  }
+
+  return coalesced;
+}
+
 /** Detect section boundaries, but fall back to full-document chunking if heading parsing loses too much content. */
 function detectSections(text: string): ParsedSection[] {
   const normalized = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -239,13 +266,11 @@ export async function POST(request: Request) {
   const MAX_SECTION_BODY_CHARS = 20_000;
 
   for (const doc of documents) {
+    // Coalesce rather than reject when a document has too many sections.
+    // Dense training manuals (e.g. PPL theory with 2000+ numbered subsections)
+    // are merged into larger chunks that stay within the limit.
     if (doc.sections.length > MAX_SECTIONS_PER_UPLOAD) {
-      return NextResponse.json(
-        {
-          error: `Document "${doc.docName}" has ${doc.sections.length} sections, which exceeds the limit of ${MAX_SECTIONS_PER_UPLOAD}. Split the document or reduce its length.`,
-        },
-        { status: 400 },
-      );
+      doc.sections = coalesceSections(doc.sections, MAX_SECTIONS_PER_UPLOAD);
     }
     for (const section of doc.sections) {
       if (section.body.length > MAX_SECTION_BODY_CHARS) {
