@@ -348,15 +348,66 @@ export async function GET(request: Request) {
     });
   };
 
+  // Enrich items with ai_category, ai_mapped_section, rss_type from ai_findings
+  async function enrichWithFindingData(rows: UpdateQueueItem[]): Promise<UpdateQueueItem[]> {
+    const findingIds = rows.map((r) => r.finding_id).filter((id): id is string => Boolean(id));
+    if (findingIds.length === 0) return rows;
+
+    const { data: findings } = await admin
+      .from("ai_findings")
+      .select("id, category, mapped_section, rss_item_id")
+      .in("id", findingIds);
+
+    const rssItemIds = (findings ?? [])
+      .map((f) => f.rss_item_id as string | null)
+      .filter((id): id is string => Boolean(id));
+
+    let rssCatMap = new Map<string, string>();
+    if (rssItemIds.length > 0) {
+      const { data: rssItems } = await admin
+        .from("rss_items")
+        .select("id, category")
+        .in("id", rssItemIds);
+      rssCatMap = new Map(
+        (rssItems ?? []).map((r) => [String(r.id), String(r.category ?? "")]),
+      );
+    }
+
+    const findingMap = new Map(
+      (findings ?? []).map((f) => [
+        String(f.id),
+        {
+          category: (f.category as string | null) ?? null,
+          mapped_section: (f.mapped_section as string | null) ?? null,
+          rss_item_id: (f.rss_item_id as string | null) ?? null,
+        },
+      ]),
+    );
+
+    return rows.map((item) => {
+      const finding = item.finding_id ? findingMap.get(item.finding_id) : null;
+      const rssCategory = finding?.rss_item_id
+        ? (rssCatMap.get(finding.rss_item_id) ?? null)
+        : null;
+      return {
+        ...item,
+        ai_category: finding?.category ?? null,
+        ai_mapped_section: finding?.mapped_section ?? null,
+        rss_type: rssCategory,
+      };
+    });
+  }
+
   if (!viewResult.error && hasRows(viewResult)) {
     const allItems = ((viewResult.data ?? []) as UpdateQueueViewRow[]).map(mapQueueRow);
     const sortedItems = sortQueueRows(allItems);
+    const enrichedItems = await enrichWithFindingData(sortedItems);
     const pagedItems = actionOnly
-      ? sortedItems.slice(offset, offset + limit)
-      : sortedItems;
+      ? enrichedItems.slice(offset, offset + limit)
+      : enrichedItems;
     return NextResponse.json({
       items: pagedItems,
-      total: actionOnly ? sortedItems.length : (viewResult.count ?? 0),
+      total: actionOnly ? enrichedItems.length : (viewResult.count ?? 0),
       page,
       limit,
       regulations,

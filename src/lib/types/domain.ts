@@ -106,6 +106,9 @@ export type UpdateQueueItem = {
   ai_confidence_label?: string | null;
   finding_id?: string | null;
   reg_part?: string | null;
+  ai_category?: string | null;
+  ai_mapped_section?: string | null;
+  rss_type?: string | null;
   created_at: string;
   updated_at?: string;
   reg_changes: RegulationChangeSummary | null;

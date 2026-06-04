@@ -2,9 +2,77 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, BookOpen, CheckCircle, CheckCircle2, Clock3, Download, Newspaper, RefreshCw, Trash2, XCircle } from "lucide-react";
+import { AlertCircle, BookOpen, CheckCircle, CheckCircle2, Clock3, Download, Newspaper, RefreshCw, Trash2, XCircle, TriangleAlert, MapPin } from "lucide-react";
 import type { UpdateQueueItem } from "@/lib/types/domain";
 import { confidenceConfig, getConfidenceLevel } from "@/lib/utils/confidence";
+
+// ── Category colour system ────────────────────────────────────────────────────
+type CategoryKey = "operations" | "aircrew" | "training" | "safety" | "airworthiness" | "medical" | "news" | "other";
+
+const CATEGORY_META: Record<CategoryKey, {
+  label: string;
+  border: string;       // left-border colour class
+  badge: string;        // pill bg + text
+  dot: string;          // small dot colour
+}> = {
+  operations:    { label: "Operations",    border: "border-l-[3px] border-l-emerald-500",   badge: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",    dot: "bg-emerald-500" },
+  aircrew:       { label: "Aircrew",       border: "border-l-[3px] border-l-blue-500",      badge: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",            dot: "bg-blue-500" },
+  training:      { label: "Training",      border: "border-l-[3px] border-l-purple-500",    badge: "bg-purple-50 text-purple-700 ring-1 ring-purple-200",      dot: "bg-purple-500" },
+  safety:        { label: "Safety",        border: "border-l-[3px] border-l-orange-500",    badge: "bg-orange-50 text-orange-700 ring-1 ring-orange-200",      dot: "bg-orange-500" },
+  airworthiness: { label: "Airworthiness", border: "border-l-[3px] border-l-red-500",       badge: "bg-red-50 text-red-700 ring-1 ring-red-200",              dot: "bg-red-500" },
+  medical:       { label: "Medical",       border: "border-l-[3px] border-l-teal-500",      badge: "bg-teal-50 text-teal-700 ring-1 ring-teal-200",           dot: "bg-teal-500" },
+  news:          { label: "News",          border: "border-l-[3px] border-l-slate-400",     badge: "bg-slate-50 text-slate-600 ring-1 ring-slate-200",         dot: "bg-slate-400" },
+  other:         { label: "General",       border: "border-l-[3px] border-l-slate-300",     badge: "bg-slate-50 text-slate-500 ring-1 ring-slate-200",         dot: "bg-slate-300" },
+};
+
+function resolveCategoryKey(item: UpdateQueueItem): CategoryKey {
+  const cat = (item.ai_category ?? "").toLowerCase().trim();
+  if (cat === "operations") return "operations";
+  if (cat === "aircrew" || cat === "licensing") return "aircrew";
+  if (cat === "training") return "training";
+  if (cat === "safety") return "safety";
+  if (cat === "airworthiness" || cat === "maintenance") return "airworthiness";
+  if (cat === "medical") return "medical";
+  if (cat === "news" || (item.rss_type ?? "").toLowerCase().includes("news")) return "news";
+  return "other";
+}
+
+// ── Relevance to flight book ──────────────────────────────────────────────────
+type RelevanceLevel = "matched" | "partial" | "unmatched";
+
+function getRelevance(item: UpdateQueueItem): RelevanceLevel {
+  if (item.flightbook_sections?.title) return "matched";
+  const ms = (item.ai_mapped_section ?? "").trim();
+  if (ms && !ms.toLowerCase().startsWith("general")) return "partial";
+  return "unmatched";
+}
+
+function RelevanceBadge({ item }: { item: UpdateQueueItem }) {
+  const level = getRelevance(item);
+  if (level === "matched") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
+        <MapPin size={9} strokeWidth={2.5} />
+        {item.flightbook_sections?.title ?? "Section matched"}
+      </span>
+    );
+  }
+  if (level === "partial") {
+    const sectionLabel = (item.ai_mapped_section ?? "").replace(/^\[.*?\]\s*/, "").split(" ").slice(0, 5).join(" ");
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-amber-200">
+        <MapPin size={9} strokeWidth={2.5} />
+        AI match: {sectionLabel || item.ai_mapped_section}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-rose-600 ring-1 ring-rose-200">
+      <TriangleAlert size={9} strokeWidth={2.5} />
+      No section match
+    </span>
+  );
+}
 
 function riskBadgeClass(risk: string) {
   if (risk === "high") return "easa-badge is-pink";
@@ -89,11 +157,13 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   const [dismissError, setDismissError] = useState<string | null>(null);
   const [summaryHidden, setSummaryHidden] = useState(false);
   const [summaryRunId, setSummaryRunId] = useState<string | null>(null);
-  // Filters (category + risk sent to API; confidence filtered client-side)
+  // Filters — classification + risk are server-side; the rest are client-side
   const [filterClassification, setFilterClassification] = useState("");
   const [filterRisk, setFilterRisk] = useState("");
   const [filterConfidence, setFilterConfidence] = useState("");
   const [filterPriority, setFilterPriority] = useState<"" | "critical">("");
+  const [filterCategory, setFilterCategory] = useState<CategoryKey | "">("");
+  const [filterRelevance, setFilterRelevance] = useState<RelevanceLevel | "">("");
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
@@ -185,10 +255,10 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
     return () => window.clearTimeout(timer);
   }, [refreshSummary]);
 
-  // Reset to page 1 whenever an API-side filter changes
+  // Reset to page 1 whenever any filter changes
   useEffect(() => {
     setPage(1);
-  }, [filterClassification, filterRisk]);
+  }, [filterClassification, filterRisk, filterCategory, filterRelevance, filterConfidence, filterPriority]);
 
   const totalPages = Math.ceil(total / limit);
   const displayItems = items
@@ -200,11 +270,21 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       if (!filterPriority) return true;
       return getPriorityTier(item) === "critical";
     })
+    .filter((item) => {
+      if (!filterCategory) return true;
+      return resolveCategoryKey(item) === filterCategory;
+    })
+    .filter((item) => {
+      if (!filterRelevance) return true;
+      return getRelevance(item) === filterRelevance;
+    })
     .sort((a, b) => {
       const order: Record<PriorityTier, number> = { critical: 0, regulatory: 1, awareness: 2 };
       return order[getPriorityTier(a)] - order[getPriorityTier(b)];
     });
   const draftedCount = displayItems.filter((item) => Boolean(item.ai_suggested_text)).length;
+  const matchedCount = displayItems.filter((item) => getRelevance(item) === "matched").length;
+  const unmatchedCount = displayItems.filter((item) => getRelevance(item) === "unmatched").length;
   const queuedCount = displayItems.length;
 
   function toggleSelect(id: string) {
@@ -337,7 +417,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
         </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         <div className="easa-card p-4">
           <p className="text-xs uppercase tracking-wide text-[var(--easa-color-text-muted)]">Needs review</p>
           <p className="mt-1 text-2xl font-semibold">{queuedCount}</p>
@@ -346,6 +426,20 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           <p className="text-xs uppercase tracking-wide text-[var(--easa-color-text-muted)]">Drafts ready</p>
           <p className="mt-1 text-2xl font-semibold">{draftedCount}</p>
         </div>
+        <button
+          className={`easa-card p-4 text-left transition-colors hover:bg-emerald-50 ${filterRelevance === "matched" ? "ring-2 ring-emerald-400" : ""}`}
+          onClick={() => setFilterRelevance(filterRelevance === "matched" ? "" : "matched")}
+        >
+          <p className="text-xs uppercase tracking-wide text-emerald-600">Book section matched</p>
+          <p className="mt-1 text-2xl font-semibold text-emerald-700">{matchedCount}</p>
+        </button>
+        <button
+          className={`easa-card p-4 text-left transition-colors hover:bg-rose-50 ${filterRelevance === "unmatched" ? "ring-2 ring-rose-400" : ""}`}
+          onClick={() => setFilterRelevance(filterRelevance === "unmatched" ? "" : "unmatched")}
+        >
+          <p className="text-xs uppercase tracking-wide text-rose-600">No section match</p>
+          <p className="mt-1 text-2xl font-semibold text-rose-700">{unmatchedCount}</p>
+        </button>
       </div>
 
       {/* Filter bar */}
@@ -426,13 +520,63 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           ))}
         </div>
 
-        {/* Clear all */}
-        {(filterClassification || filterRisk || filterConfidence || filterPriority) ? (
+        <div className="w-full border-t border-[color-mix(in_srgb,var(--easa-color-text-muted)_15%,transparent)]" />
+
+        {/* Subject category */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-[var(--easa-color-text-muted)] pr-1">Subject</span>
           <button
-            onClick={() => { setFilterClassification(""); setFilterRisk(""); setFilterConfidence(""); setFilterPriority(""); }}
+            onClick={() => setFilterCategory("")}
+            className={["rounded-full px-3 py-1 text-xs font-medium transition-colors", filterCategory === "" ? "bg-[var(--easa-color-accent-blue)] text-white" : "bg-[color-mix(in_srgb,var(--easa-color-text-muted)_12%,transparent)] text-[var(--easa-color-text-secondary)] hover:bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]"].join(" ")}
+          >All</button>
+          {(Object.entries(CATEGORY_META) as [CategoryKey, typeof CATEGORY_META[CategoryKey]][]).map(([key, meta]) => (
+            <button
+              key={key}
+              onClick={() => setFilterCategory(filterCategory === key ? "" : key)}
+              className={["rounded-full px-3 py-1 text-xs font-medium transition-colors flex items-center gap-1.5", filterCategory === key ? meta.badge + " ring-2" : "bg-[color-mix(in_srgb,var(--easa-color-text-muted)_10%,transparent)] text-[var(--easa-color-text-secondary)] hover:bg-[color-mix(in_srgb,var(--easa-color-text-muted)_18%,transparent)]"].join(" ")}
+            >
+              <span className={`h-2 w-2 rounded-full ${meta.dot} shrink-0`} />
+              {meta.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-px self-stretch bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]" />
+
+        {/* Book relevance */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-[var(--easa-color-text-muted)] pr-1">Book match</span>
+          {([
+            { v: "" as const, label: "All" },
+            { v: "matched" as const, label: "✓ Section matched" },
+            { v: "partial" as const, label: "~ AI suggested" },
+            { v: "unmatched" as const, label: "⚠ No match" },
+          ] as { v: RelevanceLevel | ""; label: string }[]).map(({ v, label }) => (
+            <button
+              key={v || "all"}
+              onClick={() => setFilterRelevance(v)}
+              className={[
+                "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+                filterRelevance === v
+                  ? v === "matched" ? "bg-emerald-500 text-white"
+                    : v === "partial" ? "bg-amber-500 text-white"
+                    : v === "unmatched" ? "bg-rose-500 text-white"
+                    : "bg-[var(--easa-color-accent-blue)] text-white"
+                  : "bg-[color-mix(in_srgb,var(--easa-color-text-muted)_12%,transparent)] text-[var(--easa-color-text-secondary)] hover:bg-[color-mix(in_srgb,var(--easa-color-text-muted)_20%,transparent)]",
+              ].join(" ")}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Clear all */}
+        {(filterClassification || filterRisk || filterConfidence || filterPriority || filterCategory || filterRelevance) ? (
+          <button
+            onClick={() => { setFilterClassification(""); setFilterRisk(""); setFilterConfidence(""); setFilterPriority(""); setFilterCategory(""); setFilterRelevance(""); }}
             className="ml-auto text-xs text-[var(--easa-color-text-muted)] hover:text-[var(--easa-color-text-secondary)] underline underline-offset-2"
           >
-            Clear filters
+            Clear all filters
           </button>
         ) : null}
       </div>
@@ -558,6 +702,8 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
           {displayItems.map((item) => {
             const confidenceLevel = getConfidenceLevel(item.confidence_score, item.ai_confidence_label);
             const confidenceMeta = confidenceConfig[confidenceLevel];
+            const catKey = resolveCategoryKey(item);
+            const catMeta = CATEGORY_META[catKey];
             const regulationLabel = [
               item.reg_changes?.reg_documents?.part,
               item.reg_changes?.reg_documents?.reg_number,
@@ -567,7 +713,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
             return (
               <div
                 key={item.id}
-                className={`easa-card p-4 ${confidenceMeta.borderClass}`}
+                className={`easa-card p-4 pl-3 overflow-hidden ${catMeta.border}`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   {canManage ? (
@@ -580,8 +726,13 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
                     />
                   ) : null}
                   <div className="min-w-0 flex-1">
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
                       <PriorityLabel tier={getPriorityTier(item)} />
+                      {/* Category badge */}
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${catMeta.badge}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${catMeta.dot}`} />
+                        {catMeta.label}
+                      </span>
                       <span className={riskBadgeClass(item.risk_level)}>{item.risk_level} risk</span>
                       <span className={confidenceMeta.badgeClass}>{confidenceMeta.label}</span>
                       {item.ai_suggested_text ? (
@@ -591,14 +742,12 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
                       )}
                     </div>
                     <p className="text-sm font-semibold text-[var(--easa-color-text-primary)]">
-                      {regulationLabel || "Regulatory update requires review"}
+                      {regulationLabel || item.ai_rationale?.slice(0, 80) || "Regulatory update requires review"}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--easa-color-text-muted)]">
-                      {item.flightbook_sections?.section_number
-                        ? `Mapped to §${item.flightbook_sections.section_number}`
-                        : "Mapped section pending"}
-                      {item.flightbook_sections?.title ? ` · ${item.flightbook_sections.title}` : ""}
-                    </p>
+                    {/* Relevance indicator */}
+                    <div className="mt-1.5">
+                      <RelevanceBadge item={item} />
+                    </div>
                     <p className="mt-2 line-clamp-2 text-sm text-[var(--easa-color-text-secondary)]">
                       {item.ai_rationale ?? "Open the review screen to see full trigger and proposed draft."}
                     </p>
