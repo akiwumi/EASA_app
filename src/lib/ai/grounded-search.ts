@@ -145,7 +145,7 @@ function buildPrompt(query: string, sources: GroundedSearchSource[]) {
     .join("\n\n");
 
   return [
-    "You are answering a search question for a flight school compliance app.",
+    "You are answering a search question for a flight school compliance app. Respond entirely in English — do not translate or output any text in any other language.",
     "Use only the supplied excerpts. Do not invent or assume facts.",
     "If the excerpts are insufficient, say so plainly.",
     "Keep the answer under 180 words and include source numbers like [1] or [2] inline.",

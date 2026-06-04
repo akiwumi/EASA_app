@@ -78,7 +78,7 @@ function buildPrompt(
       ).join("\n")
     : "";
 
-  return `You are a compliance assistant for an aviation flight school.
+  return `You are a compliance assistant for an aviation flight school. You must respond entirely in English — do not translate or output any text in any other language.
 Analyse this EASA regulatory update and return a single JSON object with keys:
 - impact: "High", "Medium", or "Low"
 - confidence: percentage string like "82%"

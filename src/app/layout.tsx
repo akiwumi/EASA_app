@@ -58,6 +58,7 @@ export const metadata: Metadata = {
   authors: [{ name: "Flight Lyceum" }],
   creator: "Flight Lyceum",
   publisher: "Flight Lyceum",
+  other: { google: "notranslate" },
   robots: {
     index: true,
     follow: true,
@@ -123,7 +124,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSerifDisplay.variable} ${instrumentSerif.variable} ${jetBrainsMono.variable} ${manrope.variable} h-full antialiased`}>
+    <html lang="en" translate="no" className={`${dmSerifDisplay.variable} ${instrumentSerif.variable} ${jetBrainsMono.variable} ${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col easa-app">
         <PullToRefresh />
         {children}
