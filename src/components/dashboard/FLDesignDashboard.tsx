@@ -497,6 +497,12 @@ function LiveMixCard({
   approvedThisWeek: number;
   flightbookCount: number;
 }) {
+  const rows = [
+    { label: "Pending reviews", value: pendingReviews, accent: true },
+    { label: "Changes (last 7 days)", value: newChanges7d, accent: false },
+    { label: "Approved this week", value: approvedThisWeek, accent: false },
+    { label: "Active flight books", value: flightbookCount, accent: false },
+  ];
   return (
     <div className="fl-card fl-profits">
       <div className="fl-profits-head">
@@ -505,31 +511,13 @@ function LiveMixCard({
           <div style={{ fontSize: 12, color: "var(--fl-muted)", marginTop: 2 }}>From current organisation data</div>
         </div>
       </div>
-      <div className="fl-bullseye">
-        <div className="fl-bullseye-circle fl-b4" title="Pending reviews">
-          <div style={{ textAlign: "center", lineHeight: 1.1 }}>
-            <div style={{ fontSize: 11, opacity: 0.7, fontWeight: 600 }}>Reviews</div>
-            <div>{pendingReviews}</div>
+      <div className="fl-mix-list">
+        {rows.map((row, i) => (
+          <div key={i} className="fl-mix-row">
+            <span className="fl-mix-label">{row.label}</span>
+            <span className={`fl-mix-value${row.accent ? " fl-mix-accent" : ""}`}>{row.value}</span>
           </div>
-        </div>
-        <div className="fl-bullseye-circle fl-b3" title="New changes last 7 days">
-          <div style={{ textAlign: "center", lineHeight: 1.1 }}>
-            <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 600 }}>Changes</div>
-            <div>{newChanges7d}</div>
-          </div>
-        </div>
-        <div className="fl-bullseye-circle fl-b2" title="Approved this week">
-          <div style={{ textAlign: "center", lineHeight: 1.1 }}>
-            <div style={{ fontSize: 11, opacity: 0.85, fontWeight: 600 }}>Approved</div>
-            <div>{approvedThisWeek}</div>
-          </div>
-        </div>
-        <div className="fl-bullseye-circle fl-b1" title="Active flight books">
-          <div style={{ textAlign: "center", lineHeight: 1.1 }}>
-            <div style={{ fontSize: 10, opacity: 0.85, fontWeight: 600 }}>Books</div>
-            <div>{flightbookCount}</div>
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -620,30 +608,12 @@ function ReviewQueueCard({
         </div>
         <div className="fl-activity-actions">
           <button
-            className="fl-icon-btn"
-            style={{ width: 36, height: 36, background: "var(--fl-surface-2)" }}
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Queue actions"
-            aria-expanded={menuOpen}
-          >
-            <Icon name="more" size={16} />
-          </button>
-          <button
-            className="fl-icon-btn"
-            style={{ width: 36, height: 36, background: "var(--fl-surface-2)" }}
-            onClick={activateReview}
-            aria-label="Open review panel"
-            aria-pressed={reviewActive}
-          >
-            <Icon name="expand" size={14} />
-          </button>
-          <button
             className={`fl-action-toggle ${aiRunStatus === "running" || aiRunStatus === "done" ? "fl-enabled" : ""}`}
             onClick={onRunAi}
             disabled={aiRunStatus === "running"}
             aria-pressed={aiRunStatus === "running"}
           >
-            {aiRunStatus === "running" ? "Running" : "Run AI"}
+            {aiRunStatus === "running" ? "Running…" : "Run AI"}
           </button>
           <button
             className={`fl-action-toggle ${reviewActive ? "fl-enabled" : ""}`}
@@ -653,11 +623,13 @@ function ReviewQueueCard({
             Review
           </button>
           <button
-            className="fl-dropdown fl-compact"
-            style={{ borderRadius: 999 }}
-            onClick={activateReview}
+            className="fl-icon-btn"
+            style={{ width: 36, height: 36, background: "var(--fl-surface-2)", flexShrink: 0 }}
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Queue actions"
+            aria-expanded={menuOpen}
           >
-            <Icon name="filter" size={12} /> Live
+            <Icon name="more" size={16} />
           </button>
           {menuOpen && (
             <div className="fl-action-menu">
@@ -726,12 +698,20 @@ function ReviewQueueCard({
 
         <div className="fl-card fl-verify-card">
           <div className="fl-verify-icon"><Icon name="sun-burst" size={48} /></div>
-          <div className="fl-verify-title">Audit Snapshot</div>
-          <div className="fl-verify-desc">
-            {snapshot
-              ? `${snapshot.label} · ${formatSnapshotTimestamp(snapshot.createdAt)}`
-              : "Create a stored baseline of current flight book exports, queue counts, and source status."}
-            {snapshotMessage ? ` ${snapshotMessage}` : ""}
+          <div>
+            <div className="fl-verify-title">Audit Snapshot</div>
+            {snapshot ? (
+              <div className="fl-verify-desc">
+                <div style={{ fontWeight: 600, color: "var(--fl-ink)", marginBottom: 2 }}>{snapshot.label}</div>
+                <div>{formatSnapshotTimestamp(snapshot.createdAt)}</div>
+                {snapshotMessage && <div style={{ marginTop: 4, color: "var(--fl-accent)" }}>{snapshotMessage}</div>}
+              </div>
+            ) : (
+              <div className="fl-verify-desc">
+                Create a stored baseline of current flight book exports, queue counts, and source status.
+                {snapshotMessage && <div style={{ marginTop: 4, color: "var(--fl-accent)" }}>{snapshotMessage}</div>}
+              </div>
+            )}
           </div>
           <button
             className={`fl-verify-btn ${snapshotStatus === "saved" ? "fl-enabled" : ""}`}
@@ -1009,20 +989,25 @@ export default function FLDesignDashboard({
           </div>
 
           <SourceHealthCard active={sourcesActive} total={sourcesTotal} />
-          <QueueStatusCard pendingReviews={pendingReviews} approvedThisWeek={approvedThisWeek} />
-          <LiveMixCard
-            pendingReviews={pendingReviews}
-            newChanges7d={newChanges7d}
-            approvedThisWeek={approvedThisWeek}
-            flightbookCount={flightbookCount}
-          />
-          <ReviewQueueCard
-            pendingCount={pendingReviews}
-            latestAuditSnapshot={latestAuditSnapshot}
-            onOpenPendingReviews={() => setTasksOpen(true)}
-            onRunAi={runAiPipeline}
-            aiRunStatus={aiRunStatus}
-          />
+
+          {/* Unified compliance section */}
+          <div className="fl-unified-section">
+            <QueueStatusCard pendingReviews={pendingReviews} approvedThisWeek={approvedThisWeek} />
+            <LiveMixCard
+              pendingReviews={pendingReviews}
+              newChanges7d={newChanges7d}
+              approvedThisWeek={approvedThisWeek}
+              flightbookCount={flightbookCount}
+            />
+            <ReviewQueueCard
+              pendingCount={pendingReviews}
+              latestAuditSnapshot={latestAuditSnapshot}
+              onOpenPendingReviews={() => setTasksOpen(true)}
+              onRunAi={runAiPipeline}
+              aiRunStatus={aiRunStatus}
+            />
+          </div>
+
           <AckLogCard total={totalAcks} />
         </div>
       </div>
