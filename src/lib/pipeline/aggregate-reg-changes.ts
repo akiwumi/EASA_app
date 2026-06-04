@@ -59,6 +59,24 @@ export async function aggregateRegChangesForOrg(
   const linkedIds = new Set((existing ?? []).map((row) => row.ai_finding_id as string));
   const toAggregate = (findings ?? []).filter((finding) => !linkedIds.has(finding.id as string));
 
+  // When a finding was re-analyzed (e.g. section changed from "General" to a real section),
+  // update the existing reg_change's section_ref so downstream queue logic sees the new mapping.
+  const toRefresh = (findings ?? []).filter((finding) => {
+    if (!linkedIds.has(finding.id as string)) return false;
+    const section = (finding.mapped_section as string | null) ?? "";
+    return section && section.toLowerCase().trim() !== "general";
+  });
+  if (toRefresh.length > 0) {
+    for (const finding of toRefresh) {
+      await admin
+        .from("reg_changes")
+        .update({ section_ref: (finding.mapped_section as string) })
+        .eq("ai_finding_id", finding.id as string)
+        .eq("organization_id", organizationId)
+        .eq("section_ref", "General");
+    }
+  }
+
   if (toAggregate.length === 0) {
     return {
       ok: true as const,

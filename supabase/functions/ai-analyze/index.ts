@@ -316,22 +316,7 @@ serve(async (request) => {
 
   const rssItemIds = (rssItems ?? []).map((item) => item.id as string);
 
-  // Scope the existing-findings check to the current org so that findings from a
-  // different org (or a previous null-org run) don't silently block analysis here.
-  let existingQuery = rssItemIds.length
-    ? supabase.from("ai_findings").select("rss_item_id").in("rss_item_id", rssItemIds)
-    : null;
-  if (existingQuery && organizationId) existingQuery = existingQuery.eq("organization_id", organizationId);
-  const { data: existingFindings } = existingQuery
-    ? await existingQuery
-    : { data: [] as { rss_item_id: string }[] };
-
-  const existingFindingIds = new Set((existingFindings ?? []).map((row) => row.rss_item_id));
-  const pendingItems = (rssItems ?? [])
-    .filter((item) => !existingFindingIds.has(item.id as string))
-    .slice(0, analysisLimit);
-
-  // Fetch active flightbook section titles for mapping context
+  // Fetch active flightbook section titles for mapping context (needed before stale detection).
   let sectionsQuery = supabase
     .from("flightbook_sections")
     .select("id, section_number, title, flightbooks!inner(name, active)")
@@ -350,6 +335,35 @@ serve(async (request) => {
     const fb = Array.isArray(s.flightbooks) ? s.flightbooks[0] : s.flightbooks;
     return { id: s.id, section_number: s.section_number, title: s.title, flightbook_name: (fb as { name: string })?.name ?? "Unknown" };
   });
+
+  // Scope the existing-findings check to the current org so that findings from a
+  // different org (or a previous null-org run) don't silently block analysis here.
+  let existingQuery = rssItemIds.length
+    ? supabase.from("ai_findings").select("rss_item_id, mapped_section").in("rss_item_id", rssItemIds)
+    : null;
+  if (existingQuery && organizationId) existingQuery = existingQuery.eq("organization_id", organizationId);
+  const { data: existingFindings } = existingQuery
+    ? await existingQuery
+    : { data: [] as { rss_item_id: string; mapped_section: string | null }[] };
+
+  // Items mapped to "General" were analyzed before flight books existed. When sections
+  // are now available, include them for re-analysis so they get a proper section mapping.
+  const staleIds = new Set(
+    sections.length > 0
+      ? (existingFindings ?? [])
+          .filter((row) => (row.mapped_section ?? "").toLowerCase().trim() === "general")
+          .map((row) => row.rss_item_id)
+      : [],
+  );
+  const existingFindingIds = new Set((existingFindings ?? []).map((row) => row.rss_item_id));
+
+  const trulyNewItems = (rssItems ?? []).filter((item) => !existingFindingIds.has(item.id as string));
+  const staleItems = (rssItems ?? []).filter((item) => staleIds.has(item.id as string));
+  // New items take priority; fill remaining slots with stale re-analyses.
+  const pendingItems = [
+    ...trulyNewItems,
+    ...staleItems.slice(0, Math.max(0, analysisLimit - trulyNewItems.length)),
+  ].slice(0, analysisLimit);
 
   // Resolve an OpenAI key for embeddings (independent of the primary AI provider).
   const openAiKey: string | null = (() => {

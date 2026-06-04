@@ -141,10 +141,14 @@ export async function findLatestQueuedProposal(
       .maybeSingle();
 
     if (!byDedupKey.error) {
-      if (byDedupKey.data) return { data: byDedupKey.data, usedFallback: false };
+      // dedup_key column exists — this is the canonical uniqueness check.
+      // If no row matched, the section mapping changed; treat it as a new item
+      // rather than falling through to a reg_change_id match that would wrongly block it.
+      return { data: byDedupKey.data ?? null, usedFallback: false };
     } else if (!isMissingColumnError(byDedupKey.error, "dedup_key")) {
       return { error: { message: byDedupKey.error.message } };
     }
+    // Column doesn't exist yet — fall through to reg_change_id lookup.
   }
 
   if (options.regChangeId) {
@@ -299,12 +303,13 @@ export async function ensureQueuedUpdatesForOrg(
         id: string;
         reg_change_id: string | null;
         ai_rationale: string | null;
+        dedup_key: string | null;
       }[]
     | null = null;
 
   const existingWithRegChange = await admin
     .from("proposed_updates")
-    .select("id, reg_change_id, ai_rationale")
+    .select("id, reg_change_id, ai_rationale, dedup_key")
     .eq("organization_id", organizationId);
 
   const existingError = existingWithRegChange.error;
@@ -313,6 +318,7 @@ export async function ensureQueuedUpdatesForOrg(
       id: string;
       reg_change_id: string | null;
       ai_rationale: string | null;
+      dedup_key: string | null;
     }[];
   } else if (isMissingColumnError(existingError, "reg_change_id")) {
     const fallbackExisting = await admin
@@ -328,6 +334,7 @@ export async function ensureQueuedUpdatesForOrg(
       id: String(row.id),
       reg_change_id: null,
       ai_rationale: (row.ai_rationale as string | null) ?? null,
+      dedup_key: null,
     }));
   }
 
@@ -337,7 +344,7 @@ export async function ensureQueuedUpdatesForOrg(
     }
   }
 
-  const existingByRegChangeId = new Map<string, { id: string; ai_rationale: string | null }>();
+  const existingByRegChangeId = new Map<string, { id: string; ai_rationale: string | null; dedup_key: string | null }>();
   const existingByRationale = new Map<string, { id: string; reg_change_id: string | null }>();
 
   for (const row of existingUpdates ?? []) {
@@ -345,6 +352,7 @@ export async function ensureQueuedUpdatesForOrg(
       existingByRegChangeId.set(String(row.reg_change_id), {
         id: String(row.id),
         ai_rationale: (row.ai_rationale as string | null) ?? null,
+        dedup_key: (row.dedup_key as string | null) ?? null,
       });
     }
     if (row.ai_rationale) {
@@ -386,10 +394,18 @@ export async function ensureQueuedUpdatesForOrg(
           })
         : null;
 
-    if (existingByRegChangeId.has(regChangeId)) {
-      skippedKnown += 1;
-      currentStats.skippedKnown += 1;
-      continue;
+    const existingForRegChange = existingByRegChangeId.get(regChangeId);
+    if (existingForRegChange) {
+      // Only skip when the dedup_key matches — same section mapping = truly duplicate.
+      // If the key changed (e.g. section improved from "General" to a real section),
+      // fall through so a new, correctly-mapped proposed_update gets created.
+      const existingDedupKey = existingForRegChange.dedup_key;
+      if (!dedupKey || !existingDedupKey || dedupKey === existingDedupKey) {
+        skippedKnown += 1;
+        currentStats.skippedKnown += 1;
+        continue;
+      }
+      // dedup_key changed — allow re-queuing with the improved mapping.
     }
 
     if (dedupKey) {

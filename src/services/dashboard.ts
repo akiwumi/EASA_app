@@ -176,12 +176,12 @@ export async function loadDashboardStats(
       .from("sources")
       .select("id", { count: "exact", head: true })
       .eq("type", "rss")
-      .eq("organization_id", organizationId),
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`),
     admin
       .from("sources")
       .select("id", { count: "exact", head: true })
       .eq("type", "rss")
-      .eq("organization_id", organizationId)
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`)
       .eq("active", true),
   ]);
 
