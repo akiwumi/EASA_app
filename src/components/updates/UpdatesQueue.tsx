@@ -191,8 +191,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   }, [filterClassification, filterRisk]);
 
   const totalPages = Math.ceil(total / limit);
-  const draftedItems = items
-    .filter((item) => Boolean(item.ai_suggested_text))
+  const displayItems = items
     .filter((item) => {
       if (!filterConfidence) return true;
       return getConfidenceLevel(item.confidence_score, item.ai_confidence_label) === filterConfidence;
@@ -205,8 +204,8 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       const order: Record<PriorityTier, number> = { critical: 0, regulatory: 1, awareness: 2 };
       return order[getPriorityTier(a)] - order[getPriorityTier(b)];
     });
-  const draftedCount = draftedItems.length;
-  const queuedCount = draftedItems.length;
+  const draftedCount = displayItems.filter((item) => Boolean(item.ai_suggested_text)).length;
+  const queuedCount = displayItems.length;
 
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
@@ -218,7 +217,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
   }
 
   function selectAll() {
-    setSelectedIds(new Set(draftedItems.map((item) => item.id)));
+    setSelectedIds(new Set(displayItems.map((item) => item.id)));
   }
 
   function clearSelection() {
@@ -458,17 +457,17 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       ) : (
         <div className="space-y-3">
           {/* Bulk selection toolbar */}
-          {canManage && draftedItems.length > 0 ? (
+          {canManage && displayItems.length > 0 ? (
             <>
             <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--easa-color-border)] bg-[var(--easa-color-surface-2)] px-4 py-2.5">
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input
                   type="checkbox"
-                  checked={selectedIds.size === draftedItems.length && draftedItems.length > 0}
+                  checked={selectedIds.size === displayItems.length && displayItems.length > 0}
                   ref={(el) => {
-                    if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < draftedItems.length;
+                    if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < displayItems.length;
                   }}
-                  onChange={() => selectedIds.size === draftedItems.length ? clearSelection() : selectAll()}
+                  onChange={() => selectedIds.size === displayItems.length ? clearSelection() : selectAll()}
                   className="h-4 w-4"
                 />
                 {selectedIds.size > 0
@@ -556,7 +555,7 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
             </>
           ) : null}
 
-          {draftedItems.map((item) => {
+          {displayItems.map((item) => {
             const confidenceLevel = getConfidenceLevel(item.confidence_score, item.ai_confidence_label);
             const confidenceMeta = confidenceConfig[confidenceLevel];
             const regulationLabel = [
