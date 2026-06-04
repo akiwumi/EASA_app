@@ -599,45 +599,10 @@ function ReviewQueueCard({
 
   return (
     <div className="fl-card fl-activity">
-      <div className="fl-activity-head">
-        <div>
-          <div className="fl-activity-title">Review queue</div>
-          <div style={{ fontSize: 12, color: "var(--fl-muted)", marginTop: 2 }}>
-            {aiRunStatus === "running" ? "RSS retrieval and AI analysis running" : "Pending compliance approvals"}
-          </div>
-        </div>
-        <div className="fl-activity-actions">
-          <button
-            className={`fl-action-toggle ${aiRunStatus === "running" || aiRunStatus === "done" ? "fl-enabled" : ""}`}
-            onClick={onRunAi}
-            disabled={aiRunStatus === "running"}
-            aria-pressed={aiRunStatus === "running"}
-          >
-            {aiRunStatus === "running" ? "Running…" : "Run AI"}
-          </button>
-          <button
-            className={`fl-action-toggle ${reviewActive ? "fl-enabled" : ""}`}
-            onClick={activateReview}
-            aria-pressed={reviewActive}
-          >
-            Review
-          </button>
-          <button
-            className="fl-icon-btn"
-            style={{ width: 36, height: 36, background: "var(--fl-surface-2)", flexShrink: 0 }}
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label="Queue actions"
-            aria-expanded={menuOpen}
-          >
-            <Icon name="more" size={16} />
-          </button>
-          {menuOpen && (
-            <div className="fl-action-menu">
-              <button onClick={onRunAi}>Run RSS + AI pipeline</button>
-              <button onClick={activateReview}>Start review flow</button>
-              <button onClick={takeSnapshot}>Save audit snapshot</button>
-            </div>
-          )}
+      <div style={{ marginBottom: 16 }}>
+        <div className="fl-activity-title">Review queue</div>
+        <div style={{ fontSize: 12, color: "var(--fl-muted)", marginTop: 2 }}>
+          {aiRunStatus === "running" ? "RSS retrieval and AI analysis running" : "Pending compliance approvals"}
         </div>
       </div>
 
@@ -684,9 +649,17 @@ function ReviewQueueCard({
               <button className="fl-plan-pill" onClick={activateReview}>View details <Icon name="arrow-right" size={12} /></button>
             </div>
             <div className="fl-plan-item">
-              <div className="fl-pi-icon fl-muted"><Icon name="shield-check" size={14} /></div>
+              <div className={`fl-pi-icon ${aiRunStatus === "running" || aiRunStatus === "done" ? "" : "fl-muted"}`}>
+                <Icon name="shield-check" size={14} />
+              </div>
               <button className="fl-plan-pill fl-text" onClick={onRunAi} disabled={aiRunStatus === "running"}>
-                {aiRunStatus === "running" ? "AI running" : "Run RSS + AI"}
+                {aiRunStatus === "running" ? "AI running…" : aiRunStatus === "done" ? "AI complete" : "Run RSS + AI"}
+              </button>
+            </div>
+            <div className="fl-plan-item">
+              <div className={`fl-pi-icon ${reviewActive ? "" : "fl-muted"}`}><Icon name="bars" size={14} /></div>
+              <button className="fl-plan-pill fl-text" onClick={activateReview}>
+                {reviewActive ? "Review active" : "Start review"}
               </button>
             </div>
             <div className="fl-plan-item">
