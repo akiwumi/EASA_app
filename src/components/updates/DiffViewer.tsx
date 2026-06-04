@@ -7,6 +7,24 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { diffLines, hasChanges } from "@/lib/utils/text-diff";
 import { confidenceConfig, getConfidenceLevel } from "@/lib/utils/confidence";
 
+function decodeAndStripHtml(raw: string): string {
+  // Repeatedly decode HTML entities until stable (handles double-encoding like &amp;lt;)
+  let text = raw;
+  for (let i = 0; i < 3; i++) {
+    const decoded = text
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, " ");
+    if (decoded === text) break;
+    text = decoded;
+  }
+  // Strip any remaining HTML tags
+  return text.replace(/<[^>]*>/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+
 interface Note {
   id: string;
   body: string;
@@ -466,7 +484,7 @@ export default function DiffViewer({
                 Source summary
               </p>
               <p className="text-sm leading-relaxed text-[var(--easa-color-text-secondary)]">
-                {rssSummary}
+                {decodeAndStripHtml(rssSummary)}
               </p>
             </div>
           )}

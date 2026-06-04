@@ -109,7 +109,6 @@ export default function UpdatesQueue({ canManage = false }: { canManage?: boolea
       page: String(nextPage),
       limit: String(limit),
       actionOnly: "1",
-      hasDraft: "1",
     });
     if (filterClassification) params.set("classification", filterClassification);
     if (filterRisk) params.set("risk", filterRisk);
