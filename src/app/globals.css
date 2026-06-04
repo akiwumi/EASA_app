@@ -1852,112 +1852,107 @@ button:not([class*="easa-btn"]):not([class*="easa-icon-btn"]):not(:disabled):act
 .fl-tasks-drawer {
   position: fixed; top: 50%; right: clamp(12px, 2vw, 24px);
   transform: translate(calc(100% + 32px), -50%);
-  width: min(400px, calc(100vw - 32px)); max-height: min(80vh, 720px);
-  background: #fff; border-radius: 28px; padding: 24px;
+  width: min(420px, calc(100vw - 32px)); max-height: min(86vh, 800px);
+  background: #fff; border-radius: 28px;
   box-shadow: 0 24px 48px rgba(0,0,0,0.12), 0 4px 8px rgba(0,0,0,0.04);
   transition: transform .3s cubic-bezier(.4,0,.2,1);
-  z-index: 100; overflow-y: auto;
+  z-index: 100; overflow: hidden; display: flex; flex-direction: column;
   font-family: var(--font-manrope, 'Manrope', system-ui, sans-serif);
 }
 .fl-tasks-drawer.fl-open { transform: translate(0, -50%); }
-.fl-tasks-drawer h3 { margin: 0 40px 4px 0; font-size: 20px; letter-spacing: -0.02em; }
-.fl-tasks-drawer .fl-drawer-sub { color: #8c8c87; font-size: 13px; margin-bottom: 18px; }
-.fl-tasks-drawer .fl-task {
-  display: flex; align-items: flex-start; gap: 12px;
-  padding: 14px 0; border-top: 1px solid #e8e6e1;
+
+/* Header */
+.fl-tasks-drawer .fl-drawer-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 22px 24px 0; flex-shrink: 0;
 }
-.fl-tasks-drawer .fl-task:first-of-type { border-top: none; }
-.fl-tasks-drawer .fl-task.fl-selected .fl-ttext { color: #c66747; }
-.fl-tasks-drawer .fl-task .fl-check {
-  width: 22px; height: 22px; border-radius: 50%;
-  border: 1.5px solid #c7c5c0; flex-shrink: 0; cursor: pointer;
-  display: grid; place-items: center; margin-top: 2px;
-}
-.fl-tasks-drawer .fl-task.fl-selected .fl-check,
-.fl-tasks-drawer .fl-task.fl-done .fl-check { background: #c66747; border-color: #c66747; color: #fff; }
-.fl-tasks-drawer .fl-task .fl-ttext {
-  display: block;
-  padding: 0;
-  text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-}
-.fl-tasks-drawer .fl-task.fl-done .fl-ttext { text-decoration: line-through; color: #8c8c87; }
-.fl-tasks-drawer .fl-task .fl-tsub { font-size: 12px; color: #8c8c87; margin-top: 2px; overflow-wrap: anywhere; }
+.fl-tasks-drawer h3 { margin: 0; font-size: 20px; letter-spacing: -0.02em; }
+.fl-tasks-drawer .fl-drawer-sub { color: #8c8c87; font-size: 13px; margin-top: 2px; }
 .fl-tasks-drawer .fl-task-close {
-  position: absolute; top: 18px; right: 18px;
   width: 32px; height: 32px; border-radius: 50%; background: #f3f1ec;
   display: grid; place-items: center; cursor: pointer; border: none;
-  font-family: inherit;
+  font-family: inherit; flex-shrink: 0;
 }
-.fl-tasks-drawer .fl-empty-reviews {
-  border-top: 1px solid #e8e6e1;
-  padding: 18px 0;
-  color: #8c8c87;
-  font-size: 13px;
+
+/* Select-all row */
+.fl-tasks-drawer .fl-select-all-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px 10px; border-bottom: 1px solid #e8e6e1; flex-shrink: 0;
 }
-.fl-tasks-drawer .fl-review-detail {
-  margin-top: 14px;
-  border-top: 1px solid #e8e6e1;
-  padding-top: 16px;
+.fl-tasks-drawer .fl-selected-count {
+  font-size: 12px; font-weight: 700; color: #c66747;
 }
-.fl-tasks-drawer .fl-review-detail-kicker {
-  color: #c66747;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
+
+/* Scrollable list */
+.fl-tasks-drawer .fl-task-list {
+  flex: 1; overflow-y: auto; padding: 0 24px;
 }
-.fl-tasks-drawer .fl-review-detail h4 {
-  margin: 6px 0 8px;
-  font-size: 15px;
-  line-height: 1.25;
+
+/* Individual task */
+.fl-tasks-drawer .fl-task {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 13px 0; border-bottom: 1px solid #e8e6e1;
 }
-.fl-tasks-drawer .fl-review-detail p {
-  margin: 0;
-  color: #5f5f5b;
-  font-size: 12px;
-  line-height: 1.45;
+.fl-tasks-drawer .fl-task.fl-selected { background: #fffaf8; margin: 0 -24px; padding: 13px 24px; }
+.fl-tasks-drawer .fl-task-body { flex: 1; min-width: 0; }
+.fl-tasks-drawer .fl-ttext {
+  display: block; font-size: 13px; font-weight: 600;
+  color: inherit; text-decoration: none; overflow-wrap: anywhere;
+  line-height: 1.35;
 }
-.fl-tasks-drawer .fl-review-detail-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
+.fl-tasks-drawer .fl-ttext:hover { color: #c66747; text-decoration: underline; }
+.fl-tasks-drawer .fl-task.fl-selected .fl-ttext { color: #c66747; }
+.fl-tasks-drawer .fl-tsub { font-size: 11px; color: #8c8c87; margin-top: 3px; }
+.fl-tasks-drawer .fl-tsummary {
+  font-size: 11px; color: #5f5f5b; margin-top: 4px;
+  line-height: 1.4; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.fl-tasks-drawer .fl-review-detail-meta span {
-  border-radius: 999px;
-  background: #f3f1ec;
-  padding: 6px 9px;
-  color: #5f5f5b;
-  font-size: 11px;
-  font-weight: 700;
+.fl-tasks-drawer .fl-task-link-btn {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 50%; background: #f3f1ec; color: #5f5f5b;
+  flex-shrink: 0; margin-top: 1px; text-decoration: none;
+  transition: background 0.15s;
 }
-.fl-tasks-drawer .fl-review-detail-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 14px;
+.fl-tasks-drawer .fl-task-link-btn:hover { background: #e8e6e1; color: #1f3434; }
+
+/* Checkbox styling */
+.fl-tasks-drawer .fl-check-label {
+  display: flex; align-items: center; gap: 6px;
+  cursor: pointer; font-size: 12px; color: #5f5f5b; font-weight: 600;
+  flex-shrink: 0;
+}
+.fl-tasks-drawer .fl-checkbox {
+  width: 17px; height: 17px; border-radius: 5px; cursor: pointer;
+  accent-color: #c66747; flex-shrink: 0; margin-top: 1px;
+}
+
+/* Bulk action bar */
+.fl-tasks-drawer .fl-bulk-actions {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 24px; border-top: 1px solid #e8e6e1; flex-shrink: 0;
+  background: #fffaf8;
+}
+.fl-tasks-drawer .fl-bulk-count {
+  font-size: 12px; font-weight: 700; color: #8c8c87; flex: 1;
 }
 .fl-tasks-drawer .fl-review-approve,
 .fl-tasks-drawer .fl-review-delete {
-  height: 42px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 800;
+  height: 38px; border-radius: 999px;
+  font-size: 12px; font-weight: 800; padding: 0 16px;
 }
 .fl-tasks-drawer .fl-review-approve { background: #1f3434; color: #fff; }
 .fl-tasks-drawer .fl-review-delete { background: #f3f1ec; color: #c66747; }
 .fl-tasks-drawer .fl-review-approve:disabled,
 .fl-tasks-drawer .fl-review-delete:disabled { opacity: 0.65; cursor: wait; }
+
+.fl-tasks-drawer .fl-empty-reviews {
+  padding: 24px 0; color: #8c8c87; font-size: 13px;
+}
 .fl-tasks-drawer .fl-drawer-message {
-  margin-top: 12px;
-  border-radius: 12px;
+  margin: 0; padding: 10px 24px 14px; flex-shrink: 0;
+  color: #9b4f37; font-size: 12px; font-weight: 700;
   background: #f8e8df;
-  padding: 10px 12px;
-  color: #9b4f37;
-  font-size: 12px;
-  font-weight: 700;
 }
 
 /* Period dropdown */

@@ -22,7 +22,7 @@ export default async function DashboardPage() {
   const [setupSummary, stats, queuePreview, latestAuditSnapshot] = await Promise.all([
     loadDashboardSetupSummary(org.organizationId),
     loadDashboardStats(org.organizationId),
-    loadUpdateQueuePreview(org.organizationId, 25),
+    loadUpdateQueuePreview(org.organizationId, 200),
     loadLatestAuditSnapshot(org.organizationId),
   ]);
 

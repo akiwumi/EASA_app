@@ -749,7 +749,7 @@ export default function FLDesignDashboard({
   const [ackPeriod, setAckPeriod] = useState("Weekly");
   const [tasksOpen, setTasksOpen] = useState(false);
   const [reviews, setReviews] = useState<QueuePreviewItem[]>(queuePreview);
-  const [selectedReviewId, setSelectedReviewId] = useState<string | null>(queuePreview[0]?.id ?? null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [reviewAction, setReviewAction] = useState<"idle" | "approving" | "deleting">("idle");
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [aiRunStatus, setAiRunStatus] = useState<"idle" | "running" | "done" | "error">("idle");
@@ -774,47 +774,56 @@ export default function FLDesignDashboard({
 
   useEffect(() => {
     setReviews(queuePreview);
-    setSelectedReviewId((current) => current && queuePreview.some((item) => item.id === current) ? current : queuePreview[0]?.id ?? null);
+    setSelectedIds((current) => {
+      const next = new Set([...current].filter((id) => queuePreview.some((item) => item.id === id)));
+      return next;
+    });
   }, [queuePreview]);
 
   const pending = pendingReviews;
 
-  const selectedReview = reviews.find((item) => item.id === selectedReviewId) ?? reviews[0] ?? null;
   const totalAcks = approvedThisWeek;
   const ackRate = pendingApprovals + approvedThisWeek > 0
     ? Math.round((approvedThisWeek / (pendingApprovals + approvedThisWeek)) * 100)
     : 0;
 
-  const removeReview = useCallback((id: string) => {
-    setReviews((prev) => {
-      const next = prev.filter((item) => item.id !== id);
-      setSelectedReviewId(next[0]?.id ?? null);
+  const removeReviews = useCallback((ids: string[]) => {
+    const removed = new Set(ids);
+    setReviews((prev) => prev.filter((item) => !removed.has(item.id)));
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => next.delete(id));
       return next;
     });
   }, []);
 
-  const actOnReview = useCallback(async (id: string, action: "approved" | "delete") => {
+  const actOnReviews = useCallback(async (ids: string[], action: "approved" | "delete") => {
+    if (!ids.length) return;
     setReviewAction(action === "approved" ? "approving" : "deleting");
     setReviewMessage(null);
     try {
       const response = await fetch("/api/updates", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [id], action }),
+        body: JSON.stringify({ ids, action }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || payload?.error) {
         throw new Error(String(payload?.error ?? `Unable to ${action === "approved" ? "approve" : "delete"} review.`));
       }
-      removeReview(id);
-      setReviewMessage(action === "approved" ? "Review approved and applied where mapped." : "Review deleted.");
+      removeReviews(ids);
+      setReviewMessage(
+        action === "approved"
+          ? `${ids.length === 1 ? "Review" : `${ids.length} reviews`} approved.`
+          : `${ids.length === 1 ? "Review" : `${ids.length} reviews`} deleted.`,
+      );
       router.refresh();
     } catch (error) {
       setReviewMessage(error instanceof Error ? error.message : "Review action failed.");
     } finally {
       setReviewAction("idle");
     }
-  }, [removeReview, router]);
+  }, [removeReviews, router]);
 
   const runAiPipeline = useCallback(async () => {
     setAiRunStatus("running");
@@ -838,59 +847,110 @@ export default function FLDesignDashboard({
     }
   }, [router]);
 
+  const allSelected = reviews.length > 0 && reviews.every((r) => selectedIds.has(r.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleOne = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+
+  const toggleAll = () =>
+    setSelectedIds(allSelected ? new Set() : new Set(reviews.map((r) => r.id)));
+
   const tasksDrawer = (
     <div className={`fl-tasks-drawer ${tasksOpen ? "fl-open" : ""}`}>
-      <button className="fl-task-close" onClick={() => setTasksOpen(false)}>
-        <Icon name="close" size={14} />
-      </button>
-      <h3>Pending reviews</h3>
-      <div className="fl-drawer-sub">
-        {dateLabel} · {pending} open
+      {/* Header */}
+      <div className="fl-drawer-header">
+        <div>
+          <h3>Pending reviews</h3>
+          <div className="fl-drawer-sub">{reviews.length} open</div>
+        </div>
+        <button className="fl-task-close" onClick={() => setTasksOpen(false)} aria-label="Close">
+          <Icon name="close" size={14} />
+        </button>
       </div>
-      {reviews.length === 0 ? (
-        <div className="fl-empty-reviews">
-          No pending reviews in the live queue.
+
+      {/* Select-all row */}
+      {reviews.length > 0 && (
+        <div className="fl-select-all-row">
+          <label className="fl-check-label">
+            <input
+              type="checkbox"
+              className="fl-checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              aria-label="Select all"
+            />
+            <span>{allSelected ? "Deselect all" : `Select all ${reviews.length}`}</span>
+          </label>
+          {someSelected && (
+            <span className="fl-selected-count">{selectedIds.size} selected</span>
+          )}
         </div>
-      ) : (
-        reviews.map((review) => (
-          <div key={review.id} className={`fl-task ${selectedReview?.id === review.id ? "fl-selected" : ""}`}>
-            <button className="fl-check" onClick={() => setSelectedReviewId(review.id)} aria-label={`View ${review.title}`}>
-              {selectedReview?.id === review.id && <Icon name="check" size={12} stroke={3} />}
-            </button>
-            <div>
-              <button className="fl-ttext" onClick={() => setSelectedReviewId(review.id)}>{review.title}</button>
-              <div className="fl-tsub">{review.risk} · {review.confidence} confidence · {review.status}</div>
+      )}
+
+      {/* List */}
+      <div className="fl-task-list">
+        {reviews.length === 0 ? (
+          <div className="fl-empty-reviews">No pending reviews in the live queue.</div>
+        ) : (
+          reviews.map((review) => (
+            <div key={review.id} className={`fl-task ${selectedIds.has(review.id) ? "fl-selected" : ""}`}>
+              <label className="fl-check-label">
+                <input
+                  type="checkbox"
+                  className="fl-checkbox"
+                  checked={selectedIds.has(review.id)}
+                  onChange={() => toggleOne(review.id)}
+                  aria-label={`Select ${review.title}`}
+                />
+              </label>
+              <div className="fl-task-body">
+                <Link className="fl-ttext" href={`/updates/${review.id}`} onClick={() => setTasksOpen(false)}>
+                  {review.title || "Regulation update"}
+                </Link>
+                <div className="fl-tsub">{review.risk} · {review.confidence} confidence</div>
+                {review.summary && (
+                  <div className="fl-tsummary">{review.summary}</div>
+                )}
+              </div>
+              <Link
+                href={`/updates/${review.id}`}
+                className="fl-task-link-btn"
+                title="Open update"
+                onClick={() => setTasksOpen(false)}
+              >
+                <Icon name="arrow-right" size={13} stroke={2.2} />
+              </Link>
             </div>
-          </div>
-        ))
-      )}
-      {selectedReview && (
-        <div className="fl-review-detail">
-          <div className="fl-review-detail-kicker">{selectedReview.classification} · {selectedReview.risk}</div>
-          <h4>{selectedReview.title}</h4>
-          <p>{selectedReview.summary}</p>
-          <div className="fl-review-detail-meta">
-            <span>Status: {selectedReview.status}</span>
-            <span>Confidence: {selectedReview.confidence}</span>
-          </div>
-          <div className="fl-review-detail-actions">
-            <button
-              className="fl-review-approve"
-              disabled={reviewAction !== "idle"}
-              onClick={() => actOnReview(selectedReview.id, "approved")}
-            >
-              {reviewAction === "approving" ? "Approving..." : "Approve"}
-            </button>
-            <button
-              className="fl-review-delete"
-              disabled={reviewAction !== "idle"}
-              onClick={() => actOnReview(selectedReview.id, "delete")}
-            >
-              {reviewAction === "deleting" ? "Deleting..." : "Delete"}
-            </button>
-          </div>
+          ))
+        )}
+      </div>
+
+      {/* Bulk action bar */}
+      {someSelected && (
+        <div className="fl-bulk-actions">
+          <span className="fl-bulk-count">{selectedIds.size} selected</span>
+          <button
+            className="fl-review-approve"
+            disabled={reviewAction !== "idle"}
+            onClick={() => actOnReviews([...selectedIds], "approved")}
+          >
+            {reviewAction === "approving" ? "Approving…" : "Approve"}
+          </button>
+          <button
+            className="fl-review-delete"
+            disabled={reviewAction !== "idle"}
+            onClick={() => actOnReviews([...selectedIds], "delete")}
+          >
+            {reviewAction === "deleting" ? "Deleting…" : "Delete"}
+          </button>
         </div>
       )}
+
       {reviewMessage && <div className="fl-drawer-message">{reviewMessage}</div>}
     </div>
   );
