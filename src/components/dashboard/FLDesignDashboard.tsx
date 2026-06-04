@@ -696,31 +696,36 @@ function ReviewQueueCard({
           </div>
         </div>
 
-        <div className="fl-card fl-verify-card">
-          <div className="fl-verify-icon"><Icon name="sun-burst" size={48} /></div>
-          <div>
-            <div className="fl-verify-title">Audit Snapshot</div>
-            {snapshot ? (
-              <div className="fl-verify-desc">
-                <div style={{ fontWeight: 600, color: "var(--fl-ink)", marginBottom: 2 }}>{snapshot.label}</div>
-                <div>{formatSnapshotTimestamp(snapshot.createdAt)}</div>
-                {snapshotMessage && <div style={{ marginTop: 4, color: "var(--fl-accent)" }}>{snapshotMessage}</div>}
-              </div>
-            ) : (
-              <div className="fl-verify-desc">
-                Create a stored baseline of current flight book exports, queue counts, and source status.
-                {snapshotMessage && <div style={{ marginTop: 4, color: "var(--fl-accent)" }}>{snapshotMessage}</div>}
-              </div>
-            )}
-          </div>
-          <button
-            className={`fl-verify-btn ${snapshotStatus === "saved" ? "fl-enabled" : ""}`}
-            onClick={takeSnapshot}
-            disabled={snapshotStatus === "saving"}
-          >
-            {snapshotStatus === "saving" ? "Saving..." : snapshot ? "Create New Snapshot" : "Take Snapshot"}
-          </button>
+      </div>
+
+      {/* Audit Snapshot — below queue cards, inside the same section */}
+      <div className="fl-snapshot-strip">
+        <div className="fl-snapshot-strip-left">
+          <Icon name="sun-burst" size={32} />
         </div>
+        <div className="fl-snapshot-strip-body">
+          <div className="fl-verify-title">Audit Snapshot</div>
+          {snapshot ? (
+            <div className="fl-verify-desc">
+              <span style={{ fontWeight: 600, color: "var(--fl-ink)" }}>{snapshot.label}</span>
+              <span style={{ margin: "0 6px", opacity: 0.3 }}>·</span>
+              <span>{formatSnapshotTimestamp(snapshot.createdAt)}</span>
+              {snapshotMessage && <span style={{ marginLeft: 8, color: "var(--fl-accent)" }}>{snapshotMessage}</span>}
+            </div>
+          ) : (
+            <div className="fl-verify-desc">
+              Store a baseline of flight book exports, queue counts, and source status.
+              {snapshotMessage && <span style={{ marginLeft: 8, color: "var(--fl-accent)" }}>{snapshotMessage}</span>}
+            </div>
+          )}
+        </div>
+        <button
+          className={`fl-snapshot-btn ${snapshotStatus === "saved" ? "fl-enabled" : ""}`}
+          onClick={takeSnapshot}
+          disabled={snapshotStatus === "saving"}
+        >
+          {snapshotStatus === "saving" ? "Saving…" : snapshot ? "New snapshot" : "Take snapshot"}
+        </button>
       </div>
     </div>
   );
