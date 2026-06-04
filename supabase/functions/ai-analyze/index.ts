@@ -288,11 +288,14 @@ serve(async (request) => {
   // Fall back to environment variable if no key stored in DB yet
   const apiKey = (aiConfig?.api_key as string | null) || Deno.env.get("OPENAI_API_KEY") || "";
 
-  const analysisLimitRaw = Number(payload?.analysisLimit ?? Deno.env.get("AI_ANALYZE_LIMIT") ?? 100);
+  // Default limit is 25 — keeps each invocation well inside Supabase's 150s
+  // Edge Function timeout. The pipeline calls this function up to 4 times per
+  // run to process up to 100 items total without risking a timeout.
+  const analysisLimitRaw = Number(payload?.analysisLimit ?? Deno.env.get("AI_ANALYZE_LIMIT") ?? 25);
   const analysisLimit = Number.isFinite(analysisLimitRaw)
-    ? Math.max(1, Math.min(analysisLimitRaw, 200))
-    : 100;
-  const candidateLimit = Math.max(analysisLimit * 5, 500);
+    ? Math.max(1, Math.min(analysisLimitRaw, 50))
+    : 25;
+  const candidateLimit = Math.max(analysisLimit * 4, 100);
 
   // Fetch unanalyzed RSS items
   let rssQuery = supabase

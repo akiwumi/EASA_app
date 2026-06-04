@@ -296,28 +296,42 @@ export async function runPipelineForOrganization(
     steps["ai-analyze"] = { status: "running", started_at: analyzeStart };
     await updateRun({ steps });
 
-    const analyzeResult = await invokeEdgeFunction<Record<string, unknown>>("ai-analyze", functionArgs);
-    if (!analyzeResult.ok) {
-      const error = normalizePipelineError(analyzeResult.error);
-      steps["ai-analyze"] = { status: "error", started_at: analyzeStart, finished_at: new Date().toISOString(), error };
-      await updateRun({ status: "error", finished_at: new Date().toISOString(), steps, error_message: error });
+    // Call ai-analyze up to 4 times in sequence (25 items per call = 100 max).
+    // Each call finishes in ~30-40s, well within Supabase's 150s Edge Function
+    // timeout. We stop early when a call returns 0 newly analyzed items.
+    const MAX_ANALYZE_ROUNDS = 4;
+    let analyzed = 0;
+    let analyzeError: string | null = null;
+
+    for (let round = 0; round < MAX_ANALYZE_ROUNDS; round++) {
+      const roundResult = await invokeEdgeFunction<Record<string, unknown>>("ai-analyze", functionArgs);
+      if (!roundResult.ok) {
+        analyzeError = normalizePipelineError(roundResult.error);
+        break;
+      }
+      const roundAnalyzed =
+        typeof (roundResult.data as Record<string, unknown> | null)?.analyzed === "number"
+          ? (roundResult.data as Record<string, number>).analyzed
+          : 0;
+      analyzed += roundAnalyzed;
+      // No new items analyzed — nothing left to process, stop early
+      if (roundAnalyzed === 0) break;
+    }
+
+    if (analyzeError) {
+      steps["ai-analyze"] = { status: "error", started_at: analyzeStart, finished_at: new Date().toISOString(), error: analyzeError };
+      await updateRun({ status: "error", finished_at: new Date().toISOString(), steps, error_message: analyzeError });
       if (options?.notifyAdmins) {
         await insertAdminPipelineNotification(
           admin,
           orgId,
           "Scheduled scan failed",
-          `The scheduled AI comparison of RSS changes against flight books could not complete. ${error}`,
+          `The scheduled AI comparison of RSS changes against flight books could not complete. ${analyzeError}`,
           runId,
         );
       }
-      return { ok: false, runId, error };
+      return { ok: false, runId, error: analyzeError };
     }
-
-    const analyzeData = analyzeResult.data;
-    const analyzed =
-      typeof (analyzeData as Record<string, unknown> | null)?.analyzed === "number"
-        ? (analyzeData as Record<string, number>).analyzed
-        : 0;
 
     steps["ai-analyze"] = { status: "complete", started_at: analyzeStart, finished_at: new Date().toISOString() };
     await updateRun({ steps, changes_found: analyzed });
@@ -471,7 +485,7 @@ export async function runPipelineForOrganization(
       runId,
       ingest: ingestData ?? null,
       regulationIngest: regulationData,
-      analyze: analyzeData ?? null,
+      analyze: { analyzed },
       aggregate: aggregateData ?? null,
       queue: queueData,
       drafts: draftData,
